@@ -1,5 +1,7 @@
 "use client";
 
+import { SpeakerNamesForm } from "@/components/sales-coach/SpeakerNamesForm";
+import type { SpeakerNames } from "@/lib/coach/remote/speakerNames";
 import { useCallback, useMemo, useState } from "react";
 import { notesPredateCorrections } from "@/lib/coach/transcriptEdits";
 import { ChevronDown, Loader2, FileText, Pencil, Search } from "lucide-react";
@@ -25,8 +27,11 @@ export function SessionTranscript({
   sessionId,
   startedAt,
   onSeek,
+  speakerNames = false,
 }: {
   sessionId: string;
+  /** Phone/video calls (0343, F8.5): show the speakers' given names and let the rep or a manager set them. */
+  speakerNames?: boolean;
   /** The session's start, to turn a line's spoken_at into seconds into the recording. */
   startedAt?: string | null;
   /** Plays the recording from a second. Omitted where there is no player. */
@@ -39,6 +44,7 @@ export function SessionTranscript({
   const [error, setError] = useState(false);
 
   const [canEdit, setCanEdit] = useState(false);
+  const [names, setNames] = useState<SpeakerNames>({});
   const [marks, setMarks] = useState<Map<number, Mark>>(new Map());
   const [notesBuiltAt, setNotesBuiltAt] = useState<string | null>(null);
   const [latestEditAt, setLatestEditAt] = useState<string | null>(null); // any edit, incl. a speaker change (0328)
@@ -77,6 +83,12 @@ export function SessionTranscript({
         // The corrections are an extra layer: if they can't load, the transcript still shows, without edit controls.
         fetch(`/api/coach/sales-session/${sessionId}/transcript-edit`).catch(() => null),
       ]);
+      // Names are an extra layer too: if they can't load, the plain labels show.
+      if (speakerNames) {
+        const nr = await fetch(`/api/coach/remote/${encodeURIComponent(sessionId)}/speaker-names`).catch(() => null);
+        const nj = nr && nr.ok ? ((await nr.json().catch(() => null)) as { names?: SpeakerNames } | null) : null;
+        setNames(nj?.names ?? {});
+      }
       if (res.ok) setSegs(((await res.json()).segments ?? []) as Seg[]);
       else setError(true);
       const e = ed && ed.ok ? ((await ed.json()) as { canEdit?: boolean; edits?: Mark[]; notesBuiltAt?: string | null; aiNotes?: boolean }) : null;
@@ -90,7 +102,7 @@ export function SessionTranscript({
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, speakerNames]);
 
   const save = async (seq: number) => {
     setSaving(true);
@@ -200,6 +212,7 @@ export function SessionTranscript({
                   </span>
                 )}
               </label>
+              {speakerNames && canEdit && <SpeakerNamesForm sessionId={sessionId} names={names} onSaved={setNames} />}
               {note && (
                 <p role="status" className="rounded-lg border border-default bg-base px-2 py-1.5 text-xs text-secondary">
                   {note}
@@ -238,7 +251,7 @@ export function SessionTranscript({
                       s.speaker === "agent" ? "text-emerald-600 dark:text-emerald-400" : s.speaker === "customer" ? "text-sky-600 dark:text-sky-400" : "text-muted"
                     }`}
                   >
-                    {s.speaker === "agent" ? "Rep" : s.speaker === "customer" ? "Customer" : "?"}
+                    {s.speaker === "agent" ? (names.rep ?? "Rep") : s.speaker === "customer" ? (names.customer ?? "Customer") : "?"}
                   </span>
                   {editing === s.seq ? (
                     <span className="mt-1 block space-y-1">

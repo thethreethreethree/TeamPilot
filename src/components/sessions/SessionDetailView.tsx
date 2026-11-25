@@ -604,7 +604,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
         {!loading && (
           <SessionTranscript
             sessionId={id}
-            {...(session && isRemoteContext(session.context) ? { startedAt: audioBaseIso(session.startedAt, session.audioStartedAt), onSeek: seekTo } : {})}
+            {...(session && isRemoteContext(session.context) ? { startedAt: audioBaseIso(session.startedAt, session.audioStartedAt), onSeek: seekTo, speakerNames: true } : {})}
           />
         )}
 
