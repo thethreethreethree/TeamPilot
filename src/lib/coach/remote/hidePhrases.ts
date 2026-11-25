@@ -135,7 +135,7 @@ export async function hiddenFrom(admin: SupabaseClient, sessionIds: string[], vi
   const all = [...new Set(sessionIds)];
   const withHide = new Set<string>();
   for (const ids of chunks(all)) {
-    const rows = await allRows<{ session_id: string }>("hidden check", (f, t) => admin.from("call_hides").select("session_id").in("session_id", ids).order("session_id", { ascending: true }).range(f, t));
+    const rows = await allRows<{ session_id: string }>("hidden check", (f, t) => admin.from("call_hides").select("session_id, id").in("session_id", ids).order("id", { ascending: true }).range(f, t));
     for (const r of rows) withHide.add(String(r.session_id));
   }
   const ids = all.filter((id) => withHide.has(id));
@@ -156,8 +156,9 @@ export async function hiddenFrom(admin: SupabaseClient, sessionIds: string[], vi
  */
 export async function hiddenInCompanyFrom(admin: SupabaseClient, companyId: string, viewerId: string): Promise<Set<string>> {
   // One call (0345's rss_hidden_calls_for: the company's active hides, each judged by rss_call_hidden_for), paged.
-  const rows = await allRows<string | { rss_hidden_calls_for?: string }>("hidden check", (f, t) =>
-    admin.rpc("rss_hidden_calls_for", { p_company: companyId, p_viewer: viewerId }).range(f, t) as unknown as PromiseLike<{ data: Array<string | { rss_hidden_calls_for?: string }> | null; error: { message: string } | null }>,
+  // Ordered by its unique column (0347), so OFFSET paging neither repeats nor skips a call.
+  const rows = await allRows<{ session_id: string }>("hidden check", (f, t) =>
+    admin.rpc("rss_hidden_calls_for", { p_company: companyId, p_viewer: viewerId }).order("session_id", { ascending: true }).range(f, t) as unknown as PromiseLike<{ data: Array<{ session_id: string }> | null; error: { message: string } | null }>,
   );
-  return new Set(rows.map((r) => String(typeof r === "string" ? r : r.rss_hidden_calls_for)));
+  return new Set(rows.map((r) => String(r.session_id)));
 }

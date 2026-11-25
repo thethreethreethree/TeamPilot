@@ -567,3 +567,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-25 · privacy · RE-ASKED with new evidence: production /api/health shows anthropic = false — every AI read runs on DeepSeek, which the privacy page doesn't name, while it names Anthropic (src/app/privacy/page.tsx:305). Founder picker 2026-11-25: "Leave it for now" (same as 2026-11-23).
       why-unresolved: founder decision
       next-action: when revisited — name DeepSeek and drop any no-training claim we can't stand behind, or set ANTHROPIC_API_KEY so the page is true
+- [ ] 2026-11-26 · stable-paging · paged reads (fetchAllPaged / .range) ordered by a NON-unique key can repeat or skip rows between pages
+      why-unresolved: found in today's code and fixed (hides, coverage, tracker preview); older reads still order by started_at, seq, created_at or nothing: kpi/team, kpi/me, kpi/compute-cron, coaching-metrics sessions, my-points, salesElo, schedule/*, admin/coach-readout, team-activity, pitch-score/backfill, dissectBackfill, teamTrainingBrief, finance, data/care, data/doorlog.
+      next-action: add a unique tiebreaker (.order("id")) to each, then an invariant in scripts/invariant-audit.mjs that refuses a paged read whose last order key isn't unique.

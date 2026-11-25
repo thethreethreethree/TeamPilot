@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
             .eq("kind", "coach.session_intel_generated")
             .in("subject", ids.map((id) => `sales_session:${id}`))
             .order("created_at", { ascending: false })
+            .order("id", { ascending: false }) // a unique tiebreaker: rows from one transaction share created_at
             .range(from, to),
         { label: "coverage intel", maxRows: 20_000 },
       ),

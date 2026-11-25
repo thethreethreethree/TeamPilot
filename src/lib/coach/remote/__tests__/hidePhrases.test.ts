@@ -112,8 +112,10 @@ describe("review 2026-11-26: reads are paged", () => {
   it("the company-wide check is one paged database call, not one per hidden call", async () => {
     const { hiddenInCompanyFrom } = await import("../hidePhrases");
     const rpcs: Array<[string, unknown]> = [];
-    const admin = { rpc: (fn: string, args: unknown) => (rpcs.push([fn, args]), { range: async (f: number) => ({ data: f > 0 ? [] : ["s1", "s2"], error: null }) }) };
+    const ordered: string[] = [];
+    const admin = { rpc: (fn: string, args: unknown) => (rpcs.push([fn, args]), { order: (c: string) => (ordered.push(c), { range: async (f: number) => ({ data: f > 0 ? [] : [{ session_id: "s1" }, { session_id: "s2" }], error: null }) }) }) };
     expect([...(await hiddenInCompanyFrom(admin as never, "co1", "mgr"))].sort()).toEqual(["s1", "s2"]);
     expect(rpcs).toEqual([["rss_hidden_calls_for", { p_company: "co1", p_viewer: "mgr" }]]);
+    expect(ordered).toEqual(["session_id"]); // 0347: a stable order for OFFSET paging
   });
 });
