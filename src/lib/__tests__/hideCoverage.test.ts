@@ -75,3 +75,14 @@ describe("a call's AI reads follow the call's access (0348, founder picker 2026-
     expect(all.lastIndexOf("create policy rss_call_events_follow_call on public.events")).toBeGreaterThan(dropAt);
   });
 });
+
+describe("an event about a call carries the call's company (0349)", () => {
+  it("a BEFORE INSERT trigger on events stamps call and score events with their own company", () => {
+    expect(all).toMatch(/create trigger rss_events_company_from_call before insert on public\.events/);
+    const fn = [...all.matchAll(/create or replace function public\.rss_events_company_from_call\(\)[\s\S]*?end \$\$;/g)].pop()?.[0] ?? "";
+    expect(fn).toMatch(/from coaching_sessions s where s\.id = ref::uuid/);
+    expect(fn).toMatch(/from pitch_scores p where p\.id = ref::uuid/);
+    expect(fn).toMatch(/new\.company_id := owner/);
+    expect(all.lastIndexOf("create trigger rss_events_company_from_call")).toBeGreaterThan(all.lastIndexOf("drop trigger if exists rss_events_company_from_call"));
+  });
+});
