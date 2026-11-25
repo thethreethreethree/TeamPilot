@@ -10,7 +10,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
 import { FEEDBACK_POLICY, LISTENED_THRESHOLD } from "@/lib/coach/remote/decisions";
-import { countsAsFeedback, counted, loadCoachingEvents, coachingByRep, responseHoursByManager } from "@/lib/coach/remote/feedback";
+import { counted, loadCoachingEvents, coachingByRep, responseHoursByManager, feedbackTotals } from "@/lib/coach/remote/feedback";
 
 /**
  * GET /api/coach/remote/coaching-metrics — per-manager coaching activity, last 30 days (RSS Phase 4, Gong F16.2).
@@ -92,20 +92,14 @@ export async function GET(req: NextRequest) {
     console.error(`[coaching-metrics] coaching read failed company=${mgr.companyId}: ${e instanceof Error ? e.message : String(e)}`);
     return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
   }
-  // F16.8 (2026-11-25): beside the count of feedback, how many CALLS got feedback, and how many got a comment sent to
-  // the rep — distinct calls per manager, same events and D8 rule, same 30 days.
-  const feedbackCalls: Record<string, Set<string>> = {};
-  const commentCalls: Record<string, Set<string>> = {};
-  for (const e of events) {
-    if (!("managerId" in e) || e.at.toISOString() < since || !countsAsFeedback(e)) continue;
-    feedbackGiven[e.managerId] = (feedbackGiven[e.managerId] ?? 0) + 1;
-    if ("sessionId" in e) {
-      (feedbackCalls[e.managerId] ??= new Set()).add(e.sessionId);
-      if (e.kind === "comment_sent_to_rep") (commentCalls[e.managerId] ??= new Set()).add(e.sessionId);
-    }
-  }
-  const callsWithFeedback = Object.fromEntries(Object.entries(feedbackCalls).map(([k, v]) => [k, v.size]));
-  const callsWithComments = Object.fromEntries(Object.entries(commentCalls).map(([k, v]) => [k, v.size]));
+  // F16.8: feedback given, calls with feedback and calls with a comment sent — this 30 days, and (2026-11-26) the 30
+  // before, from the same events and the same D8 rule (feedbackTotals), so a change is the team's, not the method's.
+  const nowIso = new Date().toISOString();
+  const current = feedbackTotals(events, since, nowIso);
+  Object.assign(feedbackGiven, current.feedbackGiven);
+  const callsWithFeedback = current.callsWithFeedback;
+  const callsWithComments = current.callsWithComments;
+  const previous = feedbackTotals(events, new Date(Date.now() - 60 * DAY).toISOString(), since);
 
   const lengthMs = new Map(
     mine.map((s) => [
@@ -212,5 +206,5 @@ export async function GET(req: NextRequest) {
       },
     });
   }
-  return NextResponse.json({ decided: true, since, sessions: ids.length, feedbackGiven, callsWithFeedback, callsWithComments, callsListened, responseHours, byRep });
+  return NextResponse.json({ decided: true, since, sessions: ids.length, feedbackGiven, callsWithFeedback, callsWithComments, callsListened, responseHours, byRep, previous });
 }

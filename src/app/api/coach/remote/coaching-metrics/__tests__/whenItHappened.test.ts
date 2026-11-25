@@ -67,6 +67,8 @@ describe("coaching metrics count when coaching happened (F16.9)", () => {
     const { loadCoachingEvents } = await import("@/lib/coach/remote/feedback");
     const asked = vi.mocked(loadCoachingEvents).mock.calls.map((c) => [...c[2]]);
     expect(asked).toContainEqual(["ancient"]); // loaded for the request, though outside the calls read
+    // F16.8 (26 Nov): the 30 days before, by the same rule — m2's comment 40 days ago is there.
+    expect(body.previous).toEqual({ feedbackGiven: { m2: 1 }, callsWithFeedback: { m2: 1 }, callsWithComments: { m2: 1 } });
 
   });
 });

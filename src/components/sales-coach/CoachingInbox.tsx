@@ -47,6 +47,8 @@ type Metrics =
       responseHours?: Record<string, { medianHours: number; answered: number }>;
       /** F16.5 (2026-11-25): one row per rep — RepCoaching from feedback.ts, already sorted overdue-first. */
       byRep?: RepCoaching[];
+      /** F16.8 (2026-11-26): the same three counts for the 30 days before. Absent from an older server. */
+      previous?: { feedbackGiven: Record<string, number>; callsWithFeedback: Record<string, number>; callsWithComments: Record<string, number> };
     };
 
 const CHANNEL: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
@@ -63,6 +65,19 @@ const daysAgo = (iso: string) => {
   return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
 };
 
+
+/** The change against the 30 days before (F16.8): "▲3" / "▼2"; nothing when unchanged or unknown. Neutral colour —
+ *  the team's own trend, not a grade. */
+function Delta({ now, before }: { now: number; before: number | undefined }) {
+  if (before === undefined || now === before) return null;
+  const d = now - before;
+  return (
+    <span className="ml-1 text-[10px] text-muted" title={`${before} in the 30 days before`}>
+      {d > 0 ? "▲" : "▼"}
+      {Math.abs(d)}
+    </span>
+  );
+}
 
 export function CoachingInbox({ team }: { team?: string } = {}) {
   // F16.6: which rep's uncoached calls are listed (one at a time).
@@ -198,7 +213,8 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
             <a href="/api/coach/remote/coaching-metrics?format=csv" className="text-[11px] text-brand hover:underline">Download CSV</a>
           </div>
           {(() => {
-            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {})])].sort(
+            // A manager who coached in the 30 days before but not now still gets a row — their ▼ is the point (F16.8).
+            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {}), ...Object.keys(metrics.previous?.feedbackGiven ?? {})])].sort(
               (a, b) => (metrics.feedbackGiven[b] ?? 0) - (metrics.feedbackGiven[a] ?? 0),
             );
             if (ids.length === 0) {
@@ -224,9 +240,18 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
                   {ids.map((id) => (
                     <tr key={id} className="border-t border-default">
                       <td className="py-1.5 text-primary">{names[id] ?? "A teammate"}</td>
-                      <td className="py-1.5 tabular-nums text-primary">{metrics.feedbackGiven[id] ?? 0}</td>
-                      <td className="py-1.5 tabular-nums text-primary">{metrics.callsWithFeedback?.[id] ?? 0}</td>
-                      <td className="py-1.5 tabular-nums text-primary">{metrics.callsWithComments?.[id] ?? 0}</td>
+                      <td className="py-1.5 tabular-nums text-primary">
+                        {metrics.feedbackGiven[id] ?? 0}
+                        {metrics.previous && <Delta now={metrics.feedbackGiven[id] ?? 0} before={metrics.previous.feedbackGiven[id] ?? 0} />}
+                      </td>
+                      <td className="py-1.5 tabular-nums text-primary">
+                        {metrics.callsWithFeedback?.[id] ?? 0}
+                        {metrics.previous && <Delta now={metrics.callsWithFeedback?.[id] ?? 0} before={metrics.previous.callsWithFeedback[id] ?? 0} />}
+                      </td>
+                      <td className="py-1.5 tabular-nums text-primary">
+                        {metrics.callsWithComments?.[id] ?? 0}
+                        {metrics.previous && <Delta now={metrics.callsWithComments?.[id] ?? 0} before={metrics.previous.callsWithComments[id] ?? 0} />}
+                      </td>
                       <td className="py-1.5 tabular-nums text-primary">{metrics.callsListened[id] ?? 0}</td>
                       <td className="py-1.5 tabular-nums text-secondary">
                         {metrics.responseHours?.[id]

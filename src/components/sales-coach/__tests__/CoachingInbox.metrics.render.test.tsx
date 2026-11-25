@@ -83,3 +83,25 @@ describe("CoachingInbox — switching team (review 2026-11-26)", () => {
     await waitFor(() => expect(screen.queryByText(/Old Team Rep/)).toBeNull());
   });
 });
+
+describe("CoachingInbox — change against the 30 days before (F16.8)", () => {
+  it("shows ▲/▼ with the earlier number, and keeps a manager who stopped coaching", async () => {
+    const { render, screen } = await import("@testing-library/react");
+    const { CoachingInbox } = await import("../CoachingInbox");
+    vi.stubGlobal("fetch", vi.fn((u: string) => {
+      if (u.includes("coaching-inbox")) return Promise.resolve({ ok: true, status: 200, json: async () => ({ available: true, items: [] }) });
+      if (u.includes("/api/team")) return Promise.resolve({ ok: true, status: 200, json: async () => ({ members: [{ id: "m1", full_name: "Mia" }, { id: "m2", full_name: "Zed" }] }) });
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({
+        decided: true, since: "2026-10-27T00:00:00Z", sessions: 9,
+        feedbackGiven: { m1: 5 }, callsWithFeedback: { m1: 4 }, callsWithComments: { m1: 2 }, callsListened: {},
+        previous: { feedbackGiven: { m1: 2, m2: 3 }, callsWithFeedback: { m1: 4, m2: 2 }, callsWithComments: { m1: 1, m2: 1 } },
+      }) });
+    }));
+    render(<CoachingInbox />);
+    const mia = (await screen.findByText("Mia")).closest("tr")!;
+    expect(mia.textContent).toContain("5▲3"); // feedback 5, was 2
+    expect(mia.textContent).toContain("2▲1"); // comments 2, was 1; calls-with-feedback 4 = 4 shows no arrow
+    const zed = screen.getByText("Zed").closest("tr")!; // coached before, not now — still a row
+    expect(zed.textContent).toContain("0▼3");
+  });
+});

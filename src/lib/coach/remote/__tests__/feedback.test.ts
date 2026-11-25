@@ -211,3 +211,23 @@ describe("responseHoursByManager (F16.8, 2026-11-25)", () => {
     expect(responseHoursByManager(requests, events, 0)).toEqual({ m1: { medianHours: 6, answered: 3 }, m2: { medianHours: 1, answered: 1 } });
   });
 });
+
+describe("feedbackTotals (F16.8, 26 Nov)", () => {
+  it("counts per manager inside [from, to) only: feedback, distinct calls with feedback, distinct calls with a comment", async () => {
+    const { feedbackTotals } = await import("../feedback");
+    const at = (iso: string) => new Date(iso);
+    const ev = [
+      { kind: "comment_sent_to_rep", managerId: "m1", repId: "r1", at: at("2026-11-20T10:00:00Z"), sessionId: "s1" },
+      { kind: "comment_sent_to_rep", managerId: "m1", repId: "r1", at: at("2026-11-21T10:00:00Z"), sessionId: "s1" },
+      { kind: "score_override", managerId: "m1", repId: "r1", at: at("2026-11-22T10:00:00Z"), sessionId: "s2" },
+      { kind: "comment_draft", managerId: "m1", repId: "r1", at: at("2026-11-22T11:00:00Z"), sessionId: "s3" }, // a draft never counts
+      { kind: "comment_sent_to_rep", managerId: "m2", repId: "r2", at: at("2026-10-01T10:00:00Z"), sessionId: "s9" }, // outside
+    ] as never;
+    expect(feedbackTotals(ev, "2026-11-01T00:00:00.000Z", "2026-12-01T00:00:00.000Z")).toEqual({
+      feedbackGiven: { m1: 3 },
+      callsWithFeedback: { m1: 2 },
+      callsWithComments: { m1: 1 },
+    });
+    expect(feedbackTotals(ev, "2026-09-15T00:00:00.000Z", "2026-11-01T00:00:00.000Z").feedbackGiven).toEqual({ m2: 1 });
+  });
+});

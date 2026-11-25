@@ -299,3 +299,27 @@ export function coachingByRep(args: {
     })
     .sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.feedback30 - b.feedback30 || a.name.localeCompare(b.name));
 }
+
+/**
+ * Per manager, over [from, to): feedback given (D8's countsAsFeedback), distinct calls with feedback, and distinct calls
+ * with a comment sent to the rep (2026-11-25/26, ledger F16.8). The coaching-metrics route uses this for the current
+ * 30 days and for the 30 before, so the comparison is the same rule over the same events. Pure.
+ */
+export type FeedbackTotals = { feedbackGiven: Record<string, number>; callsWithFeedback: Record<string, number>; callsWithComments: Record<string, number> };
+export function feedbackTotals(events: CoachingEvent[], fromIso: string, toIso: string): FeedbackTotals {
+  const feedbackGiven: Record<string, number> = {};
+  const feedbackCalls: Record<string, Set<string>> = {};
+  const commentCalls: Record<string, Set<string>> = {};
+  for (const e of events) {
+    if (!("managerId" in e)) continue;
+    const at = e.at.toISOString();
+    if (at < fromIso || at >= toIso || !countsAsFeedback(e)) continue;
+    feedbackGiven[e.managerId] = (feedbackGiven[e.managerId] ?? 0) + 1;
+    if ("sessionId" in e) {
+      (feedbackCalls[e.managerId] ??= new Set()).add(e.sessionId);
+      if (e.kind === "comment_sent_to_rep") (commentCalls[e.managerId] ??= new Set()).add(e.sessionId);
+    }
+  }
+  const sizes = (m: Record<string, Set<string>>) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, v.size]));
+  return { feedbackGiven, callsWithFeedback: sizes(feedbackCalls), callsWithComments: sizes(commentCalls) };
+}
