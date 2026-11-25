@@ -12,7 +12,7 @@ import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { previewTracker, TrackerError, type PreviewCall, type Segment } from "@/lib/coach/remote/trackers";
 
 /**
- * POST /api/coach/remote/trackers/preview { phrases, side } — try a tracker on the most recent phone/video calls before
+ * POST /api/coach/remote/trackers/preview { phrases, side, startsOn?, endsOn? } — try a tracker on the 100 most recent phone/video calls before
  * saving it (Gong F11.4). Managers only, like creating one. Reads through the CALLER's client, so only calls this
  * manager may see are checked (coaching_sessions RLS + the reporting tree). Nothing is stored; no AI is used.
  */
@@ -20,8 +20,13 @@ const Body = z.object({
   phrases: z.array(z.string().max(80)).min(1).max(200),
   side: z.enum(["rep", "customer", "any"]),
   withinFirstMinutes: z.number().min(0.5).max(60).nullable().optional(),
+  // 0344: preview only the calls the tracker would count (its dates), as the real scan does.
+  startsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
-const CALLS = 30;
+// Gong previews on 100 calls (ledger F11.4); the keyword matcher needs no AI, so 100 is cheap.
+const CALLS = 100;
+const SESSION_CHUNK = 25;
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { id: "remote-tracker-preview", windowMs: 60_000, max: 20 });
@@ -32,14 +37,15 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
 
   const db = callerScopedDb(req) ?? (await createClient());
-  const { data: sessions, error } = await db
+  let sq = db
     .from("coaching_sessions")
     .select("id, client_label, started_at, audio_started_at, session_kind")
     .eq("company_id", manager.companyId)
     .in("context", [...REMOTE_CONTEXTS])
-    .neq("status", "active")
-    .order("started_at", { ascending: false })
-    .limit(CALLS);
+    .neq("status", "active");
+  if (body.startsOn) sq = sq.gte("started_at", `${body.startsOn}T00:00:00Z`);
+  if (body.endsOn) sq = sq.lt("started_at", new Date(Date.parse(`${body.endsOn}T00:00:00Z`) + 86_400_000).toISOString());
+  const { data: sessions, error } = await sq.order("started_at", { ascending: false }).limit(CALLS);
   if (error) {
     console.error(`[tracker-preview] sessions read failed company=${manager.companyId}: ${error.message}`);
     return NextResponse.json({ error: "Couldn't read recent calls." }, { status: 500 });
@@ -50,22 +56,31 @@ export async function POST(req: NextRequest) {
   );
   if (rows.length === 0) return NextResponse.json({ preview: { callsChecked: 0, callsWithHits: 0, hitCount: 0, perPhrase: [], examples: [] } });
 
-  const { data: segs, error: sErr } = await fetchAllPagedResult<{ session_id: string; speaker: string; text: string; seq: number; spoken_at: string | null }>(
-    (from, to) =>
-      db
-        .from("coaching_transcript_segments_current")
-        .select("session_id, speaker, text, seq, spoken_at")
-        .in("session_id", rows.map((r) => r.id))
-        .order("seq", { ascending: true })
-        .range(from, to),
-    { label: "tracker preview transcripts", maxRows: 30_000 },
-  );
-  if (sErr) {
-    console.error(`[tracker-preview] transcripts read failed company=${manager.companyId}: ${sErr.message}`);
-    return NextResponse.json({ error: "Couldn't read the transcripts." }, { status: 500 });
+  // In chunks of calls, each paged in a STABLE order (call, then line): ordering by line alone across many calls let
+  // pages overlap or skip lines (review 2026-11-26).
+  type Seg = { session_id: string; speaker: string; text: string; seq: number; spoken_at: string | null };
+  const segs: Seg[] = [];
+  for (let i = 0; i < rows.length; i += SESSION_CHUNK) {
+    const ids = rows.slice(i, i + SESSION_CHUNK).map((r) => r.id);
+    const { data, error: sErr } = await fetchAllPagedResult<Seg>(
+      (from, to) =>
+        db
+          .from("coaching_transcript_segments_current")
+          .select("session_id, speaker, text, seq, spoken_at")
+          .in("session_id", ids)
+          .order("session_id", { ascending: true })
+          .order("seq", { ascending: true })
+          .range(from, to),
+      { label: "tracker preview transcripts", maxRows: 60_000 },
+    );
+    if (sErr) {
+      console.error(`[tracker-preview] transcripts read failed company=${manager.companyId}: ${sErr.message}`);
+      return NextResponse.json({ error: "Couldn't read the transcripts." }, { status: 500 });
+    }
+    segs.push(...(data ?? []));
   }
   const bySession = new Map<string, Array<{ speaker: string; text: string; seq: number; spoken_at: string | null }>>();
-  for (const s of segs ?? []) {
+  for (const s of segs) {
     const list = bySession.get(s.session_id) ?? [];
     list.push(s);
     bySession.set(s.session_id, list);

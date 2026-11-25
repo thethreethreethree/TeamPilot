@@ -67,3 +67,26 @@ describe("tracker preview route", () => {
     expect((await res.json()).error).toMatch(/too short/);
   });
 });
+
+describe("tracker preview — sample, dates and a stable read (26 Nov)", () => {
+  it("checks up to 100 calls, only inside the tracker's dates, reading transcripts in call-then-line order", async () => {
+    asMock(requireSalesCoachManager).mockResolvedValue({ userId: "m1", companyId: "co1" });
+    const calls: Array<[string, string, unknown]> = [];
+    const from = (table: string) => {
+      const q: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "in", "neq", "range"]) q[m] = () => q;
+      for (const m of ["order", "limit", "gte", "lt"]) q[m] = (a: unknown, b?: unknown) => (calls.push([table, m, m === "order" ? a : m === "limit" ? a : [a, b]]), q);
+      (q as { then: unknown }).then = (res: (v: unknown) => unknown) =>
+        Promise.resolve(res(table === "coaching_sessions" ? { data: [{ id: "s1", client_label: "Acme", started_at: "2026-12-05T10:00:00Z", audio_started_at: null, session_kind: "sales" }], error: null } : { data: [], error: null }));
+      return q;
+    };
+    asMock(createClient).mockResolvedValue({ from });
+    const res = await POST(req({ phrases: ["promo"], side: "any", startsOn: "2026-12-01", endsOn: "2026-12-31" }));
+    expect(res.status).toBe(200);
+    expect(calls).toContainEqual(["coaching_sessions", "limit", 100]);
+    expect(calls).toContainEqual(["coaching_sessions", "gte", ["started_at", "2026-12-01T00:00:00Z"]]);
+    expect(calls).toContainEqual(["coaching_sessions", "lt", ["started_at", "2027-01-01T00:00:00.000Z"]]);
+    const segOrder = calls.filter(([t, m]) => t === "coaching_transcript_segments_current" && m === "order").map(([, , a]) => a);
+    expect(segOrder).toEqual(["session_id", "seq"]);
+  });
+});

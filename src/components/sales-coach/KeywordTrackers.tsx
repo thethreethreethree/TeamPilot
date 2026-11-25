@@ -75,7 +75,7 @@ export function KeywordTrackers() {
       const r = await fetch("/api/coach/remote/trackers/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phrases: list, side, withinFirstMinutes: windowMinutes() === "bad" ? null : windowMinutes() }),
+        body: JSON.stringify({ phrases: list, side, withinFirstMinutes: windowMinutes() === "bad" ? null : windowMinutes(), startsOn: startsOn || null, endsOn: endsOn || null }),
       });
       const j = (await r.json().catch(() => ({}))) as { preview?: Preview; error?: string };
       if (!r.ok || !j.preview) throw new Error(j.error ?? "Couldn't preview the tracker.");
