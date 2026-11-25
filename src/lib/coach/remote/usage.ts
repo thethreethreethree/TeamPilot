@@ -10,7 +10,8 @@
 export const USAGE_KINDS = ["signIns", "calls", "questions", "practice", "pipeline"] as const;
 export type UsageKind = (typeof USAGE_KINDS)[number];
 /** `seconds` (calls only): the call's length from conversationDurationSeconds; null = unknown, never guessed. */
-export type UsageEvent = { personId: string; kind: UsageKind; at: string; seconds?: number | null };
+/** `connected` (phone/video calls only): outcomeConnected(outcome) — true reached someone, false no contact, null/absent not counted. */
+export type UsageEvent = { personId: string; kind: UsageKind; at: string; seconds?: number | null; connected?: boolean | null };
 export type Counts = Record<UsageKind, number>;
 /**
  * Time on calls in a window (2026-11-25, ledger F10.7 "Activity stats"): total seconds over the calls whose length is
@@ -18,14 +19,16 @@ export type Counts = Record<UsageKind, number>;
  * averaged in as zero (§3.4).
  */
 export type CallTime = { seconds: number; timed: number };
-export type PersonUsage = { id: string; name: string; last7: Counts; last30: Counts; lastActive: string | null; time7: CallTime; time30: CallTime };
+/** Connect rate (2026-11-26, ledger F25.8): of the phone/video calls with an outcome, how many reached someone. */
+export type Reached = { reached: number; withOutcome: number };
+export type PersonUsage = { id: string; name: string; last7: Counts; last30: Counts; lastActive: string | null; time7: CallTime; time30: CallTime; reached7: Reached; reached30: Reached };
 
 const zero = (): Counts => ({ signIns: 0, calls: 0, questions: 0, practice: 0, pipeline: 0 });
 const DAY = 86_400_000;
 
 export function buildUsage(members: Array<{ id: string; name: string }>, events: UsageEvent[], nowMs: number) {
   const people = new Map<string, PersonUsage>(
-    members.map((m) => [m.id, { id: m.id, name: m.name, last7: zero(), last30: zero(), lastActive: null, time7: { seconds: 0, timed: 0 }, time30: { seconds: 0, timed: 0 } }]),
+    members.map((m) => [m.id, { id: m.id, name: m.name, last7: zero(), last30: zero(), lastActive: null, time7: { seconds: 0, timed: 0 }, time30: { seconds: 0, timed: 0 }, reached7: { reached: 0, withOutcome: 0 }, reached30: { reached: 0, withOutcome: 0 } }]),
   );
   for (const e of events) {
     const p = people.get(e.personId);
@@ -37,11 +40,20 @@ export function buildUsage(members: Array<{ id: string; name: string }>, events:
       p.time30.seconds += e.seconds!;
       p.time30.timed += 1;
     }
+    const judged = e.kind === "calls" && typeof e.connected === "boolean";
+    if (judged) {
+      p.reached30.withOutcome += 1;
+      if (e.connected) p.reached30.reached += 1;
+    }
     if (t >= nowMs - 7 * DAY) {
       p.last7[e.kind] += 1;
       if (timed) {
         p.time7.seconds += e.seconds!;
         p.time7.timed += 1;
+      }
+      if (judged) {
+        p.reached7.withOutcome += 1;
+        if (e.connected) p.reached7.reached += 1;
       }
     }
     if (!p.lastActive || e.at > p.lastActive) p.lastActive = e.at;

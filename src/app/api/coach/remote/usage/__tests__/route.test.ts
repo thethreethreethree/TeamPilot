@@ -70,6 +70,20 @@ describe("GET /api/coach/remote/usage", () => {
     st.reads.rss_sign_in_times = { data: null, error: { message: "x" } };
     expect((await GET(req())).status).toBe(500);
   });
+  it("connect rate (F25.8): phone and video calls with an outcome; a door pitch or an outcome-less call isn't judged", async () => {
+    st.reads.coaching_sessions = {
+      data: [
+        { agent_id: "r1", started_at: recent, context: "phone", outcome: "sold" },
+        { agent_id: "r1", started_at: recent, context: "video", outcome: "no_contact" },
+        { agent_id: "r1", started_at: recent, context: "phone", outcome: null },
+        { agent_id: "r1", started_at: recent, context: "in_person", outcome: "no_contact" },
+      ],
+      error: null,
+    };
+    const row = (await (await GET(req())).json()).rows[1];
+    expect(row.reached7).toEqual({ reached: 1, withOutcome: 2 });
+    expect(row.last7.calls).toBe(4);
+  });
   it("never sends anyone's email to the browser", async () => {
     expect(JSON.stringify(await (await GET(req())).json())).not.toMatch(/@example\.com/i);
   });

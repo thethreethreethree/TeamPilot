@@ -95,6 +95,7 @@ export function TeamUsage({ team }: { team?: string } = {}) {
                   ))}
                   <th className="py-1 pr-3 text-right font-medium">Time on calls</th>
                   <th className="py-1 pr-3 text-right font-medium">Avg call</th>
+                  <th className="py-1 pr-3 text-right font-medium" title="Of the phone and video calls with an outcome, how many reached someone (every outcome except No contact)">Reached</th>
                   <th className="py-1 font-medium">Last active</th>
                 </tr>
               </thead>
@@ -115,6 +116,15 @@ export function TeamUsage({ team }: { team?: string } = {}) {
                             {untimed > 0 && t.timed > 0 ? "*" : ""}
                           </td>
                           <td className={`py-1.5 pr-3 text-right tabular-nums ${t.timed ? "text-primary" : "text-muted"}`}>{avgCall(t)}</td>
+                          {(() => {
+                            // Connect rate (F25.8): calls with an outcome that reached someone; a dash when none had an outcome.
+                            const c = range === "last7" ? p.reached7 : p.reached30;
+                            return (
+                              <td className={`py-1.5 pr-3 text-right tabular-nums ${c?.withOutcome ? "text-primary" : "text-muted"}`} title={c?.withOutcome ? `${c.reached} of ${c.withOutcome} calls with an outcome` : "No phone or video call has an outcome yet"}>
+                                {c?.withOutcome ? `${Math.round((c.reached / c.withOutcome) * 100)}%` : "—"}
+                              </td>
+                            );
+                          })()}
                         </>
                       );
                     })()}
@@ -127,7 +137,8 @@ export function TeamUsage({ team }: { team?: string } = {}) {
           <p className="mt-2 text-[11px] text-muted">
             Counted from what the product already records: sign-ins through the email and password form, calls, Ask Coach
             questions on calls, practice attempts and pipeline changes. Time on calls adds up each call&apos;s recorded length (or,
-            for a live call, start to end); * means some calls had no known length and aren&apos;t counted. Shown alphabetically —
+            for a live call, start to end); * means some calls had no known length and aren&apos;t counted. Reached is the share of
+            phone and video calls with an outcome that reached someone (every outcome except No contact). Shown alphabetically —
             this is usage, not a ranking.
             {data.capped.length ? ` Some counts hit the 1,000-row read limit and may be higher: ${data.capped.join(", ")}.` : ""}
           </p>

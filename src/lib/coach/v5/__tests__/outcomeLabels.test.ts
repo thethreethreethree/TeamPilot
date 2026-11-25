@@ -32,3 +32,12 @@ describe("sales outcome labels", () => {
     expect(new Set(OUTCOME_ORDER).size).toBe(OUTCOME_ORDER.length); // no duplicates
   });
 });
+
+describe("outcomeConnected (F25.8)", () => {
+  it("only No contact is not connected; absent or unknown is not counted", async () => {
+    const { outcomeConnected } = await import("../outcomeLabels");
+    expect(["sold", "follow_up", "no_sale", "undecided"].map(outcomeConnected)).toEqual([true, true, true, true]);
+    expect(outcomeConnected("no_contact")).toBe(false);
+    expect([null, undefined, "", "mystery"].map(outcomeConnected)).toEqual([null, null, null, null]);
+  });
+});

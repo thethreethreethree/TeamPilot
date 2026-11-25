@@ -44,6 +44,17 @@ export function outcomeTone(outcome: string | null | undefined): OutcomeTone {
   if (outcome === "no_sale" || outcome === "not_interested") return "caution";
   return "neutral";
 }
+/**
+ * Did the call reach someone? (2026-11-26; Gong ledger F25.8 "Outcome connect status": each outcome is Connected or Not
+ * connected, which drives the connect rate.) "No contact" is the one outcome where nobody was reached; Sold, Follow-up,
+ * No sale and Undecided all were. An absent or unknown outcome is null — not counted either way.
+ */
+export function outcomeConnected(outcome: string | null | undefined): boolean | null {
+  if (outcome === "no_contact") return false;
+  if (outcome === "sold" || outcome === "follow_up" || outcome === "no_sale" || outcome === "undecided") return true;
+  return null;
+}
+
 /** Saturated in both themes (theme audit: no pale text that vanishes on light). */
 export const OUTCOME_TONE_CLASS: Record<OutcomeTone, string> = {
   positive: "bg-emerald-600/15 text-emerald-700 dark:text-emerald-400",

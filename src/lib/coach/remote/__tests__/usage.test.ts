@@ -72,3 +72,21 @@ describe("time on calls (F10.7)", () => {
     expect(v.time30).toEqual({ seconds: 0, timed: 0 });
   });
 });
+
+describe("buildUsage — connect rate (F25.8)", () => {
+  it("counts calls with an outcome, and those that reached someone, per window; unjudged calls are left out", async () => {
+    const { buildUsage } = await import("../usage");
+    const now = Date.parse("2026-11-26T12:00:00Z");
+    const at = (d: number) => new Date(now - d * 86_400_000).toISOString();
+    const out = buildUsage([{ id: "a", name: "Ana" }], [
+      { personId: "a", kind: "calls", at: at(1), connected: true },
+      { personId: "a", kind: "calls", at: at(2), connected: false },
+      { personId: "a", kind: "calls", at: at(3), connected: null }, // no outcome yet
+      { personId: "a", kind: "calls", at: at(20), connected: true }, // outside 7 days
+      { personId: "a", kind: "signIns", at: at(1) },
+    ], now);
+    expect(out.rows[0]!.reached7).toEqual({ reached: 1, withOutcome: 2 });
+    expect(out.rows[0]!.reached30).toEqual({ reached: 2, withOutcome: 3 });
+    expect(out.rows[0]!.last7.calls).toBe(3);
+  });
+});
