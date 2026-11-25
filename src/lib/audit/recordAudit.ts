@@ -35,6 +35,10 @@ export const AUDIT_ACTIONS = [
   "transcript.edit",
   // ...and asked for the AI notes (summary, review, follow-through) to be redone on the corrected words (2026-11-23).
   "transcript.refresh_notes",
+  // Per-call access (0336, F3.8): an admin gave / took back one teammate's access to one call; the grantee opened it.
+  "call.grant",
+  "call.grant_revoke",
+  "call.view_granted",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

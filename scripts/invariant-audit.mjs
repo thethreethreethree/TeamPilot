@@ -2005,6 +2005,8 @@ const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
     "Inserts a suggestion for `row.id`, the file this request just created via createFileRecord()."],
   ["src/app/api/care/conversations/[id]/agent-upload/route.ts::file_classification_suggestions::write",
     "Inserts a suggestion for `row.id`, the file this request just created via createFileRecord()."],
+  ["src/app/api/coach/remote/shared/[id]/route.ts::coaching_transcript_segments_current::session_id",
+    "GET (0336): the session id is the one activeGrant just confirmed for this viewer in ctx.companyId (grants read .eq(\"company_id\", companyId)); the view has no company_id column."],
   ["src/app/api/coach/gamification/calibration/route.ts::coaching_transcript_segments_current::session_id",
     "GET: session ids are keys of modelBySession, built from after_pitch_summaries filtered to mgr.companyId."],
   ["src/app/api/coach/sales-session/list/route.ts::events::kind",

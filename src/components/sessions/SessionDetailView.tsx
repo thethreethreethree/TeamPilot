@@ -47,6 +47,7 @@ import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments
 import { MacroCallView } from "@/components/remote-sales/MacroCallView";
 import { CallPipelineLink } from "@/components/remote-sales/CallPipelineLink";
 import { ScenarioFromCallLink } from "@/components/remote-sales/ScenarioFromCallLink";
+import { CallAccessGrants } from "@/components/remote-sales/CallAccessGrants";
 import { CallNotes } from "@/components/remote-sales/CallNotes";
 import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
@@ -589,6 +590,8 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
         {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallPipelineLink sessionId={id} />}
         {/* F17.3: a manager turns this call into a practice scenario (drafted by AI, edited, saved linked to the call). */}
         {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && session.status !== "active" && <ScenarioFromCallLink sessionId={id} />}
+        {/* F3.8 (0336): company admins give one teammate access to this call; renders nothing for anyone else. */}
+        {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallAccessGrants sessionId={id} />}
         {/* The rep's notes on the call (0316) — during a live call too, stamped with the moment. */}
         {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallNotes sessionId={id} onSeek={seekTo} />}
 

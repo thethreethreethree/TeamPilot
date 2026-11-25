@@ -53,7 +53,8 @@ type Notif = {
     | "comment_mention"
     | "score_disputed"
     | "dispute_answered"
-    | "call_scored";
+    | "call_scored"
+    | "call_access_granted";
   pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
@@ -77,6 +78,9 @@ type Notif = {
     author_name?: string | null;
     /** call_ready: the client name the rep gave the uploaded call, if any. */
     client_label?: string | null;
+    /** call_access_granted (0336): who this notice is for, and who was given access. */
+    role?: "rep" | "grantee";
+    grantee_name?: string | null;
     /** score_disputed: the call's channel, which picks the module whose queue the alert opens. */
     channel?: string | null;
     passed?: boolean | null;
@@ -145,6 +149,13 @@ function text(n: Notif): string {
   if (n.type === "call_ready") {
     const label = typeof n.payload.client_label === "string" && n.payload.client_label ? ` with ${n.payload.client_label}` : "";
     return `Your uploaded call${label} is ready: transcript, review and score`;
+  }
+  // F3.8 (0336): an admin shared a call — with this person (grantee), or this rep's call with someone (rep).
+  if (n.type === "call_access_granted") {
+    const label = typeof n.payload.client_label === "string" && n.payload.client_label ? ` with ${n.payload.client_label}` : "";
+    if (n.payload.role === "grantee") return `An admin gave you access to a call${label} — open it to listen`;
+    const who = typeof n.payload.grantee_name === "string" && n.payload.grantee_name ? n.payload.grantee_name : "a teammate";
+    return `An admin gave ${who} access to your call${label}`;
   }
   // F15.13 (0332): the AI's score for the rep's own phone/video call has landed.
   if (n.type === "call_scored") {
@@ -233,6 +244,8 @@ function destination(n: Notif): string | null {
     return n.payload.pitch_id ? `/dashboard/sales-coach/doors/report-card/${n.payload.pitch_id}` : null;
   }
   if (!n.session_id) return null;
+  // The grantee opens the read-only shared view; the rep opens their own call page (0336).
+  if (n.type === "call_access_granted") return n.payload.role === "grantee" ? `/dashboard/remote-sales/shared/${n.session_id}` : `/dashboard/sales-coach/${n.session_id}`;
   // The session page, NOT /after-pitch and NOT the door-log report card. PitchScorePanel — and
   // the corrections section the rep is being sent to read — renders on
   // /dashboard/sales-coach/[id], where [id] is the session id. The door-log report card takes a

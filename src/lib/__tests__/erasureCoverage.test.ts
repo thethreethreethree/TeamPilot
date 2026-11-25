@@ -18,6 +18,7 @@ const NO_CUSTOMER_WORDS: Record<string, string> = {
   pitch_score_events: "blanked by rss_erase_sessions (evidence)",
   transcript_line_edits: "0311: line numbers, versions and editor only — no words",
   recording_trims: "times only",
+  call_access_grants: "0336: who was given access and the admin's own reason — a person's retyped note, the stated 0285 exclusion (like comments); the call's words stay in the erased tables the shared view reads",
   remote_prospect_calls: "a link between ids",
   agent_point_ledger: "reason enum and a score snapshot (bands, points) — no words",
   ai_usage: "engine, provider, model and token counts — no words",
