@@ -172,7 +172,8 @@ export async function GET(req: NextRequest) {
   // Coaching export (2026-11-23; ledger F16.11): the same numbers as a CSV, one row per person, audited like every
   // coaching export (the audit-route invariant). Same computation as the panel, so the file can't disagree with it.
   if (new URL(req.url).searchParams.get("format") === "csv") {
-    const people = [...new Set([...Object.keys(feedbackGiven), ...Object.keys(callsListened)])];
+    // A manager whose only coaching this month was answering a request still gets a row (review 2026-11-25).
+    const people = [...new Set([...Object.keys(feedbackGiven), ...Object.keys(callsListened), ...Object.keys(responseHours)])];
     const { data: profs, error: pErr } = people.length
       ? await admin.from("profiles").select("id, full_name").eq("company_id", mgr.companyId).in("id", people)
       : { data: [], error: null };

@@ -41,4 +41,9 @@ describe("setMemberRole", () => {
     expect(await setMemberRole(d.sb, "co1", "u", "Manager")).toEqual({ ok: true, from: "Member" });
     expect(d.updates).toEqual([{ role: "Manager" }]);
   });
+  it("refuses a role the Team page can't set (the CSV once could set 'Lead')", async () => {
+    const d = db({ id: "u", role: "Member", company_id: "co1" }, 2);
+    expect(await setMemberRole(d.sb, "co1", "u", "Lead")).toMatchObject({ ok: false, status: 400 });
+    expect(d.updates).toEqual([]);
+  });
 });

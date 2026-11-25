@@ -190,7 +190,7 @@ export function CoachingInbox() {
             <a href="/api/coach/remote/coaching-metrics?format=csv" className="text-[11px] text-brand hover:underline">Download CSV</a>
           </div>
           {(() => {
-            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened)])].sort(
+            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {})])].sort(
               (a, b) => (metrics.feedbackGiven[b] ?? 0) - (metrics.feedbackGiven[a] ?? 0),
             );
             if (ids.length === 0) {

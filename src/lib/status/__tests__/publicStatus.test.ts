@@ -19,6 +19,10 @@ describe("publicStatus (F36.34)", () => {
     expect(s.overall).toBe("degraded");
     expect(s.parts.find((p) => p.name === "AI coaching")).toMatchObject({ state: "down", note: "Not available right now" });
   });
+  it("only what is tested live says 'Working'; configured parts say 'Switched on' (review 2026-11-25)", () => {
+    const s = publicStatus(h({}));
+    expect(s.parts.map((p) => p.note)).toEqual(["Working", "Switched on", "Switched on", "Switched on"]);
+  });
   it("no health answer → unknown, nothing claimed", () => {
     expect(publicStatus(null)).toEqual({ overall: "unknown", parts: [] });
   });

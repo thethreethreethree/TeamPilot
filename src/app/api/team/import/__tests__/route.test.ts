@@ -81,12 +81,12 @@ describe("POST /api/team/import", () => {
 
   it("role change for an existing member: shown in the preview, applied through setMemberRole (F2.8)", async () => {
     const { setMemberRole } = await import("@/lib/team/setMemberRole");
-    const preview = await (await POST(post({ csv: "email,role\nann@x.com,Lead", apply: false }))).json();
-    expect(preview.plan[0].roleChange).toEqual({ from: "Member", to: "Lead" });
+    const preview = await (await POST(post({ csv: "email,role\nann@x.com,Manager", apply: false }))).json();
+    expect(preview.plan[0].roleChange).toEqual({ from: "Member", to: "Manager" });
     expect(setMemberRole).not.toHaveBeenCalled();
-    const done = await (await POST(post({ csv: "email,role\nann@x.com,Lead", apply: true }))).json();
-    expect(setMemberRole).toHaveBeenCalledWith(expect.anything(), "co1", "u-ann", "Lead");
-    expect(done.results).toContainEqual(expect.objectContaining({ email: "ann@x.com", ok: true, result: "role: Member → Lead" }));
+    const done = await (await POST(post({ csv: "email,role\nann@x.com,Manager", apply: true }))).json();
+    expect(setMemberRole).toHaveBeenCalledWith(expect.anything(), "co1", "u-ann", "Manager");
+    expect(done.results).toContainEqual(expect.objectContaining({ email: "ann@x.com", ok: true, result: "role: Member → Manager" }));
   });
   it("the same role: no change", async () => {
     const { setMemberRole } = await import("@/lib/team/setMemberRole");

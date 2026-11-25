@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     person: p.person,
     role: p.role ?? "Member",
     // F2.8: an existing member whose role changes ("Member → Manager"); null when it doesn't.
-    roleChange: p.person === "member" && p.roleFrom !== null && p.role ? { from: p.roleFrom, to: p.role } : null,
+    roleChange: p.roleChanges && p.role ? { from: p.roleFrom, to: p.role } : null,
     manager: loops.has(p.line) ? "loop" : p.manager,
     managerEmail: p.managerEmail,
   });
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
         : r.ok && r.managerCarried ? `invited; will report to ${p.managerEmail} when they join`
         : `invited; set their manager (${p.managerEmail}) after they join`;
       out.push(r.ok ? { line: p.line, email: p.email, ok: true, result: said, inviteCode: r.code } : { line: p.line, email: p.email, ok: false, result: r.error });
-    } else if (p.person === "member" && p.personId && p.role && p.roleFrom !== null) {
+    } else if (p.roleChanges && p.personId && p.role) {
       // The Team page's own rules (setMemberRole), one row at a time — so "never the last admin" is re-checked after
       // each earlier row's change.
       const r = await setMemberRole(sb, ctx.companyId, p.personId, p.role);

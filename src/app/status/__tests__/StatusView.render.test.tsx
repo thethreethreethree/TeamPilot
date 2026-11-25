@@ -13,7 +13,8 @@ describe("StatusView (F36.34)", () => {
   it("working parts, 'not switched on' parts, and nothing internal", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(health) })));
     const { container } = render(<StatusView />);
-    expect(await screen.findByText("All systems working")).toBeTruthy();
+    expect(await screen.findByText("No problems detected")).toBeTruthy();
+    expect(screen.queryByText("All systems working")).toBeNull();
     expect(screen.getAllByText("Not switched on")).toHaveLength(2);
     expect(container.textContent).not.toContain("abc123");
   });

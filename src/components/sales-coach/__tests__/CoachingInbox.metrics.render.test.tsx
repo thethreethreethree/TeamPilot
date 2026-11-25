@@ -60,4 +60,9 @@ describe("coaching metrics", () => {
     expect([...list.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual(["/dashboard/remote-sales/calls/c2", "/dashboard/remote-sales/calls/c1"]);
     expect(list.textContent).toContain("Untitled call");
   });
+  it("a manager whose only coaching was answering a request still has a row (review 2026-11-25)", async () => {
+    metrics = { decided: true, since: "x", sessions: 2, feedbackGiven: {}, callsListened: {}, responseHours: { m1: { medianHours: 3, answered: 1 } } };
+    render(<CoachingInbox />);
+    expect(await screen.findByText("3 h (1)")).toBeTruthy();
+  });
 });

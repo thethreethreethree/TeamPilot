@@ -92,7 +92,8 @@ export type RowPlan = {
   personId: string | null;
   managerId: string | null;
   role: string | null;
-  /** An existing member whose row names a different role: their role now (the change is from → role). */
+  /** An existing member whose row names a different role: true, with their role now in roleFrom (may be null). */
+  roleChanges: boolean;
   roleFrom: string | null;
 };
 
@@ -116,8 +117,9 @@ export function planImport(
     const person: RowPlan["person"] = who.ambiguous ? "ambiguous" : who.id ? "member" : pending.has(r.email) ? "pending" : "invite";
     if (person === "invite") invitedHere.add(r.email);
     const now = who.id ? members.get(who.id)?.role ?? null : null;
-    const roleFrom = person === "member" && r.role && now !== r.role ? now : null;
-    return { line: r.line, email: r.email, person, manager: "none", managerEmail: r.managerEmail, personId: who.id, managerId: null, role: r.role, roleFrom };
+    // A separate flag: "no role yet" (null) → a role IS a change (review 2026-11-25).
+    const roleChanges = person === "member" && !!r.role && now !== r.role;
+    return { line: r.line, email: r.email, person, manager: "none", managerEmail: r.managerEmail, personId: who.id, managerId: null, role: r.role, roleChanges, roleFrom: roleChanges ? now : null };
   });
   for (const p of plans) {
     if (!p.managerEmail) continue;

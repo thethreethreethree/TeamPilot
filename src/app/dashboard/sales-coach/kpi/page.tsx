@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PERIOD_METRICS, type PeriodDays } from "@/lib/coach/kpi/period";
 import Link from "next/link";
 import { TrendingDown, TrendingUp, Target, MessageSquareText, Gauge, Sparkles, Info, Loader2, ChevronRight, Users, Download } from "lucide-react";
@@ -26,6 +26,8 @@ type KpiResponse = {
   metrics: Record<string, MetricResult>;
   deltas?: Record<string, number | null>;
   sessions: Record<string, SessionInfo>;
+  /** F23.8: the period the outcome numbers were computed over (null = all time) — labels read THIS, not the button. */
+  periodDays?: number | null;
 };
 
 type TeamAgent = {
@@ -163,17 +165,23 @@ export default function KpiAnalyticsPage() {
   const [period, setPeriod] = useState<PeriodDays>(null);
 
   // Extracted so the error banner's "Try again" can re-run it in place (no full page reload).
+  // Only the LATEST request may land (review 2026-11-25): a slow earlier response (another period or scope) must not
+  // overwrite a newer one and show its numbers under the newer button.
+  const loadSeq = useRef(0);
   const loadMe = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoadError(false);
     setLoading(true);
     try {
       const res = await fetch(`/api/coach/kpi/me?scope=${scope}${period ? `&days=${period}` : ""}`);
-      if (res.ok) setData(await res.json());
+      const body = res.ok ? await res.json() : null;
+      if (seq !== loadSeq.current) return;
+      if (body) setData(body);
       else setLoadError(true); // 401/500/etc — an error, NOT "no data yet"
     } catch {
-      setLoadError(true); // network — an error, NOT "no data yet"
+      if (seq === loadSeq.current) setLoadError(true); // network — an error, NOT "no data yet"
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [scope, period]);
 
@@ -266,10 +274,17 @@ export default function KpiAnalyticsPage() {
           Value: m.blocked ? m.blocked : r && r.value !== null ? r.value : "building",
           Sessions: r ? r.sampleSize : "",
           "Delta vs earlier": typeof delta === "number" ? delta : "",
+          // Which window this row was computed over (review 2026-11-25: the export mixed windows unlabelled).
+          Window:
+            m.apiKey && (PERIOD_METRICS as readonly string[]).includes(m.apiKey) && data.periodDays
+              ? `last ${data.periodDays} days`
+              : m.apiKey === "quotaAttainment"
+                ? "this month"
+                : "all time",
         });
       }
     }
-    const csv = toCsv(rows, ["Layer", "Metric", "Value", "Sessions", "Delta vs earlier"]);
+    const csv = toCsv(rows, ["Layer", "Metric", "Value", "Sessions", "Delta vs earlier", "Window"]);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -507,7 +522,11 @@ export default function KpiAnalyticsPage() {
               {improved.length > 0 && (
                 <span className="text-emerald-700 dark:text-emerald-300">
                   <span className="font-semibold">
-                    {isCompany ? "Vs the company's earlier calls, up in" : "Since your earlier calls, you’re up in"}
+                    {data?.periodDays
+                      ? `In the last ${data.periodDays} days, ${isCompany ? "the company is" : "you're"} up in`
+                      : isCompany
+                        ? "Vs the company's earlier calls, up in"
+                        : "Since your earlier calls, you’re up in"}
                   </span>{" "}
                   {improved.join(", ")}.
                 </span>
@@ -520,9 +539,11 @@ export default function KpiAnalyticsPage() {
               )}
             </p>
             <p className="text-[11px] text-muted mt-1">
-              {isCompany
-                ? "Measured against the company's recent trend — the detail behind each is below."
-                : "Measured against your own past — the detail behind each is below."}
+              {data?.periodDays
+                ? `Outcome trends compare the first and second half of the last ${data.periodDays} days; overall quality compares your earliest and latest calls.`
+                : isCompany
+                  ? "Measured against the company's recent trend — the detail behind each is below."
+                  : "Measured against your own past — the detail behind each is below."}
             </p>
           </section>
         );
@@ -603,9 +624,9 @@ export default function KpiAnalyticsPage() {
                           </span>
                           <span className="block text-[11px] text-muted leading-snug">
                             {m.note}
-                            {period !== null && m.apiKey
+                            {data?.periodDays && m.apiKey
                               ? (PERIOD_METRICS as readonly string[]).includes(m.apiKey)
-                                ? ` · last ${period} days`
+                                ? ` · last ${data.periodDays} days`
                                 : m.apiKey === "quotaAttainment"
                                   ? " · this month"
                                   : " · all time"

@@ -71,5 +71,10 @@ describe("planImport — role changes for existing members (F2.8, 2026-11-25)", 
       { line: 4, email: "bo@x.com", role: null, managerEmail: null },
     ], accounts, members, new Set());
     expect(plan.map((p) => p.roleFrom)).toEqual(["Member", null, null]);
+    expect(plan.map((p) => p.roleChanges)).toEqual([true, false, false]);
+  });
+  it("a member with no role yet (null) getting one IS a change (review 2026-11-25)", () => {
+    const plan = planImport([{ line: 2, email: "ann@x.com", role: "Manager", managerEmail: null }], accounts, new Map([["u-ann", { id: "u-ann", status: "active", role: null }]]), new Set());
+    expect(plan[0]).toMatchObject({ roleChanges: true, roleFrom: null });
   });
 });
