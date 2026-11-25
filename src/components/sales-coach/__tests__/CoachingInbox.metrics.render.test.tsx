@@ -28,12 +28,12 @@ afterEach(() => {
 
 describe("coaching metrics", () => {
   it("shows feedback given and calls listened per manager, by name, most feedback first", async () => {
-    metrics = { decided: true, since: "2026-10-23T00:00:00Z", sessions: 12, feedbackGiven: { m2: 1, m1: 4 }, callsWithFeedback: { m1: 2, m2: 1 }, callsWithComments: { m1: 1 }, callsListened: { m1: 3, m2: 5 } };
+    metrics = { decided: true, since: "2026-10-23T00:00:00Z", sessions: 12, feedbackGiven: { m2: 1, m1: 4 }, callsWithFeedback: { m1: 2, m2: 1 }, callsWithComments: { m1: 1 }, callsListened: { m1: 3, m2: 5 }, responseHours: { m1: { medianHours: 5.5, answered: 2 }, m2: { medianHours: 36, answered: 1 } } };
     render(<CoachingInbox />);
     expect(await screen.findByText("Coaching in the last 30 days")).toBeTruthy();
     const rows = screen.getAllByRole("row").slice(1).map((r) => r.textContent);
     // name · feedback · calls with feedback · calls with comments · calls listened
-    expect(rows).toEqual(["Max Manager4213", "Rae Lead1105"]);
+    expect(rows).toEqual(["Max Manager42135.5 h (2)", "Rae Lead11051.5 d (1)"]);
   });
 
   it("says plainly when nothing has happened yet", async () => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   allManagerActions,
   coachingByRep,
+  responseHoursByManager,
   closesUnderEveryPolicy,
   countsAsFeedback,
   counted,
@@ -192,5 +193,21 @@ describe("loadCoachingEvents — a removed comment is not feedback (0333; review
     const events = await loadCoachingEvents(db as never, "c1", ["s1"]);
     const comments = events.filter((e) => e.kind === "comment_sent_to_rep");
     expect(comments.map((e) => e.at.toISOString())).toEqual(["2026-11-21T10:00:00.000Z"]);
+  });
+});
+
+describe("responseHoursByManager (F16.8, 2026-11-25)", () => {
+  const t = (h: number) => new Date(Date.UTC(2026, 10, 20, h));
+  const ev = (managerId: string, sessionId: string, h: number) => ({ kind: "comment_sent_to_rep" as const, managerId, repId: "rep", at: t(h), sessionId });
+  it("median hours to the first answer, credited to the manager who answered; open requests aren't timed", () => {
+    const requests = [
+      { sessionId: "s1", managerId: null, requesterId: "rep", createdAt: t(0) }, // m1 answers after 2 h
+      { sessionId: "s2", managerId: null, requesterId: "rep", createdAt: t(0) }, // m1 after 6 h
+      { sessionId: "s3", managerId: null, requesterId: "rep", createdAt: t(0) }, // m1 after 10 h
+      { sessionId: "s4", managerId: null, requesterId: "rep", createdAt: t(0) }, // m2 after 1 h
+      { sessionId: "s5", managerId: null, requesterId: "rep", createdAt: t(0) }, // open
+    ];
+    const events = [ev("m1", "s1", 2), ev("m1", "s2", 6), ev("m1", "s3", 10), ev("m2", "s4", 1), ev("m1", "s4", 5)];
+    expect(responseHoursByManager(requests, events, 0)).toEqual({ m1: { medianHours: 6, answered: 3 }, m2: { medianHours: 1, answered: 1 } });
   });
 });

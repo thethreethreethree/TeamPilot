@@ -42,6 +42,8 @@ type Metrics =
       callsWithFeedback?: Record<string, number>;
       callsWithComments?: Record<string, number>;
       callsListened: Record<string, number>;
+      /** F16.8: median hours from a request to this manager's first answer, and how many answers. */
+      responseHours?: Record<string, { medianHours: number; answered: number }>;
       /** F16.5 (2026-11-25): one row per rep — RepCoaching from feedback.ts, already sorted overdue-first. */
       byRep?: RepCoaching[];
     };
@@ -207,6 +209,7 @@ export function CoachingInbox() {
                     <th className="py-1 font-normal">Calls with feedback</th>
                     <th className="py-1 font-normal">Calls with comments</th>
                     <th className="py-1 font-normal">Calls listened to</th>
+                    <th className="py-1 font-normal">Typical response</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -217,6 +220,11 @@ export function CoachingInbox() {
                       <td className="py-1.5 tabular-nums text-primary">{metrics.callsWithFeedback?.[id] ?? 0}</td>
                       <td className="py-1.5 tabular-nums text-primary">{metrics.callsWithComments?.[id] ?? 0}</td>
                       <td className="py-1.5 tabular-nums text-primary">{metrics.callsListened[id] ?? 0}</td>
+                      <td className="py-1.5 tabular-nums text-secondary">
+                        {metrics.responseHours?.[id]
+                          ? `${metrics.responseHours[id]!.medianHours < 24 ? `${metrics.responseHours[id]!.medianHours} h` : `${Math.round((metrics.responseHours[id]!.medianHours / 24) * 10) / 10} d`} (${metrics.responseHours[id]!.answered})`
+                          : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -225,7 +233,8 @@ export function CoachingInbox() {
           })()}
           <p className="mt-1 text-[11px] text-muted">
             Feedback counts a comment sent to the rep, a score correction, a dispute answer or a pattern marked coached. A call
-            counts as listened once at least half of it was played.
+            counts as listened once at least half of it was played. Typical response: the middle time from a rep&apos;s request
+            to that manager&apos;s answer (how many answers in brackets).
           </p>
         </div>
       )}

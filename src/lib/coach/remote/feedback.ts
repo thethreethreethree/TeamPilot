@@ -76,11 +76,43 @@ export function isRequestOpen(request: FeedbackRequest, events: CoachingEvent[],
   return !events.some((e) => answers(request, e, rule));
 }
 
+/** The first answer to a request — when, and by which manager — or null while it is open. Same rule as isRequestOpen. */
+export function requestAnswer(request: FeedbackRequest, events: CoachingEvent[], rule: (e: CoachingEvent) => boolean = closesUnderEveryPolicy): { at: Date; managerId: string } | null {
+  let first: { at: Date; managerId: string } | null = null;
+  for (const e of events) if (answers(request, e, rule) && "managerId" in e && (first === null || e.at < first.at)) first = { at: e.at, managerId: e.managerId };
+  return first;
+}
+
 /** When the request was first answered (the earliest answering event), or null while it is open. */
 export function requestAnsweredAt(request: FeedbackRequest, events: CoachingEvent[], rule: (e: CoachingEvent) => boolean = closesUnderEveryPolicy): Date | null {
-  let first: Date | null = null;
-  for (const e of events) if (answers(request, e, rule) && (first === null || e.at < first)) first = e.at;
-  return first;
+  return requestAnswer(request, events, rule)?.at ?? null;
+}
+
+/**
+ * Feedback response time per manager (2026-11-25; ledger F16.8): for requests made in the window and answered, the
+ * MEDIAN hours from the request to the answering manager's first answer, and how many answers that covers. Open
+ * requests are not timed (they show as open elsewhere). Pure.
+ */
+export function responseHoursByManager(
+  requests: FeedbackRequest[],
+  events: CoachingEvent[],
+  sinceMs: number,
+): Record<string, { medianHours: number; answered: number }> {
+  const by: Record<string, number[]> = {};
+  for (const r of requests) {
+    if (r.createdAt.getTime() < sinceMs) continue;
+    const a = requestAnswer(r, events);
+    if (!a) continue;
+    (by[a.managerId] ??= []).push((a.at.getTime() - r.createdAt.getTime()) / 3_600_000);
+  }
+  return Object.fromEntries(
+    Object.entries(by).map(([m, hs]) => {
+      const s = [...hs].sort((x, y) => x - y);
+      const mid = Math.floor(s.length / 2);
+      const median = s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+      return [m, { medianHours: Math.round(median * 10) / 10, answered: s.length }];
+    }),
+  );
 }
 
 /** Merge listen ranges (ms) and return the seconds actually covered — overlaps and replays count once. */
