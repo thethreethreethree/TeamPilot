@@ -2755,10 +2755,60 @@ const PAGING_UNIQUE_ALLOWLIST = new Map([
   }
 }
 
+// ═══ INVARIANT 43 — a route that reads calls with the service role checks hidden calls (0337–0349) ═════════════
+//
+// LEARNED: 2026-11-26. Hiding a call is enforced by RLS, which the service role bypasses. An independent review found
+// seven service-role routes (coaching inbox, uncoached lists, session list, disputes, calibration, coach chats,
+// vendor monitoring) still naming hidden calls to managers. THE RULE: an API route that uses createAdminClient and
+// reads coaching_sessions, coaching_transcript_segments_current or pitch_scores calls hiddenFrom /
+// hiddenInCompanyFrom / hiddenCallsForCompany, or is listed here with why no hidden call can reach a person.
+const HIDE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/sales-session/recordings/route.ts", "in-person (door) recordings — the hide is for phone/video calls (0337)."],
+  ["src/app/api/coach/sales-session/recording-purge-cron/route.ts", "cron: deletes old audio; returns no call to any person."],
+  ["src/app/api/coach/sales-session/team-activity/route.ts", "in-person team activity — the hide is for phone/video calls."],
+  ["src/app/api/coach/sales-session/team-analytics/route.ts", "one company-wide count; names no call."],
+  ["src/app/api/coach/sales-session/[id]/upload-recording/route.ts", "the rep's own call (owner-gated write); the rep always sees their hidden call."],
+  ["src/app/api/coach/sales-session/[id]/delete-recording/route.ts", "opens the call through the caller's client (getSession) first; RLS refuses a hidden call."],
+  ["src/app/api/coach/sales-session/[id]/audio-chunk/route.ts", "the rep's own live call (owner-gated write)."],
+  ["src/app/api/coach/sales-session/[id]/retranscribe/route.ts", "opens the call through the caller's client first; RLS refuses a hidden call."],
+  ["src/app/api/coach/sales-session/[id]/save-recording/route.ts", "the rep's own call (owner-gated write)."],
+  ["src/app/api/coach/sales-session/pitch-score/route.ts", "opens the call through the caller's client (getSession) before reading or writing its score."],
+  ["src/app/api/coach/sales-session/rep-activity/route.ts", "in-person rep activity — the hide is for phone/video calls."],
+  ["src/app/api/coach/sales-session/auto-close-stale-cron/route.ts", "cron: closes abandoned sessions; returns no call to any person."],
+  ["src/app/api/coach/kpi/team/route.ts", "reads calls through the caller's client; the service role only resolves ?team= (teamScope)."],
+  ["src/app/api/coach/kpi/compute-cron/route.ts", "cron: KPI snapshots (counts); returns no call to any person."],
+  ["src/app/api/coach/meeting-session/[id]/dissect/route.ts", "meetings, not phone/video sales calls."],
+  ["src/app/api/coach/remote/prospects/[pid]/route.ts", "lists a prospect's calls through the caller's client (RLS); the service role only writes."],
+  ["src/app/api/coach/remote/my-coaching/route.ts", "the caller's own calls only; a rep always sees their own hidden call."],
+  ["src/app/api/coach/remote/usage/route.ts", "counts and talk time per person; names no call."],
+  ["src/app/api/coach/remote/trackers/route.ts", "scan/backfill writes hits (read back through RLS, 0339); returns counts only."],
+  ["src/app/api/coach/remote/erasure/route.ts", "company admins only — admins may see hidden calls (0337)."],
+  ["src/app/api/coach/remote/[id]/grants/route.ts", "company admins only; the granted view itself checks hiddenFrom."],
+  ["src/app/api/coach/remote/coverage/route.ts", "reads calls through the caller's client; the service role only resolves ?team= (teamScope)."],
+]);
+{
+  const seen = new Set();
+  for (const f of FILES) {
+    if (!/^src\/app\/api\/.*\/route\.ts$/.test(f.path)) continue;
+    if (!/createAdminClient/.test(f.sql)) continue;
+    if (!/\.from\(\s*["'`](coaching_sessions|coaching_transcript_segments_current|pitch_scores)["'`]/.test(f.sql)) continue;
+    if (/\b(hiddenFrom|hiddenInCompanyFrom|hiddenCallsForCompany)\b/.test(f.sql)) continue;
+    seen.add(f.path);
+    if (HIDE_ROUTE_ALLOWLIST.has(f.path)) continue;
+    findings.push({
+      rule: "A service-role route reads calls without checking hidden calls",
+      file: f.path,
+      why: "RLS hides a call a company phrase matched (0337), but createAdminClient bypasses it. Filter with hiddenFrom /\n" +
+        "      hiddenInCompanyFrom (src/lib/coach/remote/hidePhrases.ts), or list the route in HIDE_ROUTE_ALLOWLIST with why no hidden call reaches a person.",
+    });
+  }
+  for (const k of HIDE_ROUTE_ALLOWLIST.keys()) if (!seen.has(k)) findings.push({ rule: "A stale hide-route allowlist entry", file: k, why: `${k} no longer reads calls with the service role (or now checks hides); remove it.` });
+}
+
 // ═══ Report ═══════════════════════════════════════════════════════════════════════════════════
 console.log("═══ Invariant audit — lessons this codebase already paid for ═══");
 console.log(`  Files scanned:        ${FILES.length}`);
-console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size + RAW_TRANSCRIPT_USES.size + AUDIT_ROUTE_ALLOWLIST.size + PAGING_UNIQUE_ALLOWLIST.size}`);
+console.log(`  Documented exceptions: ${CSV_EXPORT_ALLOWLIST.size + SERVICE_ROLE_ALLOWLIST.size + UPLOAD_VALIDATE_ALLOWLIST.size + CROSS_PERSON_GATE_ALLOWLIST.size + ADMIN_GATE_ALLOWLIST.size + EXT_AUTH_ALLOWLIST.size + XSS_ALLOWLIST.size + NEXT_PUBLIC_ALLOWLIST.size + RAW_ERR_ALLOWLIST.size + COACHING_SESSION_WRITE_ALLOWLIST.size + MAXDURATION_ALLOWLIST.size + CRON_SCHEDULE_ALLOWLIST.size + PUBLIC_ROUTE_ALLOWLIST.size + FALSE_LIMIT_ALLOWLIST.size + DATA_SWALLOW_ALLOWLIST.size + TRANSCRIPT_FENCE_ALLOWLIST.size + SERVICE_ROLE_TENANT_ALLOWLIST.size + RAW_KNOCK_READS.size + RAW_TRANSCRIPT_USES.size + AUDIT_ROUTE_ALLOWLIST.size + PAGING_UNIQUE_ALLOWLIST.size + HIDE_ROUTE_ALLOWLIST.size}`);
 console.log(`  Append-only rule tables: ${RULE_TABLES.size} (replayed from the migrations)`);
 console.log(`  Violations:           ${findings.length}`);
 
@@ -2787,7 +2837,8 @@ if (findings.length === 0) {
       " no delete/update/upsert on a table whose append-only rule would silently drop it ·" +
       " every sales-session handler that runs or serves sales coaching asks isSalesCall (no sales coaching on a meeting) ·" +
       " no session kind is compared by hand; isSalesCall / resolveCoachingMode is the one verdict ·" +
-      " every paged read orders by a unique key last (no OFFSET page repeats or skips a row)."
+      " every paged read orders by a unique key last (no OFFSET page repeats or skips a row) ·" +
+      " every service-role route that reads calls checks hidden calls (or says why it can't reach one)."
   );
   process.exit(0);
 }
