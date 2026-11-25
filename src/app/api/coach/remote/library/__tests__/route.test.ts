@@ -91,3 +91,16 @@ describe("POST add", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("GET — an archived folder (0346, F12.6)", () => {
+  it("its items leave the list; the folder is listed as archived so it can be restored", async () => {
+    DATA.library_folder_events = [{ id: 1, folder_id: "f1", kind: "archive" }];
+    who.userId = "mgr1";
+    who.manager = true;
+    who.tree = ["rep1", "rep2"];
+    const body = await get();
+    delete DATA.library_folder_events;
+    expect(body.items).toEqual([]);
+    expect(body.folders).toEqual([{ id: "f1", name: "Team examples", archived: true, canArchive: true }]);
+  });
+});

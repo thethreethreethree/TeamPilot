@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, Play, Pause, Trash2 } from "lucide-react";
+import { Archive, Loader2, Play, Pause, Trash2 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 
 /**
@@ -16,6 +16,7 @@ import TopBar from "@/components/layout/TopBar";
 type Item = {
   id: string;
   folderName: string;
+  folderId?: string;
   sessionId: string;
   callLabel: string | null;
   channel: string | null;
@@ -29,7 +30,8 @@ type Item = {
   canRemove: boolean;
   audioUrl: string | null;
 };
-type Wire = { available: false; reason: string } | { available: true; isManager: boolean; items: Item[] };
+type Folder = { id: string; name: string; archived?: boolean; canArchive?: boolean };
+type Wire = { available: false; reason: string } | { available: true; isManager: boolean; items: Item[]; folders?: Folder[] };
 
 const mmss = (ms: number) => {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -103,6 +105,19 @@ export default function LibraryPage() {
     if (r?.ok) void load(scope);
     else setNote("Couldn't remove it.");
   };
+  // 0346 (F12.6): archive a folder (its calls stay in Search) or bring it back.
+  const setArchived = async (folderId: string, archive: boolean) => {
+    const r = await fetch("/api/coach/remote/library", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: archive ? "archive" : "restore", folderId }),
+    }).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { error?: string }) : {};
+    if (r?.ok) {
+      setNote(archive ? "Folder archived. Its calls are still in Search; restore it below any time." : "Folder restored.");
+      void load(scope);
+    } else setNote(j.error ?? "Couldn't change the folder.");
+  };
   const ask = async (pitchId: string) => {
     const r = await fetch("/api/coach/sales-session/pitch-recordings/share", {
       method: "POST",
@@ -112,8 +127,16 @@ export default function LibraryPage() {
     setNote(r?.ok ? "Asked. The rep sees the request in their notifications." : "Couldn't send the request.");
   };
 
-  const groups = new Map<string, Item[]>();
-  if (wire && wire.available) for (const i of wire.items) groups.set(i.folderName, [...(groups.get(i.folderName) ?? []), i]);
+  // Grouped by folder id (two folders may share a name across owners); the heading is the folder's name.
+  const groups = new Map<string, { name: string; items: Item[] }>();
+  if (wire && wire.available) for (const i of wire.items) {
+    const key = i.folderId ?? i.folderName;
+    const g = groups.get(key) ?? { name: i.folderName, items: [] };
+    g.items.push(i);
+    groups.set(key, g);
+  }
+  const folderInfo = new Map((wire && wire.available ? wire.folders ?? [] : []).map((f) => [f.id, f]));
+  const archivedFolders = wire && wire.available ? (wire.folders ?? []).filter((f) => f.archived) : [];
 
   return (
     <>
@@ -143,9 +166,16 @@ export default function LibraryPage() {
           </p>
         )}
 
-        {[...groups].map(([folder, items]) => (
-          <section key={folder} className="space-y-2" aria-label={folder}>
-            <h2 className="text-sm font-semibold text-primary">{folder}</h2>
+        {[...groups].map(([folderKey, { name: folder, items }]) => (
+          <section key={folderKey} className="space-y-2" aria-label={folder}>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-primary">{folder}</h2>
+              {folderInfo.get(folderKey)?.canArchive && (
+                <button type="button" onClick={() => void setArchived(folderKey, true)} aria-label={`Archive folder ${folder}`} className="ml-auto inline-flex items-center gap-1 text-xs text-muted hover:text-primary">
+                  <Archive className="h-3.5 w-3.5" aria-hidden /> Archive folder
+                </button>
+              )}
+            </div>
             <ul className="space-y-2">
               {items.map((i) => (
                 <li key={i.id} className="flex items-start gap-3 rounded-2xl border border-default bg-surface p-3">
@@ -189,6 +219,25 @@ export default function LibraryPage() {
             </ul>
           </section>
         ))}
+
+        {archivedFolders.length > 0 && (
+          <details className="rounded-2xl border border-default bg-surface p-3 text-xs">
+            <summary className="cursor-pointer text-secondary hover:text-primary">Archived folders ({archivedFolders.length})</summary>
+            <ul className="mt-2 space-y-1">
+              {archivedFolders.map((f) => (
+                <li key={f.id} className="flex items-center gap-2">
+                  <span className="text-primary">{f.name}</span>
+                  {f.canArchive && (
+                    <button type="button" onClick={() => void setArchived(f.id, false)} aria-label={`Restore folder ${f.name}`} className="ml-auto text-brand hover:underline">
+                      Restore
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-muted">An archived folder&apos;s calls are still in Search.</p>
+          </details>
+        )}
       </div>
     </>
   );

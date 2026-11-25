@@ -51,3 +51,15 @@ describe("shareBySession — shareState's verdict per call", () => {
     expect(m.get("s3")).toMatchObject({ pitchId: null, share: { shareable: false } });
   });
 });
+
+describe("archivedFolderIds (0346)", () => {
+  it("the latest event per folder wins", async () => {
+    const { archivedFolderIds } = await import("../library");
+    expect([...archivedFolderIds([
+      { id: 1, folder_id: "a", kind: "archive" },
+      { id: 3, folder_id: "a", kind: "restore" },
+      { id: 2, folder_id: "b", kind: "archive" },
+      { id: 4, folder_id: "c", kind: "restore" },
+    ])]).toEqual(["b"]);
+  });
+});

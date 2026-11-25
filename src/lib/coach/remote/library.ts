@@ -65,3 +65,13 @@ export async function shareBySession(
   }
   return out;
 }
+
+/** 0346 (F12.6): which folders are archived now — the latest archive/restore per folder wins (by id). Pure. */
+export function archivedFolderIds(events: Array<{ id: number; folder_id: string; kind: string }>): Set<string> {
+  const latest = new Map<string, { id: number; kind: string }>();
+  for (const e of events) {
+    const had = latest.get(String(e.folder_id));
+    if (!had || e.id > had.id) latest.set(String(e.folder_id), { id: e.id, kind: e.kind });
+  }
+  return new Set([...latest].filter(([, v]) => v.kind === "archive").map(([k]) => k));
+}
