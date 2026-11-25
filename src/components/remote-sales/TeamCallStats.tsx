@@ -1,5 +1,6 @@
 "use client";
 
+import { withTeam } from "@/lib/coach/remote/teamQuery";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BarChart3, Loader2 } from "lucide-react";
@@ -32,7 +33,8 @@ const COLS: Array<[string, (a: Averages) => string]> = [
   ["Interactivity /10", (a) => num(a.interactivity)],
 ];
 
-export function TeamCallStats() {
+
+export function TeamCallStats({ team }: { team?: string } = {}) {
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [data, setData] = useState<Resp | null>(null);
   const [state, setState] = useState<"loading" | "hidden" | "failed" | "ok">("loading");
@@ -40,7 +42,7 @@ export function TeamCallStats() {
   useEffect(() => {
     let live = true;
     setState("loading");
-    fetch(`/api/coach/remote/team-stats?days=${days}`, { cache: "no-store" })
+    fetch(withTeam(`/api/coach/remote/team-stats?days=${days}`, team), { cache: "no-store" })
       .then(async (r) => {
         if (!live) return;
         if (r.status === 403) return setState("hidden");
@@ -52,7 +54,7 @@ export function TeamCallStats() {
     return () => {
       live = false;
     };
-  }, [days]);
+  }, [days, team]);
 
   if (state === "hidden") return null;
   return (

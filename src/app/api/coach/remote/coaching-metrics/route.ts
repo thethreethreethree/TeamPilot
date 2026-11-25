@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { teamFromRequest } from "@/lib/coach/remote/teamScope";
 import { recordAudit } from "@/lib/audit/recordAudit";
 import { toCsv } from "@/lib/export/toCsv";
 import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
@@ -7,7 +8,7 @@ import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { treeFilterReps } from "@/lib/api/treeAccess";
+import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
 import { FEEDBACK_POLICY, LISTENED_THRESHOLD } from "@/lib/coach/remote/decisions";
 import { countsAsFeedback, counted, loadCoachingEvents, coachingByRep, responseHoursByManager } from "@/lib/coach/remote/feedback";
 
@@ -27,6 +28,10 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const mgr = await requireSalesCoachManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+  // ?team=<manager> (F10.9 / F16.6): narrow to one manager's team — never wider than the caller's own access.
+  const scope = await teamFromRequest(req, createAdminClient, mgr.companyId, (id) => (id === mgr.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+  if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
+  const inTeam = (id: string) => !scope.members || scope.members.has(id);
 
   if (FEEDBACK_POLICY === "NOT DECIDED" || LISTENED_THRESHOLD === "NOT DECIDED") {
     return NextResponse.json(
@@ -73,7 +78,7 @@ export async function GET(req: NextRequest) {
     console.error(`[coaching-metrics] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
     return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
   }
-  const mine = all.filter((s) => allowed.has(String(s.agent_id)) && !hidden.has(String(s.id)));
+  const mine = all.filter((s) => allowed.has(String(s.agent_id)) && inTeam(String(s.agent_id)) && !hidden.has(String(s.id)));
   const ids = mine.map((s) => String(s.id));
 
   const feedbackGiven: Record<string, number> = {};
@@ -137,7 +142,7 @@ export async function GET(req: NextRequest) {
   }
   // Coaching by rep (2026-11-25, ledger F16.5): one row per rep this manager may see — from the SAME calls and events
   // as the numbers above, plus their open feedback requests and names. The manager's own calls are not a rep's row.
-  const repIds = [...allowed].filter((id) => id !== mgr.userId);
+  const repIds = [...allowed].filter((id) => id !== mgr.userId && inTeam(id));
   let byRep: ReturnType<typeof coachingByRep> = [];
   // F16.8: per manager, the median hours from a request (last 30 days) to their first answer — same requests and
   // events as the by-rep rows, same answer rule (requestAnswer).

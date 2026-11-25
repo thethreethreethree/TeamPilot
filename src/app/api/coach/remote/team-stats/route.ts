@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { teamFromRequest } from "@/lib/coach/remote/teamScope";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -20,6 +23,10 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const mgr = await requireSalesCoachManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+  // ?team=<manager> (F10.9 / F16.6): narrow to one manager's team — never wider than the caller's own access.
+  const scope = await teamFromRequest(req, createAdminClient, mgr.companyId, (id) => (id === mgr.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+  if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
+  const inTeam = (id: string) => !scope.members || scope.members.has(id);
   const days = Number(new URL(req.url).searchParams.get("days") ?? 30);
   if (!PERIODS.has(days)) return NextResponse.json({ error: "Period must be 7, 30 or 90 days." }, { status: 400 });
   const since = new Date(Date.now() - days * DAY).toISOString();
@@ -46,7 +53,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load team call stats." }, { status: 500 });
   }
   const num = (v: unknown) => (v == null ? null : Number(v));
-  const rows: StatRow[] = (data ?? []).map((r) => ({
+  const rows: StatRow[] = (data ?? []).filter((r) => inTeam(String(r.rep_id))).map((r) => ({
     sessionId: String(r.session_id),
     repId: String(r.rep_id),
     version: Number(r.transcript_version),

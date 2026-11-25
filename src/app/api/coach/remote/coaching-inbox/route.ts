@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { teamFromRequest } from "@/lib/coach/remote/teamScope";
 import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { treeFilterReps } from "@/lib/api/treeAccess";
+import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
 import { isRequestOpen, listenedSeconds, loadCoachingEvents } from "@/lib/coach/remote/feedback";
 
 /**
@@ -22,6 +23,10 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const mgr = await requireSalesCoachManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+  // ?team=<manager> (F10.9 / F16.6): narrow to one manager's team — never wider than the caller's own access.
+  const scope = await teamFromRequest(req, createAdminClient, mgr.companyId, (id) => (id === mgr.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+  if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
+  const inTeam = (id: string) => !scope.members || scope.members.has(id);
 
   const admin = createAdminClient();
   const { data: reqRows, error } = await admin
@@ -41,7 +46,7 @@ export async function GET(req: NextRequest) {
   type Row = { id: string; session_id: string; requester_id: string; recipient_id: string | null; message: string | null; created_at: string };
   const all = (reqRows ?? []) as Row[];
   const visible = new Set(await treeFilterReps(req, [...new Set(all.map((r) => String(r.requester_id)))]));
-  const inTree = all.filter((r) => visible.has(String(r.requester_id)) && String(r.requester_id) !== mgr.userId);
+  const inTree = all.filter((r) => visible.has(String(r.requester_id)) && inTeam(String(r.requester_id)) && String(r.requester_id) !== mgr.userId);
   // 0337: a call a company phrase hid from this manager leaves the inbox — its label and link would name a call the
   // database refuses them. The verdict is the database's (hiddenFrom → rss_call_hidden_for); a failed check is a 500.
   let hidden: Set<string>;

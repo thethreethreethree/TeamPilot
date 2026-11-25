@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { teamFromRequest } from "@/lib/coach/remote/teamScope";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -22,6 +25,10 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const mgr = await requireSalesCoachManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+  // ?team=<manager> (F10.9 / F16.6): narrow to one manager's team — never wider than the caller's own access.
+  const scope = await teamFromRequest(req, createAdminClient, mgr.companyId, (id) => (id === mgr.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+  if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
+  const inTeam = (id: string) => !scope.members || scope.members.has(id);
   const days = Number(new URL(req.url).searchParams.get("days") ?? 30);
   if (!PERIODS.has(days)) return NextResponse.json({ error: "Period must be 7, 30 or 90 days." }, { status: 400 });
   const since = new Date(Date.now() - days * DAY).toISOString();
@@ -31,11 +38,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load what the team's calls cover." }, { status: 500 });
   };
 
-  const { data: calls, error } = await fetchAllPagedResult<{ id: string }>(
+  const { data: calls, error } = await fetchAllPagedResult<{ id: string; agent_id: string }>(
     (from, to) =>
       db
         .from("coaching_sessions")
-        .select("id")
+        .select("id, agent_id")
         .eq("company_id", mgr.companyId)
         .in("context", ["phone", "video"])
         .neq("status", "active")
@@ -45,7 +52,7 @@ export async function GET(req: NextRequest) {
     { label: "coverage calls", maxRows: 20_000 },
   );
   if (error) return fail("calls", error.message);
-  const callIds = (calls ?? []).map((c) => String(c.id));
+  const callIds = (calls ?? []).filter((c) => inTeam(String(c.agent_id))).map((c) => String(c.id));
 
   const { data: trackers, error: tErr } = await db.from("keyword_trackers").select("id, name, active").eq("company_id", mgr.companyId);
   if (tErr) return fail("trackers", tErr.message);

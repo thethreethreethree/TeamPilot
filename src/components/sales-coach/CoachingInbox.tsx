@@ -1,5 +1,6 @@
 "use client";
 
+import { withTeam } from "@/lib/coach/remote/teamQuery";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Inbox, Loader2 } from "lucide-react";
@@ -62,7 +63,8 @@ const daysAgo = (iso: string) => {
   return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
 };
 
-export function CoachingInbox() {
+
+export function CoachingInbox({ team }: { team?: string } = {}) {
   // F16.6: which rep's uncoached calls are listed (one at a time).
   const [openRep, setOpenRep] = useState<string | null>(null);
   const [wire, setWire] = useState<Wire | null>(null);
@@ -74,7 +76,7 @@ export function CoachingInbox() {
 
   useEffect(() => {
     let live = true;
-    fetch("/api/coach/remote/coaching-inbox")
+    fetch(withTeam("/api/coach/remote/coaching-inbox", team))
       .then(async (r) => {
         if (r.status === 403) return null; // not a manager: render nothing
         if (!r.ok) throw new Error(String(r.status));
@@ -88,14 +90,14 @@ export function CoachingInbox() {
         if (live && d?.members) setNames(Object.fromEntries(d.members.map((m) => [m.id, m.full_name ?? "Unnamed teammate"])));
       })
       .catch(() => {});
-    fetch("/api/coach/remote/coaching-metrics")
+    fetch(withTeam("/api/coach/remote/coaching-metrics", team))
       .then(async (r) => (r.status === 409 || r.ok ? ((await r.json()) as Metrics) : null))
       .then((m) => live && m && setMetrics(m))
       .catch(() => {});
     return () => {
       live = false;
     };
-  }, []);
+  }, [team]);
 
   const items = useMemo(
     () => (wire && wire.available ? wire.items.filter((i) => (!openOnly || i.open) && (!toYouOnly || i.toYou)) : []),

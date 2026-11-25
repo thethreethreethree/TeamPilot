@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { teamFromRequest } from "@/lib/coach/remote/teamScope";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { treeFilterReps } from "@/lib/api/treeAccess";
+import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
 import { buildUsage, mergeSignIns, type UsageEvent } from "@/lib/coach/remote/usage";
 
 /**
@@ -22,6 +23,10 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const mgr = await requireSalesCoachManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+  // ?team=<manager> (F10.9 / F16.6): narrow to one manager's team — never wider than the caller's own access.
+  const scope = await teamFromRequest(req, createAdminClient, mgr.companyId, (id) => (id === mgr.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+  if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
+  const inTeam = (id: string) => !scope.members || scope.members.has(id);
   const admin = createAdminClient();
   const fail = (what: string, msg?: string) => {
     console.error(`[usage] ${what} failed company=${mgr.companyId}: ${msg ?? ""}`);
@@ -33,7 +38,7 @@ export async function GET(req: NextRequest) {
   const visible = new Set(await treeFilterReps(req, ((profs ?? []) as Array<{ id: string }>).map((p) => p.id)));
   visible.add(mgr.userId);
   const members = ((profs ?? []) as Array<{ id: string; full_name: string | null }>)
-    .filter((p) => visible.has(p.id))
+    .filter((p) => visible.has(p.id) && inTeam(p.id))
     .map((p) => ({ id: p.id, name: p.full_name ?? "Unnamed teammate" }));
   const ids = members.map((m) => m.id);
   if (!ids.length) return NextResponse.json({ ...buildUsage([], [], Date.now()), windowDays: 30 });

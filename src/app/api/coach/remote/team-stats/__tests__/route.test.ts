@@ -19,12 +19,18 @@ vi.mock("@/lib/api/callerScopedDb", () => ({
     },
   }),
 }));
+// ?team= (F10.9 / F16.6): the scope's own rules are tested in teamScope.test.ts; here, what the route does with them.
+const scope = vi.hoisted(() => ({ result: { ok: true, members: null } as { ok: true; members: Set<string> | null } | { ok: false; status: number; error: string } }));
+vi.mock("@/lib/coach/remote/teamScope", () => ({ teamFromRequest: vi.fn(async () => scope.result) }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => true) }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { GET } from "../route";
 
 const get = (q = "") => GET(new Request(`http://x/api/coach/remote/team-stats${q}`) as never);
 beforeEach(() => {
   st.filters = [];
+  scope.result = { ok: true, members: null };
 });
 
 describe("GET team-stats", () => {
@@ -41,5 +47,13 @@ describe("GET team-stats", () => {
   it("managers only", async () => {
     vi.mocked(requireSalesCoachManager).mockResolvedValueOnce(null);
     expect((await get()).status).toBe(403);
+  });
+  it("a chosen team keeps only its people; a refused team is passed through (F10.9 / F16.6)", async () => {
+    scope.result = { ok: true, members: new Set(["someone-else"]) };
+    expect((await (await get("?days=30&team=x")).json()).reps).toEqual([]);
+    scope.result = { ok: true, members: new Set(["r1"]) };
+    expect((await (await get("?days=30&team=x")).json()).reps).toHaveLength(1);
+    scope.result = { ok: false, status: 404, error: "Team not found." };
+    expect((await get("?days=30&team=x")).status).toBe(404);
   });
 });

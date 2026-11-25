@@ -1,5 +1,6 @@
 "use client";
 
+import { withTeam } from "@/lib/coach/remote/teamQuery";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, Radar } from "lucide-react";
@@ -31,7 +32,8 @@ function Bar({ label, href, calls, total, share, muted }: { label: string; href:
   );
 }
 
-export function TeamCoverage() {
+
+export function TeamCoverage({ team }: { team?: string } = {}) {
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [data, setData] = useState<Resp | null>(null);
   const [state, setState] = useState<"loading" | "hidden" | "failed" | "ok">("loading");
@@ -39,7 +41,7 @@ export function TeamCoverage() {
   useEffect(() => {
     let live = true;
     setState("loading");
-    fetch(`/api/coach/remote/coverage?days=${days}`, { cache: "no-store" })
+    fetch(withTeam(`/api/coach/remote/coverage?days=${days}`, team), { cache: "no-store" })
       .then(async (r) => {
         if (!live) return;
         if (r.status === 403) return setState("hidden");
@@ -51,7 +53,7 @@ export function TeamCoverage() {
     return () => {
       live = false;
     };
-  }, [days]);
+  }, [days, team]);
 
   if (state === "hidden") return null;
   const from = data ? data.since.slice(0, 10) : "";

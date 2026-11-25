@@ -1,5 +1,6 @@
 "use client";
 
+import { withTeam } from "@/lib/coach/remote/teamQuery";
 import { useEffect, useState } from "react";
 import { Activity, Loader2 } from "lucide-react";
 import type { CallTime, Counts, PersonUsage } from "@/lib/coach/remote/usage";
@@ -35,14 +36,15 @@ const ago = (iso: string | null) => {
   return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
 };
 
-export function TeamUsage() {
+
+export function TeamUsage({ team }: { team?: string } = {}) {
   const [data, setData] = useState<Resp | null>(null);
   const [state, setState] = useState<"loading" | "hidden" | "failed" | "ok">("loading");
   const [range, setRange] = useState<"last7" | "last30">("last7");
 
   useEffect(() => {
     let live = true;
-    fetch("/api/coach/remote/usage", { cache: "no-store" })
+    fetch(withTeam("/api/coach/remote/usage", team), { cache: "no-store" })
       .then(async (r) => {
         if (!live) return;
         if (r.status === 403) return setState("hidden");
@@ -54,7 +56,7 @@ export function TeamUsage() {
     return () => {
       live = false;
     };
-  }, []);
+  }, [team]);
 
   if (state === "hidden") return null;
   return (

@@ -43,3 +43,14 @@ describe("TeamCallStats — time format (review 2026-11-25)", () => {
     expect(rows[1]!.textContent).not.toContain("1:60");
   });
 });
+
+describe("TeamCallStats — a chosen team (F10.9 / F16.6)", () => {
+  it("asks for that team, and asks again when it changes", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((u: string) => (urls.push(u), json({ days: 30, team: A({ calls: 0 }), reps: [] }))));
+    const { rerender } = render(<TeamCallStats team="m3" />);
+    await waitFor(() => expect(urls).toContain("/api/coach/remote/team-stats?days=30&team=m3"));
+    rerender(<TeamCallStats team={undefined} />);
+    await waitFor(() => expect(urls).toContain("/api/coach/remote/team-stats?days=30"));
+  });
+});
