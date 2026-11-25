@@ -11,6 +11,7 @@ import { StartSessionPanel } from "@/components/sales-coach/StartSessionPanel";
 import { StageChips } from "@/components/sales-coach/StageChips";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { RemoteMacroToggle } from "@/components/remote-sales/RemoteMacroToggle";
+import { GettingStarted } from "@/components/remote-sales/GettingStarted";
 
 /**
  * Remote Sales → Calls. The plan's "Done means" (docs/rss/docs/01-SCOPE.md): a rep uploads or live-records a phone or
@@ -74,6 +75,8 @@ export function RemoteCallsHome() {
   return (
     <div className="space-y-6">
       <RemoteMacroToggle />
+      {/* F36.40: first-week checklist; disappears when done or hidden. Not in Macro Mode (the PDF: "nothing else"). */}
+      {macro !== true && <GettingStarted />}
       {macro !== true && <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Remote calls at a glance">
         {[
           { k: "Remote calls", v: rows ? rows.length : "—" },

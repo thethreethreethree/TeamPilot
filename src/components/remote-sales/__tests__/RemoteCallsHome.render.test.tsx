@@ -28,7 +28,7 @@ describe("remote calls", () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ sessions: [ROW], isManager: false }) });
     render(<RemoteCallsHome />);
     expect(await screen.findByText("Pat Prospect")).toBeTruthy();
-    expect(String(fetchMock.mock.calls[0]![0])).toContain("context=remote");
+    expect(fetchMock.mock.calls.map((c) => String(c[0])).find((u) => u.includes("sales-session/list"))).toContain("context=remote");
   });
 
   it("a failed read says so", async () => {
