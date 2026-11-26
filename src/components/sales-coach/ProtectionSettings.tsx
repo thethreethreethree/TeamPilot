@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { HidePhrasesPanel } from "@/components/remote-sales/HidePhrasesPanel";
 import { CallCategoriesPanel } from "@/components/remote-sales/CallCategoriesPanel";
+import { ApiKeysPanel } from "@/components/remote-sales/ApiKeysPanel";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { VocabularySettings } from "@/components/remote-sales/VocabularySettings";
@@ -287,6 +288,8 @@ export function ProtectionSettings() {
       <HidePhrasesPanel />
       {/* Call categories (0367, F10.10): the list reps pick from on each call's page. Company admins only. */}
       <CallCategoriesPanel />
+      {/* The public read API's keys (0378, Engage plan E3). Company admins only. */}
+      <ApiKeysPanel />
     </div>
   );
 }

@@ -27,6 +27,9 @@ export const AUDIT_ACTIONS = [
   "erasure.request",
   "webhook.add",
   "webhook.off",
+  // The public read API (Engage plan E3, 0378): an admin made or revoked a key.
+  "api_key.create",
+  "api_key.revoke",
   // A recording nothing referenced, removed by the sweeper (0299; docs/STORAGE-ORPHANS-2026-11-21.md). System actor.
   "recording.orphan_purge",
   // Multi-factor sign-in (2026-11-23): a person turned on / removed an authenticator; an admin reset a member's.
