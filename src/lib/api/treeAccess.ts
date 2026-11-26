@@ -80,3 +80,23 @@ export async function treeFilterRepsChecked(req: Request, repIds: readonly strin
     return null;
   }
 }
+
+/**
+ * Like treeAllowsRep, but null when the tree couldn't be asked (review 2026-11-26): a route can answer "couldn't check"
+ * (503) instead of "not in your team" (404) for a manager who is in fact allowed. A missing function is still "allowed".
+ */
+export async function treeAllowsRepChecked(req: Request, repId: string): Promise<boolean | null> {
+  try {
+    const db = await callerDb(req);
+    const { data, error } = await db.rpc("rss_tree_allows", { rep: repId });
+    if (error) {
+      if (MISSING_FUNCTION.has(String(error.code))) return true;
+      console.error(`[treeAccess] rss_tree_allows failed: ${error.message}`);
+      return null;
+    }
+    return data === true;
+  } catch (err) {
+    console.error("[treeAccess] rss_tree_allows threw:", err);
+    return null;
+  }
+}

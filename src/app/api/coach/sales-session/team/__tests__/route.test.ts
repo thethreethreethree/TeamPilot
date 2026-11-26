@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 // 0273: the reporting tree — allowed unless a test says the member is outside the caller's chain.
 const tree = vi.hoisted(() => ({ allowed: true }));
-vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed) }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeAllowsRepChecked: vi.fn(async () => tree.allowed) }));
 import { GET, POST } from "../route";
 
 const setCaller = (userId: string | null, profile: unknown) =>

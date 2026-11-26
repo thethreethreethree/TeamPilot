@@ -1,4 +1,4 @@
-import { treeAllowsRep } from "@/lib/api/treeAccess";
+import { treeAllowsRepChecked } from "@/lib/api/treeAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -63,7 +63,9 @@ export async function GET(req: NextRequest) {
     }
     // 0273 (2026-11-26): the manager must also have this rep in their reporting tree — the database's rule
     // (treeAllowsRep), which RLS applies everywhere else; same-company alone let a manager outside a rep's chain in.
-    if (!(await treeAllowsRep(req, requestedAgentId))) {
+    const inTree = await treeAllowsRepChecked(req, requestedAgentId);
+    if (inTree === null) return NextResponse.json({ error: "Couldn't check your team right now. Try again." }, { status: 503 });
+    if (!inTree) {
       return NextResponse.json({ error: "Rep not found in your team." }, { status: 404 });
     }
     targetAgentId = requestedAgentId;

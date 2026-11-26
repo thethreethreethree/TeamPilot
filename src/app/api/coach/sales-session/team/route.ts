@@ -1,4 +1,4 @@
-import { treeAllowsRep } from "@/lib/api/treeAccess";
+import { treeAllowsRepChecked } from "@/lib/api/treeAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -134,8 +134,10 @@ export async function POST(req: NextRequest) {
   // tree-limited manager make any member without a manager "staff", which switches the company OFF the tree (0287
   // rss_tree_blockers) and with it every manager's narrowing. Members in the caller's chain have a manager, so changing
   // them can't. Your own role is yours to change.
-  if (body.id !== ctx.userId && !(await treeAllowsRep(req, body.id))) {
-    return NextResponse.json({ error: "That member isn't in your team." }, { status: 404 });
+  if (body.id !== ctx.userId) {
+    const inTree = await treeAllowsRepChecked(req, body.id);
+    if (inTree === null) return NextResponse.json({ error: "Couldn't check your team right now. Try again." }, { status: 503 });
+    if (!inTree) return NextResponse.json({ error: "That member isn't in your team." }, { status: 404 });
   }
 
   // Service-role update, scoped to the manager's company so a manager

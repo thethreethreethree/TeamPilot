@@ -22,7 +22,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getRecentAfterPitchSummariesAdmin } from "@/lib/data/salesCoach";
 // 0273 (2026-11-26): the reporting tree — allowed unless a test says the rep is outside it.
 const tree = vi.hoisted(() => ({ allowed: true }));
-vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => (tree.allowed ? ids : [])) }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeAllowsRepChecked: vi.fn(async () => tree.allowed), treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => (tree.allowed ? ids : [])) }));
 import { GET } from "../route";
 
 /** profiles read is keyed by the eq'd id: caller (auth.user.id) then target (requestedAgentId). */

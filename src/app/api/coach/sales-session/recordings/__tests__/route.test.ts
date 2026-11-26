@@ -15,8 +15,8 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 // 0273 (2026-11-26): the reporting tree — allowed unless a test says the rep is outside it.
-const tree = vi.hoisted(() => ({ allowed: true }));
-vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => (tree.allowed ? ids : [])) }));
+const tree = vi.hoisted(() => ({ allowed: true as boolean | null }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeAllowsRepChecked: vi.fn(async () => tree.allowed), treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => (tree.allowed ? ids : [])) }));
 import { GET } from "../route";
 
 const setCaller = (userId: string | null, profilesById: Record<string, unknown>) =>
@@ -105,4 +105,13 @@ describe("GET /recordings — ?agentId manager-access gate (A18, call audio)", (
     expect(res.status).toBe(404);
     expect(eqCalls).not.toContainEqual({ col: "agent_id", val: "rep2" }); // nothing read for that rep
   });
+  it("503 when the reporting tree can't be asked — never a wrong 'not in your team' (review 2026-11-26)", async () => {
+    setCaller("boss", { boss: MANAGER, rep2: { company_id: "co1" } });
+    tree.allowed = null;
+    const res = await GET(req("rep2"));
+    tree.allowed = true;
+    expect(res.status).toBe(503);
+    expect(eqCalls).not.toContainEqual({ col: "agent_id", val: "rep2" });
+  });
 });
+

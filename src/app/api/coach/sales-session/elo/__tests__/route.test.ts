@@ -18,7 +18,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAgentEloRating } from "@/lib/coach/v5/salesElo";
 // 0273 (2026-11-26): the reporting tree — allowed unless a test says the rep is outside it.
 const tree = vi.hoisted(() => ({ allowed: true }));
-vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => (tree.allowed ? ids : [])) }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeAllowsRepChecked: vi.fn(async () => tree.allowed), treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => (tree.allowed ? ids : [])) }));
 import { GET } from "../route";
 
 const setCaller = (userId: string | null, profile: unknown) =>

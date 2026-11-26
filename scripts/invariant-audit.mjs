@@ -2475,7 +2475,7 @@ for (const f of FILES) {
   // and team activity, skills, ELO) decided "manager" with isSalesCoachManager / canManagerViewRepSkills and so were never
   // checked, and none asked the tree.
   if (!MANAGER_CHECK_RE.test(f.sql) || !/createAdminClient\(/.test(f.sql)) continue;
-  if (/treeAllowsRep\(|treeFilterReps(Checked)?\(/.test(f.sql)) continue;
+  if (/treeAllowsRep(Checked)?\(|treeFilterReps(Checked)?\(/.test(f.sql)) continue;
   if (TREE_ROUTE_ALLOWLIST.has(f.path)) continue;
   findings.push({
     rule: "Manager route uses the service role without asking the reporting tree",
