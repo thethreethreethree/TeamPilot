@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { courseProgress, currentSteps, type StepRow } from "@/lib/coach/remote/courses";
-import { assignPractice, practiceStates } from "@/lib/coach/remote/coursePractice";
+import { assignPractice, movePracticeDue, practiceStates, retiredScenarios } from "@/lib/coach/remote/coursePractice";
 import { currentDue } from "@/lib/coach/remote/training";
 import { treeAllowsRepChecked, treeFilterRepsChecked } from "@/lib/api/treeAccess";
 
@@ -116,6 +116,10 @@ export async function GET(req: NextRequest) {
     [...currentOf.values()].flatMap((l) => l.flatMap((x) => (x.scenarioId ? [x.scenarioId] : []))),
   );
   if (!practice) return fail("practice", "read");
+  // A practice whose scenario was retired before this rep got it can never be done (review 2026-11-26): it leaves this
+  // rep's count and says why, instead of holding the course at "n-1 of n" and turning it overdue.
+  const retired = await retiredScenarios(admin, ctx.companyId, [...currentOf.values()].flatMap((l) => l.flatMap((x) => (x.scenarioId ? [x.scenarioId] : []))));
+  if (!retired) return fail("scenarios", "read");
   const nameOf = new Map<string, string | null>();
   for (let i = 0; i < people.length; i += 150) {
     const { data: profs, error: pErr } = await admin.from("profiles").select("id, full_name").eq("company_id", ctx.companyId).in("id", people.slice(i, i + 150));
@@ -132,7 +136,9 @@ export async function GET(req: NextRequest) {
       const marked = doneBy.get(r.id) ?? new Set<string>();
       const pOf = (scenarioId: string | null) => (scenarioId ? practice.get(`${r.rep_id}|${scenarioId}`) : undefined);
       const dueAt = currentDue(r.due_at, dueChanges.get(r.id) ?? []);
-      const done = new Set(list.filter((x) => (x.kind === "practice" ? pOf(x.scenarioId)?.done : marked.has(x.uid))).map((x) => x.uid));
+      const lapsed = (x: { kind: string; scenarioId: string | null }) => x.kind === "practice" && !!x.scenarioId && retired.has(x.scenarioId) && !pOf(x.scenarioId);
+      const counted = list.filter((x) => !lapsed(x));
+      const done = new Set(counted.filter((x) => (x.kind === "practice" ? pOf(x.scenarioId)?.done : marked.has(x.uid))).map((x) => x.uid));
       return {
         id: r.id,
         courseId: r.course_id,
@@ -146,8 +152,8 @@ export async function GET(req: NextRequest) {
         // The rep sees the lessons; the manager's table needs only the progress.
         steps: team
           ? undefined
-          : list.map((s) => ({ ...s, done: done.has(s.uid), practiceAssignmentId: pOf(s.scenarioId)?.assignmentId ?? null, practiceState: pOf(s.scenarioId)?.state ?? null })),
-        ...courseProgress({ steps: list, doneUids: done, dueAt }),
+          : list.map((s) => ({ ...s, done: done.has(s.uid), practiceAssignmentId: pOf(s.scenarioId)?.assignmentId ?? null, practiceState: pOf(s.scenarioId)?.state ?? null, retired: lapsed(s) })),
+        ...courseProgress({ steps: counted, doneUids: done, dueAt }),
       };
     }),
   });
@@ -190,7 +196,7 @@ export async function POST(req: NextRequest) {
   const targets = ((members ?? []) as Array<{ id: string }>).map((m) => String(m.id));
   if (targets.length === 0) return NextResponse.json({ error: "None of those reps are on your team." }, { status: 403 });
   // Plain insert of only the reps without it: the table has an UPDATE rule, so Postgres refuses ON CONFLICT (as 0282).
-  const { data: had, error: hErr } = await admin.from("training_course_assignments").select("rep_id").eq("company_id", mgr.companyId).eq("course_id", courseId).in("rep_id", targets);
+  const { data: had, error: hErr } = await admin.from("training_course_assignments").select("id, rep_id, due_at, assigned_by").eq("company_id", mgr.companyId).eq("course_id", courseId).in("rep_id", targets);
   if (hErr) {
     console.error(`[course-assignments] read failed: ${hErr.message}`);
     return NextResponse.json({ error: "Couldn't assign it." }, { status: 500 });
@@ -204,14 +210,27 @@ export async function POST(req: NextRequest) {
       console.error(`[course-assignments] insert failed: ${error.message}`);
       return NextResponse.json({ error: "Couldn't assign it." }, { status: 500 });
     }
-    // The course's practice steps come with it, due with the course (0357).
-    const steps = await stepsFor(admin, mgr.companyId, [courseId]);
-    const scen = steps ? currentSteps(steps.get(courseId) ?? []).flatMap((x) => (x.scenarioId ? [x.scenarioId] : [])) : null;
-    const r = scen === null ? "failed" : await assignPractice(admin, mgr.companyId, { scenarioIds: scen, reps: fresh.map((repId) => ({ repId, dueAt, by: mgr.userId })) });
-    if (r !== "ok") {
-      console.error(`[course-assignments] practice assign: ${r}`);
-      return NextResponse.json({ error: "The course was assigned, but its practice scenarios weren't. Assign them from Scenarios below.", assigned: fresh.length }, { status: 502 });
+  }
+  // The course's practice steps come with it, due with the course (0357). Reps who already had the course are included
+  // (review 2026-11-26): assigning again is how a manager retries practice that didn't go out the first time. Theirs is
+  // due with their course's CURRENT date and assigned by whoever gave them the course.
+  const steps = await stepsFor(admin, mgr.companyId, [courseId]);
+  const scen = steps ? currentSteps(steps.get(courseId) ?? []).flatMap((x) => (x.scenarioId ? [x.scenarioId] : [])) : null;
+  let practiceReps: Array<{ repId: string; dueAt: string; by: string }> | null = fresh.map((repId) => ({ repId, dueAt, by: mgr.userId }));
+  const hadRows = (had ?? []) as Array<{ id: string; rep_id: string; due_at: string; assigned_by: string }>;
+  if (scen?.length && hadRows.length) {
+    const { data: ch, error: chErr } = await admin.from("training_course_due_changes").select("assignment_id, due_at, id").eq("company_id", mgr.companyId).in("assignment_id", hadRows.map((h) => h.id)).order("id", { ascending: true });
+    if (chErr) practiceReps = null;
+    else {
+      const by = new Map<string, Array<{ due_at: string }>>();
+      for (const c of (ch ?? []) as Array<{ assignment_id: string; due_at: string }>) by.set(String(c.assignment_id), [...(by.get(String(c.assignment_id)) ?? []), c]);
+      practiceReps!.push(...hadRows.map((h) => ({ repId: String(h.rep_id), dueAt: currentDue(h.due_at, by.get(h.id) ?? []), by: String(h.assigned_by) })));
     }
+  }
+  const r = scen === null || practiceReps === null ? "failed" : await assignPractice(admin, mgr.companyId, { scenarioIds: scen, reps: practiceReps });
+  if (r !== "ok") {
+    console.error(`[course-assignments] practice assign: ${r}`);
+    return NextResponse.json({ error: "The course was assigned, but its practice scenarios weren't. Assign it again to retry.", assigned: fresh.length }, { status: 502 });
   }
   return NextResponse.json({ assigned: fresh.length, alreadyAssigned: already.size, skipped: repIds.length - targets.length });
 }
@@ -259,7 +278,7 @@ export async function PATCH(req: NextRequest) {
   const dueAt = parseDue(b.dueAt);
   if (typeof b.assignmentId !== "string" || !dueAt) return NextResponse.json({ error: "Which course, and a due date within the next year." }, { status: 400 });
   const admin = createAdminClient();
-  const { data: a } = await admin.from("training_course_assignments").select("id, rep_id").eq("company_id", mgr.companyId).eq("id", b.assignmentId).maybeSingle();
+  const { data: a } = await admin.from("training_course_assignments").select("id, rep_id, course_id").eq("company_id", mgr.companyId).eq("id", b.assignmentId).maybeSingle();
   if (!a) return NextResponse.json({ error: "Course not found." }, { status: 404 });
   const allowed = await treeAllowsRepChecked(req, String(a.rep_id));
   if (allowed === null) return NextResponse.json({ error: "Couldn't check your reporting tree — try again." }, { status: 503 });
@@ -268,6 +287,14 @@ export async function PATCH(req: NextRequest) {
   if (error) {
     console.error(`[course-assignments] due change failed: ${error.message}`);
     return NextResponse.json({ error: "Couldn't change the due date." }, { status: 500 });
+  }
+  // The course's practice that isn't done yet moves with it (review 2026-11-26), so the practice list agrees.
+  const st = await stepsFor(admin, mgr.companyId, [String(a.course_id)]);
+  const scen = st ? currentSteps(st.get(String(a.course_id)) ?? []).flatMap((x) => (x.scenarioId ? [x.scenarioId] : [])) : null;
+  const moved = scen === null ? false : await movePracticeDue(admin, mgr.companyId, { repId: String(a.rep_id), scenarioIds: scen, dueAt, by: mgr.userId });
+  if (!moved) {
+    console.error("[course-assignments] practice due move failed");
+    return NextResponse.json({ error: "The course's due date moved, but its practice dates didn't. Change them under Assigned practice.", dueAt }, { status: 502 });
   }
   return NextResponse.json({ ok: true, dueAt });
 }

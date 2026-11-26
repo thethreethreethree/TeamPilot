@@ -5,7 +5,8 @@ import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { currentSteps, currentVersion, parseSteps, SUMMARY_MAX, TITLE_MAX, type Step, type StepRow } from "@/lib/coach/remote/courses";
-import { assignPractice, scenariosUsable } from "@/lib/coach/remote/coursePractice";
+import { assignPractice, retiredScenarios, scenariosUsable } from "@/lib/coach/remote/coursePractice";
+import { currentDue } from "@/lib/coach/remote/training";
 
 /**
  * /api/coach/remote/courses — training courses: ordered lessons a manager writes (2026-11-26, Gong F17.1; migration 0355).
@@ -58,6 +59,10 @@ export async function GET(req: NextRequest) {
     }
     for (const r of data ?? []) stepsBy.set(String(r.course_id), [...(stepsBy.get(String(r.course_id)) ?? []), r]);
   }
+  // A practice step on a since-retired scenario is flagged for the manager (review 2026-11-26): new takers skip it.
+  const allSteps = list.map((c) => currentSteps(stepsBy.get(c.id) ?? []));
+  const retired = await retiredScenarios(admin, mgr.companyId, allSteps.flat().flatMap((x) => (x.scenarioId ? [x.scenarioId] : [])));
+  if (!retired) return NextResponse.json({ error: "Couldn't load courses." }, { status: 500 });
   return NextResponse.json({
     available: true,
     courses: list.map((c) => ({
@@ -67,7 +72,7 @@ export async function GET(req: NextRequest) {
       retired: !!c.retired_at,
       createdAt: c.created_at,
       version: currentVersion(stepsBy.get(c.id) ?? []),
-      steps: currentSteps(stepsBy.get(c.id) ?? []),
+      steps: currentSteps(stepsBy.get(c.id) ?? []).map((x) => ({ ...x, scenarioRetired: !!x.scenarioId && retired.has(x.scenarioId) })),
     })),
   });
 }
@@ -169,9 +174,21 @@ export async function PUT(req: NextRequest) {
       (from, to) => admin.from("training_course_assignments").select("rep_id, due_at, assigned_by, id").eq("company_id", mgr.companyId).eq("course_id", course.id).order("id", { ascending: true }).range(from, to),
       { label: "course takers", maxRows: 50_000 },
     );
-    const r = tErr ? "failed" : await assignPractice(admin, mgr.companyId, { scenarioIds: practice, reps: (takers ?? []).map((t) => ({ repId: String(t.rep_id), dueAt: t.due_at, by: String(t.assigned_by) })) });
+    // Due with each taker's CURRENT course date (review 2026-11-26: the original one could already be past).
+    const ids = (takers ?? []).map((t) => t.id);
+    const changes = new Map<string, Array<{ due_at: string }>>();
+    let chErr: { message: string } | null = null;
+    for (let i = 0; !tErr && i < ids.length; i += 150) {
+      const { data: ch, error: e } = await admin.from("training_course_due_changes").select("assignment_id, due_at, id").eq("company_id", mgr.companyId).in("assignment_id", ids.slice(i, i + 150)).order("id", { ascending: true });
+      if (e) {
+        chErr = e;
+        break;
+      }
+      for (const c of (ch ?? []) as Array<{ assignment_id: string; due_at: string }>) changes.set(String(c.assignment_id), [...(changes.get(String(c.assignment_id)) ?? []), c]);
+    }
+    const r = tErr || chErr ? "failed" : await assignPractice(admin, mgr.companyId, { scenarioIds: practice, reps: (takers ?? []).map((t) => ({ repId: String(t.rep_id), dueAt: currentDue(t.due_at, changes.get(t.id) ?? []), by: String(t.assigned_by) })) });
     if (r !== "ok") {
-      console.error(`[courses] practice for existing reps: ${tErr?.message ?? r}`);
+      console.error(`[courses] practice for existing reps: ${tErr?.message ?? chErr?.message ?? r}`);
       practiceAssigned = false;
     }
   }

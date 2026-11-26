@@ -80,6 +80,38 @@ describe("AssignedCourses — lesson content (0359)", () => {
   });
 });
 
+describe("review 2026-11-26 — honest outcomes", () => {
+  it("a lesson saved but the refresh failed says so, not 'You finished'", async () => {
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn((_u: string, init?: { method?: string }) => {
+      if (init?.method === "PUT") return ok({ ok: true });
+      calls += 1;
+      if (calls > 1) return ok({}, 500);
+      return ok({ available: true, assignments: [{ id: "a1", title: "Discovery", summary: null, assignedByName: null, dueAt: "2999-01-01T00:00:00Z", done: 0, total: 1, state: "not_started", steps: [{ uid: "u1", title: "Open", body: "Ask first.", done: false }] }] });
+    }));
+    render(<AssignedCourses />);
+    fireEvent.click(await screen.findByText("Discovery"));
+    fireEvent.click(screen.getByRole("button", { name: "Mark done" }));
+    await screen.findByText(/Saved. Couldn't refresh your course/);
+    expect(screen.queryByText(/You finished/)).toBeNull();
+  });
+  it("assigning says what happened: assigned, already had it, not on your team", async () => {
+    vi.stubGlobal("fetch", vi.fn((u: string, init?: { method?: string }) => {
+      if (init?.method === "POST") return ok({ assigned: 1, alreadyAssigned: 1, skipped: 2 });
+      if (u === "/api/team") return ok({ members: [{ id: "r1", full_name: "Rae" }] });
+      if (u.startsWith("/api/coach/remote/course-assignments")) return ok({ assignments: [] });
+      return ok({ available: true, courses: [{ id: "k1", title: "Discovery", summary: null, retired: false, version: 1, steps: [{ uid: "x", title: "A", body: "a", kind: "lesson", scenarioId: null }, { uid: "y", title: "P", body: "", kind: "practice", scenarioId: "s1", scenarioRetired: true }] }] });
+    }));
+    render(<CourseManager />);
+    expect(await screen.findByText(/scenario was retired, so reps who get this course from now on skip it/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rae" }));
+    fireEvent.change(screen.getByLabelText("Due"), { target: { value: "2027-01-10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Assign to 1 rep" }));
+    await screen.findByText("Assigned to 1 rep. 1 already had it. 2 aren't on your team.");
+  });
+});
+
 describe("CourseManager", () => {
   it("a new course is saved with its lessons in order, then Assign opens for it", async () => {
     const posts: Array<[string, unknown]> = [];

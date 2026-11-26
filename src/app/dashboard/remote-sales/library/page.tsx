@@ -158,7 +158,9 @@ export default function LibraryPage() {
     }
   }, []);
   // The linked item (0359): scrolled to once the list is in; null = not here for this person.
-  const focusFound = focus && wire && wire.available ? wire.items.some((i) => i.id === focus.item) : null;
+  // Judged on the company tab only (review 2026-11-26): the linked call is a company-library call, so "not here" on the
+  // Mine tab would be wrong.
+  const focusFound = focus && scope === "company" && wire && wire.available ? wire.items.some((i) => i.id === focus.item) : null;
   useEffect(() => {
     if (focus && focusFound) document.getElementById(`library-item-${focus.item}`)?.scrollIntoView?.({ block: "center" });
   }, [focus, focusFound]);

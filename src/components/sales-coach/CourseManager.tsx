@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, BookOpen, Trash2 } from "lucide-react";
+import { dayOf, dueEndOfDay } from "@/lib/coach/remote/dueDay";
+import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
 
 /**
  * Training courses for managers (2026-11-26, Gong F17.1; migration 0355): write a course as ordered lessons, change it
@@ -10,7 +12,7 @@ import { ArrowDown, ArrowUp, BookOpen, Trash2 } from "lucide-react";
  */
 type Step = { uid?: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null; libraryItemId?: string | null; linkUrl?: string | null };
 type LibItem = { id: string; label: string };
-type Course = { id: string; title: string; summary: string | null; retired: boolean; version: number; steps: Array<{ uid: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null; libraryItemId?: string | null; linkUrl?: string | null }> };
+type Course = { id: string; title: string; summary: string | null; retired: boolean; version: number; steps: Array<{ uid: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null; libraryItemId?: string | null; linkUrl?: string | null; scenarioRetired?: boolean }> };
 type Scenario = { id: string; title: string; retired_at: string | null };
 type Progress = { id: string; title: string; repName: string | null; dueAt: string; done: number; total: number; state: string };
 type Member = { id: string; full_name: string | null };
@@ -20,7 +22,17 @@ const blank = (): Step => ({ title: "", body: "", kind: "lesson", scenarioId: nu
 /** A step is ready to save: a lesson has text; a practice names a scenario (its note is optional). */
 const ready = (s: Step) => !!s.title.trim() && (s.kind === "practice" ? !!s.scenarioId : !!s.body.trim());
 
+/** What an assign actually did (review 2026-11-26: it always said "Assigned."). */
+function assignedSentence(j: Record<string, unknown>): string {
+  const n = (k: string) => (typeof j[k] === "number" ? (j[k] as number) : 0);
+  const parts = [`Assigned to ${n("assigned")} ${n("assigned") === 1 ? "rep" : "reps"}.`];
+  if (n("alreadyAssigned")) parts.push(`${n("alreadyAssigned")} already had it.`);
+  if (n("skipped")) parts.push(`${n("skipped")} ${n("skipped") === 1 ? "isn't" : "aren't"} on your team.`);
+  return parts.join(" ");
+}
+
 export function CourseManager() {
+  const me = useCurrentUserId();
   const [courses, setCourses] = useState<Course[] | null>(null);
   const [notReady, setNotReady] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -100,9 +112,11 @@ export function CourseManager() {
       const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
       if (!r.ok) {
         setMsg(typeof j.error === "string" ? j.error : "That didn't save.");
+        // 502 = part of it saved (the course, not its practice): show what's true now (review 2026-11-26).
+        if (r.status === 502) await load();
         return null;
       }
-      setMsg(ok);
+      setMsg(ok || assignedSentence(j));
       await load();
       return j;
     } catch {
@@ -238,11 +252,16 @@ export function CourseManager() {
                   <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Retire “${c.title}”? Reps who have it keep it; it can't be assigned again.`)) void send("PATCH", "/api/coach/remote/courses", { courseId: c.id, retire: true }, "Retired."); }} className="text-muted hover:text-primary">Retire</button>
                 </span>
               </div>
+              {c.steps.some((x) => x.scenarioRetired) && (
+                <p className="mt-1 text-[11px] text-secondary">
+                  A practice step&apos;s scenario was retired, so reps who get this course from now on skip it. Edit lessons to replace or remove it.
+                </p>
+              )}
               {assignFor === c.id && (
                 <div className="mt-2 space-y-2 rounded-lg border border-default p-2" aria-label={`Assign ${c.title}`}>
                   {membersFailed && <p className="text-[11px] text-muted">Couldn&apos;t load your team. Refresh to assign.</p>}
                   <div className="flex flex-wrap gap-1">
-                    {members.map((m) => (
+                    {members.filter((m) => m.id !== me).map((m) => (
                       <button key={m.id} type="button" aria-pressed={picked.includes(m.id)} onClick={() => setPicked(picked.includes(m.id) ? picked.filter((x) => x !== m.id) : [...picked, m.id])}
                         className={`rounded-full border px-2 py-0.5 ${picked.includes(m.id) ? "border-strong font-semibold text-primary" : "border-default text-muted"}`}>
                         {m.full_name ?? "Unnamed"}
@@ -251,7 +270,7 @@ export function CourseManager() {
                   </div>
                   <label className="block text-[11px] text-muted">Due<input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={input} /></label>
                   <button type="button" disabled={busy || picked.length === 0 || !due}
-                    onClick={async () => { if (await send("POST", "/api/coach/remote/course-assignments", { courseId: c.id, repIds: picked, dueAt: `${due}T23:59:00` }, "Assigned.")) setAssignFor(null); }}
+                    onClick={async () => { if (await send("POST", "/api/coach/remote/course-assignments", { courseId: c.id, repIds: picked, dueAt: dueEndOfDay(due) }, "")) setAssignFor(null); }}
                     className="rounded-lg bg-ember-400 px-3 py-1 text-xs font-semibold text-ink-950 disabled:opacity-60">
                     Assign to {picked.length} {picked.length === 1 ? "rep" : "reps"}
                   </button>
@@ -276,8 +295,8 @@ export function CourseManager() {
                   <td className="text-secondary">{p.done} of {p.total}</td>
                   <td>
                     {/* Moving a due date is a new row (0358); the rep sees it at once. */}
-                    <input type="date" key={p.dueAt} defaultValue={p.dueAt.slice(0, 10)} aria-label={`Due date for ${p.repName ?? "rep"}, ${p.title}`}
-                      onBlur={(e) => { if (e.target.value && e.target.value !== p.dueAt.slice(0, 10)) void send("PATCH", "/api/coach/remote/course-assignments", { assignmentId: p.id, dueAt: `${e.target.value}T23:59:00` }, "Due date changed."); }}
+                    <input type="date" key={p.dueAt} defaultValue={dayOf(p.dueAt)} aria-label={`Due date for ${p.repName ?? "rep"}, ${p.title}`}
+                      onBlur={(e) => { if (e.target.value && e.target.value !== dayOf(p.dueAt)) void send("PATCH", "/api/coach/remote/course-assignments", { assignmentId: p.id, dueAt: dueEndOfDay(e.target.value) }, "Due date changed."); }}
                       className="rounded border border-default bg-base px-1 text-xs text-primary" />
                   </td>
                   <td className={p.state === "overdue" ? "font-semibold text-primary" : "text-secondary"}>{STATE[p.state] ?? p.state}</td>

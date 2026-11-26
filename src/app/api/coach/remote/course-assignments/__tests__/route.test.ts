@@ -41,7 +41,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-import { GET, PATCH, PUT } from "../route";
+import { GET, PATCH, POST, PUT } from "../route";
 const S = (v: number, p: number, uid: string) => ({ company_id: "co1", course_id: "k1", version: v, position: p, step_uid: uid, title: uid, body: "b", id: v * 10 + p });
 const put = (body: unknown) => PUT(new Request("http://t/x", { method: "PUT", body: JSON.stringify(body) }) as never);
 
@@ -113,5 +113,39 @@ describe("course assignments", () => {
     st.tables.training_course_due_changes = [{ id: 1, company_id: "co1", assignment_id: "a1", due_at: "2026-01-01T00:00:00Z" }, { id: 2, company_id: "co1", assignment_id: "a1", due_at: "2026-02-01T00:00:00Z" }];
     const a = (await (await GET(new Request("http://t/x") as never)).json()).assignments[0];
     expect(a).toMatchObject({ dueAt: "2026-02-01T00:00:00Z", state: "overdue" });
+  });
+  it("review 2026-11-26: a practice retired before the rep got it is shown, not counted", async () => {
+    st.tables.training_course_steps = [S(2, 1, "u1"), { ...S(2, 2, "p1"), kind: "practice", scenario_id: "sc1", body: "" }];
+    st.tables.training_scenarios = [{ id: "sc1", company_id: "co1", pass_score: null, retired_at: "2026-11-20T00:00:00Z" }];
+    st.tables.training_assignments = [];
+    const a = (await (await GET(new Request("http://t/x") as never)).json()).assignments[0];
+    expect(a).toMatchObject({ done: 1, total: 1, state: "done" }); // u1 done; the retired practice leaves the count
+    expect(a.steps[1]).toMatchObject({ uid: "p1", retired: true });
+  });
+  it("review 2026-11-26: assigning again retries practice for reps who already had the course, due with their current date", async () => {
+    st.who = { userId: "mgr1", companyId: "co1" };
+    st.manager = true;
+    st.tables.training_course_steps = [{ ...S(2, 1, "p1"), kind: "practice", scenario_id: "sc1", body: "" }];
+    st.tables.training_scenarios = [{ id: "sc1", company_id: "co1", pass_score: null, retired_at: null }];
+    st.tables.training_assignments = [];
+    st.tables.training_course_due_changes = [{ id: 1, company_id: "co1", assignment_id: "a1", due_at: "2027-03-01T00:00:00Z" }];
+    const soon = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    const r = await POST(new Request("http://t/x", { method: "POST", body: JSON.stringify({ courseId: "k1", repIds: ["rep1"], dueAt: soon }) }) as never);
+    expect(await r.json()).toMatchObject({ assigned: 0, alreadyAssigned: 1 });
+    const given = st.inserts.find(([t]) => t === "training_assignments");
+    expect(given?.[1]).toEqual([{ company_id: "co1", scenario_id: "sc1", rep_id: "rep1", assigned_by: "mgr1", due_at: "2027-03-01T00:00:00Z" }]);
+  });
+  it("review 2026-11-26: moving a course's due date moves its practice that isn't done", async () => {
+    st.who = { userId: "mgr1", companyId: "co1" };
+    st.manager = true;
+    st.tables.training_course_steps = [{ ...S(2, 1, "p1"), kind: "practice", scenario_id: "sc1", body: "" }, { ...S(2, 2, "p2"), kind: "practice", scenario_id: "sc2", body: "" }];
+    st.tables.training_scenarios = [{ id: "sc1", company_id: "co1", pass_score: null }, { id: "sc2", company_id: "co1", pass_score: null }];
+    st.tables.training_assignments = [{ id: "ta1", company_id: "co1", rep_id: "rep1", scenario_id: "sc1", due_at: "2026-12-01T00:00:00Z" }, { id: "ta2", company_id: "co1", rep_id: "rep1", scenario_id: "sc2", due_at: "2026-12-01T00:00:00Z" }];
+    st.tables.training_attempts = [{ id: 1, company_id: "co1", assignment_id: "ta2", score: 50, applied: true, passed: null, created_at: "2026-11-26T00:00:00Z" }];
+    const soon = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    const r = await PATCH(new Request("http://t/x", { method: "PATCH", body: JSON.stringify({ assignmentId: "a1", dueAt: soon }) }) as never);
+    expect(r.status).toBe(200);
+    const moved = st.inserts.find(([t]) => t === "training_due_changes");
+    expect(moved?.[1]).toEqual([{ company_id: "co1", assignment_id: "ta1", due_at: soon, changed_by: "mgr1" }]); // ta2 is done: left alone
   });
 });

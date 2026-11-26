@@ -16,6 +16,8 @@ type Step = {
   practiceAssignmentId?: string | null; practiceState?: string | null;
   /** 0359: a call in the company library, and/or an outside page. */
   libraryItemId?: string | null; linkUrl?: string | null;
+  /** A practice retired before it reached this rep: shown, not counted (review 2026-11-26). */
+  retired?: boolean;
 };
 const PRACTICE: Record<string, string> = { due: "Not practiced yet", overdue: "Not practiced yet — overdue", attempted: "Practiced", passed: "Passed", not_passed_yet: "Not passed yet — try again" };
 type Course = { id: string; title: string; summary: string | null; assignedByName: string | null; dueAt: string; done: number; total: number; state: "not_started" | "in_progress" | "done" | "overdue"; steps?: Step[] };
@@ -70,10 +72,15 @@ export function AssignedCourses() {
         return;
       }
       const list = await load();
-      const fresh = list?.find((x) => x.id === c.id);
-      const next = fresh?.steps?.find((x) => !x.done);
+      // The save worked but the refresh didn't (review 2026-11-26): say that, never "You finished".
+      if (!list) {
+        setMsg("Saved. Couldn't refresh your course — reload the page to see your next step.");
+        return;
+      }
+      const fresh = list.find((x) => x.id === c.id);
+      const next = fresh?.steps?.find((x) => !x.done && !x.retired);
       setOpenStep(next?.uid ?? null);
-      if (!next) setMsg(`You finished “${c.title}”.`);
+      if (!next && fresh?.state === "done") setMsg(`You finished “${c.title}”.`);
     } catch {
       setMsg("Couldn't reach the server.");
     } finally {
@@ -87,6 +94,7 @@ export function AssignedCourses() {
         <BookOpen className="h-4 w-4 text-brand" aria-hidden /> Your courses
       </p>
       {msg && <p role="status" className="text-xs text-secondary">{msg}</p>}
+      {failed && <p className="text-xs text-muted">Couldn&apos;t refresh your courses — what you see may be out of date. Reload the page.</p>}
       <ul className="space-y-2">
         {order.map((c) => (
           <li key={c.id} className="rounded-xl border border-default p-2">
@@ -96,7 +104,7 @@ export function AssignedCourses() {
               onClick={() => {
                 const opening = openCourse !== c.id;
                 setOpenCourse(opening ? c.id : null);
-                setOpenStep(opening ? (c.steps?.find((s) => !s.done)?.uid ?? null) : null);
+                setOpenStep(opening ? (c.steps?.find((s) => !s.done && !s.retired)?.uid ?? null) : null);
               }}
               className="flex w-full flex-wrap items-center gap-2 text-left text-xs"
             >
@@ -139,7 +147,9 @@ export function AssignedCourses() {
                           )}
                           {s.kind === "practice" && (
                             <p className="flex flex-wrap items-center gap-2 text-xs">
-                              <span className="text-secondary">{s.practiceState ? PRACTICE[s.practiceState] ?? s.practiceState : "Not assigned to you yet — ask your manager."}</span>
+                              <span className="text-secondary">
+                                {s.retired ? "This practice was retired before it reached you — it doesn't count toward the course." : s.practiceState ? PRACTICE[s.practiceState] ?? s.practiceState : "Not assigned to you yet — ask your manager."}
+                              </span>
                               {s.practiceAssignmentId && !s.done && (
                                 <Link href={`/dashboard/remote-sales/practice?assignment=${s.practiceAssignmentId}`} className="rounded-lg bg-ember-400 px-3 py-1 font-semibold text-ink-950">
                                   Practice it

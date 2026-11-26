@@ -1,5 +1,6 @@
 "use client";
 
+import { dayOf, dueEndOfDay } from "@/lib/coach/remote/dueDay";
 import { useCallback, useEffect, useState } from "react";
 import { ClipboardList, Loader2 } from "lucide-react";
 
@@ -26,7 +27,7 @@ type Member = { id: string; full_name: string | null };
 const STATE: Record<string, string> = { due: "Due", overdue: "Overdue", attempted: "Done", passed: "Passed", not_passed_yet: "Not passed yet" };
 const CHANNEL: Record<string, string> = { in_person: "In person", video: "Video", phone: "Phone" };
 const input = "w-full rounded-lg border border-default bg-base px-2 py-1.5 text-xs text-primary";
-const day = (iso: string) => iso.slice(0, 10);
+const day = (iso: string) => dayOf(iso);
 
 export function TrainingManager() {
   const [scenarios, setScenarios] = useState<Scenario[] | null>(null);
@@ -286,7 +287,7 @@ export function TrainingManager() {
                   <label className="block text-[11px] text-muted">Due<input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={input} /></label>
                   <button type="button" disabled={busy || picked.length === 0 || !due}
                     onClick={async () => {
-                      if (await send("/api/coach/remote/assignments", "POST", { scenarioId: s.id, repIds: picked, dueAt: `${due}T23:59:00` }, "Assigned.")) setAssignFor(null);
+                      if (await send("/api/coach/remote/assignments", "POST", { scenarioId: s.id, repIds: picked, dueAt: dueEndOfDay(due) }, "Assigned.")) setAssignFor(null);
                     }}
                     className="rounded-lg bg-ember-400 px-3 py-1 text-xs font-semibold text-ink-950 disabled:opacity-60">
                     Assign to {picked.length} {picked.length === 1 ? "rep" : "reps"}
@@ -315,7 +316,7 @@ export function TrainingManager() {
                     <td className="py-1.5 pr-3 text-secondary">{a.scenario?.title ?? "—"}{a.selfStarted ? <span className="ml-1 text-[10px] text-muted">(self-started)</span> : null}</td>
                     <td className="py-1.5 pr-3">
                       <input type="date" defaultValue={day(a.dueAt)} aria-label={`Due date for ${a.repName ?? "rep"}`}
-                        onBlur={(e) => { if (e.target.value && e.target.value !== day(a.dueAt)) void send("/api/coach/remote/assignments", "PATCH", { assignmentId: a.id, dueAt: `${e.target.value}T23:59:00` }, "Due date changed."); }}
+                        onBlur={(e) => { if (e.target.value && e.target.value !== day(a.dueAt)) void send("/api/coach/remote/assignments", "PATCH", { assignmentId: a.id, dueAt: dueEndOfDay(e.target.value) }, "Due date changed."); }}
                         className="rounded border border-default bg-base px-1 text-xs text-primary" />
                     </td>
                     <td className={`py-1.5 pr-3 ${a.state === "overdue" ? "font-semibold text-primary" : "text-secondary"}`}>{STATE[a.state] ?? a.state}</td>
