@@ -117,6 +117,10 @@ describe("dealRisk — Gong's warnings from rss_deal_signals", () => {
     expect(dealRisk(p({ signals: sig({ lastTwoWayAt: null }), callCount: 1 }), TODAY).reasons).toContain("ghosted");
     expect(dealRisk(p({ signals: sig({ lastTwoWayAt: null }), callCount: 0 }), TODAY).reasons).not.toContain("ghosted");
   });
+  it("ghosted with no two-way call yet counts from the deal's start: not on day 0, yes after 7+ days (review 2026-11-27)", () => {
+    expect(dealRisk(p({ signals: sig({ lastTwoWayAt: null }), callCount: 1, createdAt: `${TODAY}T08:00:00Z` }), TODAY).reasons).not.toContain("ghosted");
+    expect(dealRisk(p({ signals: sig({ lastTwoWayAt: null }), callCount: 1, createdAt: "2026-11-01T08:00:00Z" }), TODAY).reasons).toContain("ghosted");
+  });
   it("few contacts once the deal has been open 14+ days", () => {
     const one = sig({ contacts: [{ rank: "vp", lastOnCall: null }] });
     expect(dealRisk(p({ signals: one }), TODAY).reasons).toContain("few_contacts");

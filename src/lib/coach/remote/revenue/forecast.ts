@@ -5,7 +5,7 @@
  * moment ÷ what actually closed by the quarter's end, coloured as Gong's (green 85–115%). Pure, so it is tested.
  */
 export type Category = "commit" | "best_case";
-export type Submission = { userId: string; period: string; category: Category; amount: number; note: string | null; createdAt: string };
+export type Submission = { userId: string; period: string; category: Category; amount: number; createdAt: string };
 export type FDeal = { repId: string; status: "open" | "won" | "lost"; amount: number | null; closeDate?: string | null; closedAt?: string | null };
 
 /** The quarter a date falls in, 'YYYY-Qn' (UTC calendar quarters). */

@@ -9,7 +9,7 @@ import { readBody } from "@/lib/api/validate";
 import { isTaskClosed } from "@/lib/tasks/statusLabels";
 import { eventValue } from "@/lib/coach/remote/macroMode";
 import { AccountReadError, contactsOfDeal, DEAL_ROLES } from "@/lib/coach/remote/revenue/accounts";
-import { runAgentsForStage } from "@/lib/coach/remote/engage/agents";
+import { runAgentsForStage, stageChanged } from "@/lib/coach/remote/engage/agents";
 
 /**
  * /api/coach/remote/prospects/:pid — one prospect in the Remote Sales pipeline (Macro Mode, 0303).
@@ -123,15 +123,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
   if (body.action === "set") {
     const value = eventValue(body.kind, body.value);
     if (!value) return NextResponse.json({ error: "That value doesn't fit this field." }, { status: 400 });
+    // The stage before this save, so agents fire only when the stage actually changes (saving the same stage again,
+    // or editing it to itself, isn't "reaching" it).
+    const before = body.kind === "stage" ? await db.from("remote_prospects_current").select("status, stage_label").eq("id", pid).maybeSingle() : null;
     const { error } = await db.from("remote_prospect_events").insert({ prospect_id: pid, company_id: p.company_id, kind: body.kind, value, actor_id: ctx.userId });
     if (error) {
       console.error(`[prospect] event failed id=${pid}: ${error.message}`);
       return NextResponse.json({ error: "Couldn't save that change." }, { status: 500 });
     }
     // Engage plan E5 (0379): a stage change runs the company's agents whose trigger it fires, after the reply.
-    if (body.kind === "stage") {
+    if (body.kind === "stage" && before && !before.error) {
       const v = value as { status?: string; label?: string };
-      after(() => runAgentsForStage(createAdminClient(), { companyId: String(p.company_id), prospectId: pid, status: String(v.status ?? "open"), label: v.label ?? null }));
+      if (stageChanged(before.data as { status: string; stage_label: string | null } | null, { status: String(v.status ?? "open"), label: v.label ?? null })) after(() => runAgentsForStage(createAdminClient(), { companyId: String(p.company_id), prospectId: pid, status: String(v.status ?? "open"), label: v.label ?? null }));
     }
     return NextResponse.json({ ok: true });
   }

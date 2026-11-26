@@ -7,7 +7,7 @@ import { accuracyBand, accuracyOverQuarter, latest, metrics, periodOf, rollUp, s
 /**
  * Pipeline → Forecast → the board (revenue Phase 6, 0376; Gong M22). One row per person in view — you, or your team —
  * for a quarter: Closed won and Open closing (computed from the pipeline in view), Commit and Best case (submitted),
- * and Target. You submit your own numbers with a note; a manager sets targets for the reps under them. The team row
+ * and Target. You submit your own numbers (no note: free text could quote a customer, 0381); a manager sets targets for the reps under them. The team row
  * adds everyone's latest numbers and says how many have submitted. Last quarter's accuracy (Commit ÷ closed won) shows
  * in Gong's colours.
  */
@@ -25,7 +25,6 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState<{ userId: string; col: "commit" | "best_case" | "target" } | null>(null);
   const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -62,13 +61,13 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
     try {
       const body = editing.col === "target"
         ? { kind: "target", period, userId: editing.userId, amount: v }
-        : { kind: "submit", period, category: editing.col, amount: v, ...(note.trim() ? { note: note.trim() } : {}) };
+        : { kind: "submit", period, category: editing.col, amount: v };
       const r = await fetch("/api/coach/remote/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
       if (!r.ok) throw new Error(j.error ?? "Couldn't save that.");
       setEditing(null);
       setAmount("");
-      setNote("");
+     
       await load();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Couldn't save that.");
@@ -89,11 +88,11 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
     const value = col === "target" ? target(u) : sub?.amount ?? null;
     const label = value === null ? (canEdit ? (col === "target" ? "Set" : "Submit") : "—") : money(value);
     return canEdit ? (
-      <button type="button" onClick={() => { setEditing({ userId: u, col }); setAmount(value === null ? "" : String(value)); setNote(""); setMsg(null); }} title={sub ? `Submitted ${new Date(sub.createdAt).toLocaleString()}${sub.note ? ` — ${sub.note}` : ""}` : undefined} className={`rounded px-1.5 py-0.5 tabular-nums underline-offset-2 hover:underline ${value === null ? "text-secondary" : "font-semibold text-primary"}`}>
+      <button type="button" onClick={() => { setEditing({ userId: u, col }); setAmount(value === null ? "" : String(value)); setMsg(null); }} title={sub ? `Submitted ${new Date(sub.createdAt).toLocaleString()}` : undefined} className={`rounded px-1.5 py-0.5 tabular-nums underline-offset-2 hover:underline ${value === null ? "text-secondary" : "font-semibold text-primary"}`}>
         {label}
       </button>
     ) : (
-      <span title={sub ? `Submitted ${new Date(sub.createdAt).toLocaleString()}${sub.note ? ` — ${sub.note}` : ""}` : undefined} className={`tabular-nums ${value === null ? "text-muted" : "text-primary"}`}>{label}</span>
+      <span title={sub ? `Submitted ${new Date(sub.createdAt).toLocaleString()}` : undefined} className={`tabular-nums ${value === null ? "text-muted" : "text-primary"}`}>{label}</span>
     );
   };
   const team = rows.length > 1;
@@ -185,7 +184,6 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
           )}
           <div className="flex flex-wrap gap-2">
             <input autoFocus value={amount} onChange={(e) => setAmount(e.currentTarget.value)} inputMode="decimal" aria-label="Amount" placeholder="Amount" className="w-32 rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />
-            {editing.col !== "target" && <input value={note} onChange={(e) => setNote(e.currentTarget.value)} maxLength={500} aria-label="Note" placeholder="Why this number (optional)" className="min-w-0 flex-1 rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />}
             <button type="button" disabled={busy} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
             <button type="button" onClick={() => setEditing(null)} className="px-2 text-muted hover:text-primary">Cancel</button>
           </div>

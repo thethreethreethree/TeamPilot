@@ -61,7 +61,6 @@ type Notif = {
     agent_name?: string | null;
     /** 0379 agent_ran: the deal the agent acted on. */
     deal_id?: string;
-    deal_name?: string | null;
     total?: number;
     band?: string;
     deal_value?: number | null;
@@ -164,8 +163,7 @@ function text(n: Notif): string {
   // Engage plan E5 (0379): an agent acted on a deal (it wrote the brief, added a to-do, ...).
   if (n.type === "agent_ran") {
     const agent = typeof n.payload.agent_name === "string" ? n.payload.agent_name : "An agent";
-    const deal = typeof n.payload.deal_name === "string" && n.payload.deal_name ? n.payload.deal_name : "a deal";
-    return `${agent} acted on ${deal} — open it to see what changed`;
+    return `${agent} acted on a deal — open it to see what changed`;
   }
   // F15.13 (0332): the AI's score for the rep's own phone/video call has landed.
   if (n.type === "call_scored") {

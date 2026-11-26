@@ -20,8 +20,10 @@ vi.mock("@/lib/api/callerScopedDb", () => ({
   callerScopedDb: () => ({
     from: (table: string) => {
       const q: Record<string, unknown> = {};
+      let win: [number, number] = [0, 1e9];
       for (const m of ["select", "in", "order", "limit"]) q[m] = () => q;
-      q.then = (r: (v: unknown) => unknown) => r({ data: table === "forecast_targets" ? st.targets : [], error: null });
+      q.range = (f: number, t: number) => ((win = [f, t]), q);
+      q.then = (r: (v: unknown) => unknown) => r({ data: (table === "forecast_targets" ? st.targets : []).slice(win[0], win[1] + 1), error: null });
       q.insert = async (row: Record<string, unknown>) => (st.inserts.push({ table, row }), { error: st.insertError });
       return q;
     },
@@ -45,9 +47,9 @@ describe("forecast", () => {
       { id: "d3", status: "won", amount: 100, closeDate: "2026-11-01" },
       { id: "d4", status: "open", amount: null, closeDate: "2026-12-01" },
     ];
-    const j = await (await post({ kind: "submit", period: "2026-Q4", category: "commit", amount: 1200, note: " gut " })).json();
+    const j = await (await post({ kind: "submit", period: "2026-Q4", category: "commit", amount: 1200, note: " gut " }) /* a note is ignored: not taken since 0381 */).json();
     expect(j).toEqual({ ok: true, deals: 2 });
-    expect(st.inserts[0]).toEqual({ table: "forecast_submissions", row: { company_id: "co1", user_id: "u1", period: "2026-Q4", category: "commit", amount: 1200, note: "gut", deals: [{ id: "d1", amount: 500 }, { id: "d4", amount: null }] } });
+    expect(st.inserts[0]).toEqual({ table: "forecast_submissions", row: { company_id: "co1", user_id: "u1", period: "2026-Q4", category: "commit", amount: 1200, deals: [{ id: "d1", amount: 500 }, { id: "d4", amount: null }] } });
   });
   it("a pipeline that can't be read saves nothing", async () => {
     st.pipeline = null;
@@ -63,5 +65,10 @@ describe("forecast", () => {
     st.targets = [{ user_id: "a", period: "2026-Q4", amount: 100 }, { user_id: "a", period: "2026-Q4", amount: 250 }];
     const j = await (await GET(new NextRequest("http://x/api?period=2026-Q4"))).json();
     expect(j.targets).toEqual([{ userId: "a", period: "2026-Q4", amount: 250 }]);
+  });
+  it("reads every target page: the latest one past the first 1,000 rows still wins (review 2026-11-27)", async () => {
+    st.targets = [...Array.from({ length: 1000 }, () => ({ user_id: "a", period: "2026-Q4", amount: 1 })), { user_id: "a", period: "2026-Q4", amount: 999 }];
+    const j = await (await GET(new NextRequest("http://x/api?period=2026-Q4"))).json();
+    expect(j.targets).toEqual([{ userId: "a", period: "2026-Q4", amount: 999 }]);
   });
 });

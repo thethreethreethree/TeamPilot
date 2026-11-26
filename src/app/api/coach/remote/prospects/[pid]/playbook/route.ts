@@ -10,8 +10,9 @@ import { dealReviewCoach } from "@/lib/claude";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { numberedTranscript } from "@/lib/coach/remote/followThrough";
 import { loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import {
-  allowed, DEAL_REVIEW_SYSTEM, parseReview, replayNotes, reviewPrompt, REVIEW_CALLS, REVIEW_LINES,
+  allowed, DEAL_REVIEW_SYSTEM, parseReview, replayNotes, reviewPrompt, REVIEW_CALLS, REVIEW_LINES, withoutHiddenReads,
   type Element, type NoteEvent,
 } from "@/lib/coach/remote/revenue/playbook";
 
@@ -78,10 +79,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
   // The policy decides who validates; this only says whether to show the button: the deal's rep, or a manager / admin
   // (who can only see this deal at all if the tree allows it).
   const lead = r.deal.rep_id === ctx.userId || ctx.isAdmin || (await db.rpc("is_sales_coach_manager")).data === true;
+  // An AI read quotes the calls it cites; one citing a call hidden from this reader is left out for them.
+  const views = replayNotes(r.events, r.playbook.elements.length);
+  let hidden: Set<string>;
+  try {
+    hidden = await hiddenFrom(createAdminClient(), views.flatMap((v) => (v.ai?.cites ?? []).map((c) => c.sessionId)), ctx.userId);
+  } catch {
+    return NextResponse.json({ error: "Couldn't load this deal's playbook." }, { status: 500 });
+  }
   return NextResponse.json({
     available: true,
     playbook: { key: r.playbook.key, name: r.playbook.name, elements: r.playbook.elements },
-    notes: replayNotes(r.events, r.playbook.elements.length),
+    notes: withoutHiddenReads(views, hidden),
     canValidate: lead,
   });
 }

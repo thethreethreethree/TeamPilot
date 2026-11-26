@@ -13,7 +13,9 @@ const st = vi.hoisted(() => ({
   ai: { text: "" } as { text: string; suppressed?: boolean },
   aiCalls: 0,
   inserts: [] as unknown[],
+  hidden: new Set<string>(),
 }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenFrom: vi.fn(async (_a: unknown, ids: string[]) => new Set(ids.filter((i) => st.hidden.has(i)))) }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "u1", companyId: "co1" })) }));
@@ -38,6 +40,7 @@ const run = () => POST(new NextRequest("http://x/api", { method: "POST" }), P);
 const good = JSON.stringify({ standing: "Wants March.", happened: [{ text: "Set a March deadline.", cites: [{ call: 1, seq: 1 }] }], risks: [], next: [] });
 
 beforeEach(() => {
+  st.hidden = new Set();
   st.latest = null;
   st.stored = null;
   st.ai = { text: good };
@@ -75,5 +78,10 @@ describe("the deal brief", () => {
     st.deal = null;
     expect((await run()).status).toBe(404);
     st.deal = d;
+  });
+  it("a stored brief written from a call now hidden from the reader isn't served to them (review 2026-11-27)", async () => {
+    st.latest = { basis: "s1:2", brief: { standing: "Wants March.", happened: [], risks: [], next: [] }, created_at: "t" };
+    st.hidden = new Set(["s1"]);
+    expect(await (await GET(new NextRequest("http://x/api"), P)).json()).toEqual({ available: true, brief: null });
   });
 });

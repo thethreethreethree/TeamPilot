@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
-import { basisKey, type DealBriefBody } from "@/lib/coach/remote/revenue/dealBrief";
+import { basisKey, basisSessions, type DealBriefBody } from "@/lib/coach/remote/revenue/dealBrief";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { writeDealBrief } from "@/lib/coach/remote/revenue/dealBriefRun";
 
 export const maxDuration = 90;
@@ -40,6 +41,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
     return NextResponse.json({ error: "Couldn't read this deal's brief." }, { status: 500 });
   }
   if (!data) return NextResponse.json({ available: true, brief: null });
+  // A brief quotes the calls it was written from (its basis). If any of them is hidden from this reader now, the brief
+  // isn't theirs to read: they get none, and may write one from the calls they can hear.
+  let hidden: Set<string>;
+  try {
+    hidden = await hiddenFrom(createAdminClient(), basisSessions(String(data.basis)), ctx.userId);
+  } catch {
+    return NextResponse.json({ error: "Couldn't read this deal's brief." }, { status: 500 });
+  }
+  if (hidden.size) return NextResponse.json({ available: true, brief: null });
   const dc = await loadDealCalls(db, pid);
   if (dc === "failed") return NextResponse.json({ error: "Couldn't read this deal's calls." }, { status: 500 });
   return NextResponse.json({ available: true, brief: data.brief as DealBriefBody, createdAt: data.created_at, stale: basisKey(dc.calls) !== data.basis });

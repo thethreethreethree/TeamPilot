@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { basisKey, parseDealBrief } from "../dealBrief";
+import { basisKey, basisSessions, parseDealBrief } from "../dealBrief";
 import type { CallLines } from "../playbook";
 
 /** The deal brief (0374; Gong F20.3, F20.4): every point cites a real line, or it isn't there. */
@@ -37,5 +37,12 @@ describe("basisKey", () => {
   it("the same calls and versions in any order are the same basis; a new version is a new one", () => {
     expect(basisKey([{ sessionId: "b", version: 1 }, { sessionId: "a", version: 2 }])).toBe(basisKey([{ sessionId: "a", version: 2 }, { sessionId: "b", version: 1 }]));
     expect(basisKey([{ sessionId: "a", version: 3 }])).not.toBe(basisKey([{ sessionId: "a", version: 2 }]));
+  });
+});
+
+describe("basisSessions", () => {
+  it("names each call a stored brief was written from, once", () => {
+    expect(basisSessions(basisKey([{ sessionId: "s2", version: 1 }, { sessionId: "s1", version: 4 }]))).toEqual(["s1", "s2"]);
+    expect(basisSessions("")).toEqual([]);
   });
 });

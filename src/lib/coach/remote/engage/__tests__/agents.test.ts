@@ -8,8 +8,9 @@ const st = vi.hoisted(() => ({ canSee: true, deal: { id: "d1", name: "Acme", rep
 vi.mock("server-only", () => ({}));
 vi.mock("../../revenue/dealCalls", () => ({ loadDealCalls: vi.fn(async () => ({ calls: [], linked: 0 })) }));
 vi.mock("../../revenue/dealBriefRun", () => ({ writeDealBrief: vi.fn() }));
-vi.mock("../../hidePhrases", () => ({ hiddenFrom: vi.fn(async () => new Set()) }));
-import { fireTrackerAgents, firstHeard, runAgent, triggerMatches } from "../agents";
+const hid = vi.hoisted(() => ({ set: new Set<string>() }));
+vi.mock("../../hidePhrases", () => ({ hiddenFrom: vi.fn(async () => hid.set) }));
+import { fireTrackerAgents, firstHeard, runAgent, runAgentsForTrackers, stageChanged, triggerMatches } from "../agents";
 const admin = {
   from: (table: string) => {
     const q: Record<string, unknown> = {};
@@ -28,6 +29,7 @@ const agent = { id: "a1", company_id: "co1", owner_id: "mgr", name: "Proposal pr
 beforeEach(() => {
   st.canSee = true;
   st.inserts = [];
+  hid.set = new Set();
 });
 
 describe("agents", () => {
@@ -44,6 +46,8 @@ describe("agents", () => {
     expect(r.results.map((x) => x.kind)).toEqual(["notify", "todo"]);
     expect(st.inserts.map((i) => i.table)).toEqual(["manager_notifications", "tasks", "remote_prospect_tasks", "agent_runs"]);
     expect(st.inserts[0]!.row).toMatchObject({ recipient_id: "rep-1", type: "agent_ran" });
+    // No customer name in the payload erasure can't reach (0381's check refuses one).
+    expect((st.inserts[0]!.row as { payload: Record<string, unknown> }).payload).not.toHaveProperty("deal_name");
   });
   it("an owner who can't see the deal: nothing is done, and the run says why", async () => {
     st.canSee = false;
@@ -72,5 +76,39 @@ describe("the tracker trigger (0380)", () => {
   });
   it("a stage change never fires a tracker agent", () => {
     expect(triggerMatches({ kind: "tracker_heard", tracker_id: "t1" }, { status: "won", label: null })).toBe(false);
+  });
+});
+
+describe("review fixes (2026-11-27)", () => {
+  const tAgent = { ...agent, id: "a2", trigger: { kind: "tracker_heard" as const, tracker_id: "t1" }, actions: [{ kind: "notify" as const, to: "owner" as const }] };
+  const scanDb = (done: Array<{ agent_id: string; tracker_id: string }>) => ({
+    from: (table: string) => {
+      const q: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "is", "limit", "contains", "lt", "in"]) q[m] = () => q;
+      q.maybeSingle = async () => ({ data: table === "remote_prospect_calls" ? { prospect_id: "d1" } : table === "remote_prospects_current" ? st.deal : null, error: null });
+      q.then = (r: (v: unknown) => unknown) => r({ data: table === "agents" ? [tAgent] : table === "agent_runs" ? done : [], error: null });
+      q.insert = (row: unknown) => (st.inserts.push({ table, row }), Promise.resolve({ error: null }));
+      return q;
+    },
+    rpc: async () => ({ data: true, error: null }),
+  }) as never;
+  it("a tracker agent fires once per call: a rescan of the same call does nothing", async () => {
+    await runAgentsForTrackers(scanDb([]), { companyId: "co1", sessionId: "s1", trackerIds: ["t1"] });
+    expect(st.inserts.map((i) => i.table)).toEqual(["manager_notifications", "agent_runs"]);
+    expect(st.inserts[1]!.row).toMatchObject({ session_id: "s1", tracker_id: "t1" });
+    st.inserts = [];
+    await runAgentsForTrackers(scanDb([{ agent_id: "a2", tracker_id: "t1" }]), { companyId: "co1", sessionId: "s1", trackerIds: ["t1"] });
+    expect(st.inserts).toEqual([]);
+  });
+  it("a call hidden from the agent's owner never fires their agent", async () => {
+    hid.set = new Set(["s1"]);
+    await runAgentsForTrackers(scanDb([]), { companyId: "co1", sessionId: "s1", trackerIds: ["t1"] });
+    expect(st.inserts).toEqual([]);
+  });
+  it("a stage save fires agents only when the stage changes", () => {
+    expect(stageChanged({ status: "open", stage_label: "Proposal" }, { status: "open", label: " proposal" })).toBe(false);
+    expect(stageChanged({ status: "open", stage_label: "Proposal" }, { status: "won", label: "Proposal" })).toBe(true);
+    expect(stageChanged({ status: "open", stage_label: null }, { status: "open", label: "Demo" })).toBe(true);
+    expect(stageChanged(null, { status: "open", label: null })).toBe(true);
   });
 });

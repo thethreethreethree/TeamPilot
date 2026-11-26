@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
+import { basisSessions } from "@/lib/coach/remote/revenue/dealBrief";
 import { callsBlock, type CallLines } from "@/lib/coach/remote/revenue/playbook";
 import { numberedTranscript } from "@/lib/coach/remote/followThrough";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
@@ -88,13 +89,19 @@ export async function runTool(admin: SupabaseClient, companyId: string, name: st
     const [acc, links, brief] = await Promise.all([
       deal.account_id ? admin.from("accounts_current").select("id, name").eq("company_id", companyId).eq("id", deal.account_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       admin.from("deal_contacts_current").select("contact_id, role").eq("company_id", companyId).eq("prospect_id", deal.id).neq("role", "removed").limit(50),
-      admin.from("deal_briefs").select("brief, created_at").eq("company_id", companyId).eq("prospect_id", deal.id).order("id", { ascending: false }).limit(1).maybeSingle(),
+      admin.from("deal_briefs").select("basis, brief, created_at").eq("company_id", companyId).eq("prospect_id", deal.id).order("id", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (acc.error || links.error || brief.error) throw new Error("read");
     const ids = ((links.data ?? []) as Array<{ contact_id: string; role: string }>).map((l) => l.contact_id);
     const { data: cs, error: cErr } = ids.length ? await admin.from("contacts_current").select("id, name, title").eq("company_id", companyId).in("id", ids) : { data: [], error: null };
     if (cErr) throw new Error(cErr.message);
-    return JSON.stringify({ deal, account: acc.data, contacts: cs ?? [], brief: brief.data ? { ...(brief.data.brief as object), writtenAt: brief.data.created_at } : null });
+    // A brief quoting a call with an active hide never leaves (an outside reader is exempt from no hide).
+    let b = brief.data;
+    if (b) {
+      const hidden = await hiddenInCompanyFrom(admin, companyId, OUTSIDE_READER);
+      if (basisSessions(String(b.basis)).some((id) => hidden.has(id))) b = null;
+    }
+    return JSON.stringify({ deal, account: acc.data, contacts: cs ?? [], brief: b ? { ...(b.brief as object), writtenAt: b.created_at } : null });
   }
   if (name === "get_account") {
     const id = String(args.account_id ?? "");

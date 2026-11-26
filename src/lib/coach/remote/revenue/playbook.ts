@@ -179,3 +179,9 @@ export function parseReview(raw: string, elements: Element[], calls: CallLines[]
 /** How many of the deal's most recent calls the reviewer reads, and the line budget across them. */
 export const REVIEW_CALLS = 5;
 export const REVIEW_LINES = 900;
+
+/** The views with every AI read dropped that cites a call in `hidden` (a hide applies to what the AI read, too). Pure. */
+export function withoutHiddenReads(views: NoteView[], hidden: Set<string>): NoteView[] {
+  if (!hidden.size) return views;
+  return views.map((v) => (v.ai && v.ai.cites.some((c) => hidden.has(c.sessionId)) ? { ...v, ai: null } : v));
+}

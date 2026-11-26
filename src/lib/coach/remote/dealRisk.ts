@@ -92,7 +92,9 @@ export function dealRisk(p: P, today: string): { level: RiskLevel; reasons: Risk
   const sig = p.signals;
   if (sig) {
     const daysSince = (iso: string) => (todayMs - Date.parse(iso)) / DAY;
-    if ((p.callCount ?? 0) > 0 && (!sig.lastTwoWayAt || daysSince(sig.lastTwoWayAt) > GHOSTED_DAYS)) reasons.push("ghosted");
+    // Never spoken on any call: measured from when the deal began (it isn't ghosting on day 0, but a month of calls
+    // the customer never spoke on is).
+    if ((p.callCount ?? 0) > 0 && daysSince(sig.lastTwoWayAt ?? p.createdAt) > GHOSTED_DAYS) reasons.push("ghosted");
     if (daysSince(p.createdAt) > FEW_CONTACTS_AFTER_DAYS && sig.contacts.length < MIN_CONTACTS) reasons.push("few_contacts");
     const closeIn = p.closeDate ? (Date.parse(`${p.closeDate}T12:00:00Z`) - todayMs) / DAY : null;
     if (closeIn !== null && closeIn >= 0 && closeIn <= CLOSE_WINDOW_DAYS) {

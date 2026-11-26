@@ -27,7 +27,7 @@ describe("metrics", () => {
 });
 
 describe("submissions", () => {
-  const s = (userId: string, amount: number, createdAt: string, category: "commit" | "best_case" = "commit"): Submission => ({ userId, period: "2026-Q4", category, amount, note: null, createdAt });
+  const s = (userId: string, amount: number, createdAt: string, category: "commit" | "best_case" = "commit"): Submission => ({ userId, period: "2026-Q4", category, amount, createdAt });
   const subs = [s("a", 100, "2026-10-05T00:00:00Z"), s("a", 150, "2026-11-10T00:00:00Z"), s("b", 50, "2026-10-20T00:00:00Z"), s("a", 400, "2026-11-11T00:00:00Z", "best_case")];
   it("the latest per person and column is their forecast", () => {
     expect(latest(subs, "a", "2026-Q4", "commit")?.amount).toBe(150);

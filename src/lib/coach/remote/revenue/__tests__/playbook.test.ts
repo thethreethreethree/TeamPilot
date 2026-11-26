@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { allowed, NOT_FOUND, parseElements, parseReview, PLAYBOOKS, replayNotes, reviewPrompt, type CallLines, type NoteEvent } from "../playbook";
+import { allowed, NOT_FOUND, parseElements, parseReview, PLAYBOOKS, replayNotes, reviewPrompt, withoutHiddenReads, type CallLines, type NoteEvent } from "../playbook";
 
 /** Playbooks and the AI Deal Reviewer (0373; Gong F20.6, F20.7): allowed and refused pairs. */
 describe("note states", () => {
@@ -68,5 +68,20 @@ describe("the reviewer", () => {
     expect(parseReview("not json", els, calls)).toBeNull();
     expect(parseReview('{"elements": [{"n": 1, "answer": "Bud', els, calls)).toBeNull();
     expect(parseReview('{"elements": []}', els, calls)).toBeNull();
+  });
+});
+
+describe("hidden calls in AI reads (review 2026-11-27)", () => {
+  const views = replayNotes([
+    { element: 0, action: "ai_suggest", note: null, ai: { answer: "Budget is approved", cites: [{ sessionId: "s1", seq: 3, atMs: null }] }, actorId: "ai", at: "2026-11-27T00:00:00Z" },
+    { element: 1, action: "ai_suggest", note: null, ai: { answer: "The CFO decides", cites: [{ sessionId: "s2", seq: 1, atMs: null }] }, actorId: "ai", at: "2026-11-27T00:00:00Z" },
+  ], 2);
+  it("a read citing a hidden call is dropped for that reader; the others stay", () => {
+    const out = withoutHiddenReads(views, new Set(["s1"]));
+    expect(out[0]!.ai).toBeNull();
+    expect(out[1]!.ai?.answer).toBe("The CFO decides");
+  });
+  it("nothing hidden: unchanged", () => {
+    expect(withoutHiddenReads(views, new Set())).toEqual(views);
   });
 });

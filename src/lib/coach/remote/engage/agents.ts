@@ -24,6 +24,13 @@ export function triggerMatches(t: Trigger, e: { status: string; label: string | 
   return true;
 }
 
+/** Whether a stage save is a change (status, or stage name ignoring case and spaces); no earlier stage counts as one. Pure. */
+export function stageChanged(before: { status: string; stage_label: string | null } | null, next: { status: string; label: string | null }): boolean {
+  if (!before) return true;
+  const norm = (x: string | null) => (x ?? "").trim().toLowerCase();
+  return before.status !== next.status || norm(before.stage_label) !== norm(next.label);
+}
+
 type AgentRow = { id: string; company_id: string; owner_id: string; name: string; trigger: Trigger; actions: Action[] };
 type ActionResult = { kind: Action["kind"]; ok: boolean; detail: string };
 
@@ -54,8 +61,29 @@ export async function runAgentsForTrackers(admin: SupabaseClient, e: { companyId
     console.error(`[agents] read failed company=${e.companyId}: ${error.message}`);
     return;
   }
-  for (const a of (agents ?? []) as AgentRow[]) {
-    if (a.trigger.kind === "tracker_heard" && e.trackerIds.includes(a.trigger.tracker_id)) await runAgent(admin, a, String(link.prospect_id), false);
+  const watching = ((agents ?? []) as AgentRow[]).filter((a) => a.trigger.kind === "tracker_heard" && e.trackerIds.includes(a.trigger.tracker_id));
+  if (!watching.length) return;
+  // Once per call and tracker (0381's unique index is the backstop for two scans racing): a rescan of the same version
+  // finds no earlier version's hit, so firstHeard alone would fire again.
+  const { data: done, error: rErr } = await admin.from("agent_runs").select("agent_id, tracker_id").eq("company_id", e.companyId).eq("session_id", e.sessionId).eq("test", false).limit(1000);
+  if (rErr) {
+    console.error(`[agents] runs read failed session=${e.sessionId}: ${rErr.message}`);
+    return;
+  }
+  const fired = new Set(((done ?? []) as Array<{ agent_id: string; tracker_id: string | null }>).map((r) => `${r.agent_id}:${r.tracker_id}`));
+  for (const a of watching) {
+    const trackerId = (a.trigger as { tracker_id: string }).tracker_id;
+    if (fired.has(`${a.id}:${trackerId}`)) continue;
+    // A call hidden from the agent's owner never fires their agent (the owner couldn't hear it; 0337's rule).
+    let hidden: Set<string>;
+    try {
+      hidden = await hiddenFrom(admin, [e.sessionId], a.owner_id);
+    } catch {
+      console.error(`[agents] hidden check failed session=${e.sessionId} agent=${a.id}`);
+      continue;
+    }
+    if (hidden.has(e.sessionId)) continue;
+    await runAgent(admin, a, String(link.prospect_id), false, { sessionId: e.sessionId, trackerId });
   }
 }
 
@@ -83,9 +111,9 @@ export async function firstHeard(admin: SupabaseClient, companyId: string, sessi
 }
 
 /** Run one agent on one deal (test = say what would happen, without doing it). Returns the recorded result. */
-export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: string, test: boolean): Promise<{ ok: boolean; skipped: string | null; results: ActionResult[] }> {
+export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: string, test: boolean, on?: { sessionId: string; trackerId: string }): Promise<{ ok: boolean; skipped: string | null; results: ActionResult[] }> {
   const record = async (ok: boolean, skipped: string | null, results: ActionResult[]) => {
-    const { error } = await admin.from("agent_runs").insert({ agent_id: a.id, company_id: a.company_id, prospect_id: prospectId, test, ok, skipped, results });
+    const { error } = await admin.from("agent_runs").insert({ agent_id: a.id, company_id: a.company_id, prospect_id: prospectId, test, ok, skipped, results, session_id: on?.sessionId ?? null, tracker_id: on?.trackerId ?? null });
     if (error) console.error(`[agents] run not recorded agent=${a.id}: ${error.message}`);
     return { ok, skipped, results };
   };
@@ -128,7 +156,8 @@ async function doAction(admin: SupabaseClient, a: AgentRow, deal: { id: string; 
     const to = act.to === "rep" ? deal.rep_id : a.owner_id;
     const { error } = await admin.from("manager_notifications").insert({
       company_id: a.company_id, recipient_id: to, agent_id: deal.rep_id, session_id: null, type: "agent_ran",
-      payload: { agent_name: a.name, deal_id: deal.id, deal_name: deal.name, stage: deal.stage_label, status: deal.status },
+      // No deal name (0381): a customer's name erasure can't reach in a payload; the id opens the deal.
+      payload: { agent_name: a.name, deal_id: deal.id, stage: deal.stage_label, status: deal.status },
     });
     return error ? { kind: "notify", ok: false, detail: "Couldn't send the notification." } : { kind: "notify", ok: true, detail: `Notified the ${act.to === "rep" ? "deal's rep" : "owner"}.` };
   }
@@ -146,7 +175,7 @@ async function doAction(admin: SupabaseClient, a: AgentRow, deal: { id: string; 
   }
   const { data: eps, error: eErr } = await admin.from("webhook_endpoints").select("id").eq("company_id", a.company_id).eq("active", true).contains("events", ["agent.ran"]);
   if (eErr) return { kind: "webhook", ok: false, detail: "Couldn't read the webhooks." };
-  const rows = ((eps ?? []) as Array<{ id: string }>).map((ep) => ({ company_id: a.company_id, endpoint_id: ep.id, event: "agent.ran", payload: { agent: { id: a.id, name: a.name }, deal: { id: deal.id, name: deal.name, status: deal.status, stage: deal.stage_label } } }));
+  const rows = ((eps ?? []) as Array<{ id: string }>).map((ep) => ({ company_id: a.company_id, endpoint_id: ep.id, event: "agent.ran", payload: { agent: { id: a.id, name: a.name }, deal: { id: deal.id, status: deal.status, stage: deal.stage_label } } }));
   if (!rows.length) return { kind: "webhook", ok: true, detail: "No webhook listens for agent.ran." };
   const { error } = await admin.from("webhook_deliveries").insert(rows);
   return error ? { kind: "webhook", ok: false, detail: "Couldn't queue the webhook." } : { kind: "webhook", ok: true, detail: `Queued ${rows.length} webhook${rows.length === 1 ? "" : "s"}.` };

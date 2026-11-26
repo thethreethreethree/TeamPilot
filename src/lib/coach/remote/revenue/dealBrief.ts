@@ -70,6 +70,11 @@ export function parseDealBrief(raw: string, calls: CallLines[]): DealBriefBody |
 }
 
 /** The identity of the calls a brief was read from: which calls, at which transcript version. A change makes it stale. */
+/** The calls a stored basis names (basisKey's "session:version" list). Pure. */
+export function basisSessions(basis: string): string[] {
+  return [...new Set(basis.split(",").map((x) => x.split(":")[0]!.trim()).filter(Boolean))];
+}
+
 export function basisKey(calls: Array<{ sessionId: string; version: number }>): string {
   return calls.map((c) => `${c.sessionId}:${c.version}`).sort().join(",");
 }
