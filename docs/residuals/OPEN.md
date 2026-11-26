@@ -604,12 +604,14 @@ product says so where it matters, never silently.
 - [ ] 2026-11-27 · engage-e1 · Flow email steps are sent by the rep from their own mail app; EloState sends no email.
       why-unresolved: `POSTMARK_SERVER_TOKEN` and `CARE_EMAIL_HOST_DOMAIN` are unset in production (`emailConfigured()`), and an opt-out footer needs legal wording not drafted here.
       next-action: set both in Vercel, supply the opt-out wording, then build automatic email steps behind `emailConfigured()`.
+      verified 2026-11-27: https://elostate.com/api/health reports `"email": false` in production (and `"webhooks": false`).
 - [ ] 2026-11-27 · engage-e1 · Call steps dial from the rep's phone (`tel:`); there's no in-app dialer or recording of those calls.
       why-unresolved: needs a Twilio account, numbers and per-region recording consent (plan E4).
       next-action: founder decides on Twilio; then numbers, the dialer and per-region recording rules.
 - [ ] 2026-11-27 · engage-e4 · MCP and API keys are company-wide; there are no keys that act as one person.
       why-unresolved: acting as a person needs a JWT secret (`SUPABASE_JWT_SECRET`) this server doesn't have (plan E8).
       next-action: add the secret in Vercel; then personal MCP keys that sign a short-lived user token so RLS applies.
+      not verified: /api/health doesn't report this secret; treat "unset" as unconfirmed (the CRON_SECRET "unset" was wrong).
 - [ ] 2026-11-27 · revenue-p3a / p4 / engage-e5 · Warnings are live only (no 30/90-day drivers history), and agents have no date triggers (close date approaching).
       why-unresolved: both need a scheduled job, and `CRON_SECRET` is unset in Vercel.
       next-action: set `CRON_SECRET`; add a daily warnings snapshot and a date-trigger sweep.
