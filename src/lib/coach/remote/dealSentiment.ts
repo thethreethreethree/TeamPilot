@@ -33,12 +33,16 @@ export function dealSentimentFrom(readings: Reading[]): DealSentiment | null {
 export async function readDealSentiment(db: SupabaseClient, prospectIds: string[]): Promise<Map<string, DealSentiment> | null> {
   const out = new Map<string, DealSentiment>();
   if (!prospectIds.length) return out;
-  const links = await fetchAllPagedResult<{ prospect_id: string; session_id: string }>(
-    (from, to) => db.from("remote_prospect_calls").select("prospect_id, session_id").in("prospect_id", prospectIds).order("id", { ascending: true }).range(from, to),
-    { label: "deal sentiment links" },
-  );
-  if (links.error) return null;
-  const rows = links.data ?? [];
+  // In chunks of 150 prospects (2026-11-26: the list is no longer capped at 500, so one .in() could outgrow the URL).
+  const rows: Array<{ prospect_id: string; session_id: string }> = [];
+  for (let i = 0; i < prospectIds.length; i += 150) {
+    const links = await fetchAllPagedResult<{ prospect_id: string; session_id: string }>(
+      (from, to) => db.from("remote_prospect_calls").select("prospect_id, session_id").in("prospect_id", prospectIds.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      { label: "deal sentiment links" },
+    );
+    if (links.error) return null;
+    rows.push(...(links.data ?? []));
+  }
   if (!rows.length) return out;
   const subjects = [...new Set(rows.map((l) => `sales_session:${l.session_id}`))];
   // In batches of 100 calls, so a large pipeline never builds a request URL the API refuses.

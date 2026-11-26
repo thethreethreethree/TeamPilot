@@ -18,6 +18,12 @@ function db(opts: { prospects: unknown[]; links: unknown[]; tasks: unknown[]; fa
       const data = table === "remote_prospects_current" ? opts.prospects : table === "remote_prospect_tasks" ? opts.links : opts.tasks;
       return Promise.resolve(res({ data, error: null }));
     };
+    // Paged reads (2026-11-26: the prospect list is paged, no longer capped at 500): one page, then empty.
+    q.range = (fromRow: number, ...rest: unknown[]) => {
+      calls.push(["range", fromRow, ...rest]);
+      if (fromRow > 0) return Promise.resolve({ data: [], error: null });
+      return { then: (q as { then: (r: (v: unknown) => unknown) => unknown }).then } as unknown;
+    };
     return q;
   };
   return { client: { from } as never, seen };
@@ -41,6 +47,16 @@ describe("listProspects", () => {
     expect(rows[0]!.openTodos).toBe(2);
     expect(rows[0]!.nextTodo).toEqual({ id: "t2", title: "Call back", due: "2026-11-24" });
     expect(rows[0]!.amount).toBe(1500);
+  });
+
+  it("reads every prospect, paged by a unique order — no 500 cap (2026-11-26)", async () => {
+    const many = Array.from({ length: 600 }, (_, i) => ({ ...P, id: `p${i}` }));
+    const { client, seen } = db({ prospects: many, links: [], tasks: [] });
+    const rows = (await listProspects(client))!;
+    expect(rows).toHaveLength(600);
+    expect(seen.remote_prospects_current!.some(([m]) => m === "limit")).toBe(false);
+    expect(seen.remote_prospects_current).toContainEqual(["order", "id", { ascending: false }]);
+    expect(seen.remote_prospects_current!.some(([m]) => m === "range")).toBe(true);
   });
 
   it("a failed read is null, never an empty pipeline", async () => {

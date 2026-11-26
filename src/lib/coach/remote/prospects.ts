@@ -1,5 +1,6 @@
 import "server-only";
 import { readDealSentiment, type DealSentiment } from "./dealSentiment";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isTaskClosed } from "@/lib/tasks/statusLabels";
 
@@ -67,37 +68,47 @@ function toRow(r: CurrentRow, todos: TaskRow[]): ProspectRow {
 
 /** The prospects the caller may see, optionally one rep's. Null on a failed read (never an empty pipeline). */
 export async function listProspects(db: SupabaseClient, repId?: string, opts: { sentiment?: boolean } = {}): Promise<ProspectRow[] | null> {
-  let q = db
-    .from("remote_prospects_current")
-    .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source, close_date, next_call_time")
-    .order("created_at", { ascending: false })
-    .limit(500);
-  if (repId) q = q.eq("rep_id", repId);
-  const { data, error } = await q;
+  // Every prospect, paged (2026-11-26): the read stopped at 500, so a pipeline past 500 deals lost its oldest without a
+  // word — and every page, total, forecast and win rate built on it with them. Ordered by a unique key last.
+  const { data, error } = await fetchAllPagedResult<CurrentRow>(
+    (from, to) => {
+      let q = db
+        .from("remote_prospects_current")
+        .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source, close_date, next_call_time")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
+      if (repId) q = q.eq("rep_id", repId);
+      return q.range(from, to);
+    },
+    { label: "prospects", maxRows: 50_000 },
+  );
   if (error) {
     console.error(`[prospects] list failed: ${error.message}`);
     return null;
   }
   const rows = (data ?? []) as CurrentRow[];
   if (!rows.length) return [];
-  const { data: links, error: lErr } = await db
-    .from("remote_prospect_tasks")
-    .select("prospect_id, task_id")
-    .in("prospect_id", rows.map((r) => r.id));
-  if (lErr) {
-    console.error(`[prospects] to-do links failed: ${lErr.message}`);
-    return null;
+  // In chunks of 150 ids, so a large pipeline never builds a request URL the API refuses.
+  const linkRows: Array<{ prospect_id: string; task_id: string }> = [];
+  const ids = rows.map((r) => r.id);
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data: links, error: lErr } = await db.from("remote_prospect_tasks").select("prospect_id, task_id").in("prospect_id", ids.slice(i, i + 150));
+    if (lErr) {
+      console.error(`[prospects] to-do links failed: ${lErr.message}`);
+      return null;
+    }
+    linkRows.push(...((links ?? []) as Array<{ prospect_id: string; task_id: string }>));
   }
-  const linkRows = (links ?? []) as Array<{ prospect_id: string; task_id: string }>;
-  let tasks: TaskRow[] = [];
-  if (linkRows.length) {
+  const tasks: TaskRow[] = [];
+  const taskIds = linkRows.map((l) => l.task_id);
+  for (let i = 0; i < taskIds.length; i += 150) {
     // A task deleted on the Tasks board is soft-deleted (deleted_at): it is not an open to-do any more.
-    const { data: t, error: tErr } = await db.from("tasks").select("id, title, status, due_date").in("id", linkRows.map((l) => l.task_id)).is("deleted_at", null);
+    const { data: t, error: tErr } = await db.from("tasks").select("id, title, status, due_date").in("id", taskIds.slice(i, i + 150)).is("deleted_at", null);
     if (tErr) {
       console.error(`[prospects] to-dos failed: ${tErr.message}`);
       return null;
     }
-    tasks = (t ?? []) as TaskRow[];
+    tasks.push(...((t ?? []) as TaskRow[]));
   }
   const byId = new Map(tasks.map((t) => [String(t.id), t]));
   // Deal sentiment (2026-11-23, dealSentiment.ts) — only for callers that show it; a failed read fails the whole list.
