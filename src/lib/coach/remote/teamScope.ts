@@ -50,12 +50,15 @@ export async function teamFromRequest(
   req: Request,
   admin: () => SupabaseClient,
   companyId: string,
-  allows: (managerId: string) => Promise<boolean>,
+  allows: (managerId: string) => Promise<boolean | null>,
 ): Promise<{ ok: true; members: Set<string> | null } | { ok: false; status: number; error: string }> {
   const team = new URL(req.url).searchParams.get("team");
   if (!team) return { ok: true, members: null };
   if (!UUID.test(team)) return { ok: false, status: 400, error: "Unknown team." };
-  if (!(await allows(team))) return { ok: false, status: 404, error: "Team not found." };
+  // null = the tree couldn't be asked (treeAllowsRepChecked): say so, never "not found" (2026-11-26).
+  const allowed = await allows(team);
+  if (allowed === null) return { ok: false, status: 503, error: "Couldn't check your team right now. Try again." };
+  if (!allowed) return { ok: false, status: 404, error: "Team not found." };
   try {
     const people = await companyPeople(admin(), companyId);
     if (!people.some((p) => p.id === team)) return { ok: false, status: 404, error: "Team not found." };

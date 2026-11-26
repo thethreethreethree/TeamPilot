@@ -8,7 +8,7 @@ import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
+import { treeFilterReps, treeAllowsRepChecked } from "@/lib/api/treeAccess";
 import { FEEDBACK_POLICY, LISTENED_THRESHOLD } from "@/lib/coach/remote/decisions";
 import { counted, loadCoachingEvents, coachingByRep, responseHoursByManager, feedbackTotals } from "@/lib/coach/remote/feedback";
 
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const mgr = await requireSalesCoachManager(req);
   if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
   // ?team=<manager> (F10.9 / F16.6): narrow to one manager's team — never wider than the caller's own access.
-  const scope = await teamFromRequest(req, createAdminClient, mgr.companyId, (id) => (id === mgr.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+  const scope = await teamFromRequest(req, createAdminClient, mgr.companyId, (id) => (id === mgr.userId ? Promise.resolve(true) : treeAllowsRepChecked(req, id)));
   if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
   const inTeam = (id: string) => !scope.members || scope.members.has(id);
   const days = Number(new URL(req.url).searchParams.get("days") ?? 30);

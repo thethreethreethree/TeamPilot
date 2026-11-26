@@ -39,6 +39,9 @@ describe("team scope (F10.9 / F16.6)", () => {
     let read = false;
     expect(await teamFromRequest(req(`team=${ID.m1}`), () => ((read = true), admin()), "co1", async () => false)).toMatchObject({ ok: false, status: 404 });
     expect(read).toBe(false);
+    // The tree couldn't be asked: 503 "couldn't check", never 404 "not found" (2026-11-26); nothing read.
+    expect(await teamFromRequest(req(`team=${ID.m1}`), () => ((read = true), admin()), "co1", async () => null)).toMatchObject({ ok: false, status: 503 });
+    expect(read).toBe(false);
     const ok = await teamFromRequest(req(`team=${ID.m1}`), admin, "co1", async () => true);
     expect(ok.ok && [...ok.members!].sort()).toEqual([ID.m1, "r9"].sort());
     expect(await teamFromRequest(req("team=22222222-2222-4222-8222-222222222222"), admin, "co1", async () => true)).toMatchObject({ ok: false, status: 404 });

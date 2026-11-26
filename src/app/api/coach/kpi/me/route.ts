@@ -42,7 +42,7 @@ import {
 } from "@/lib/coach/kpi/compute";
 import { contextsOf } from "@/lib/coach/sessionContext";
 import { teamFromRequest } from "@/lib/coach/remote/teamScope";
-import { treeAllowsRep } from "@/lib/api/treeAccess";
+import { treeAllowsRepChecked } from "@/lib/api/treeAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // The after-pitch score dimensions that become Layer-3 quality KPIs (real evidenced scores).
@@ -91,7 +91,7 @@ export async function GET(req: Request) {
       .eq("company_id", ctx.companyId)
       .not("sales_coach_role", "is", null);
     let ids = (members ?? []).map((m) => m.id as string);
-    const picked = await teamFromRequest(req, createAdminClient, ctx.companyId, (id) => (id === ctx.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+    const picked = await teamFromRequest(req, createAdminClient, ctx.companyId, (id) => (id === ctx.userId ? Promise.resolve(true) : treeAllowsRepChecked(req, id)));
     if (!picked.ok) return NextResponse.json({ error: picked.error }, { status: picked.status });
     if (picked.members) {
       ids = ids.filter((id) => picked.members!.has(id));

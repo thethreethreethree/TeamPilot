@@ -9,7 +9,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
 // F23.8 team narrowing: the tree check and the company's people, controllable per test.
 const team = vi.hoisted(() => ({ allowed: true, people: [] as Array<{ id: string; company_id: string; manager_id: string | null; role: string; sales_coach_role: string | null }> }));
-vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => team.allowed) }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => team.allowed), treeAllowsRepChecked: vi.fn(async () => team.allowed) }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({ from: () => ({ select: () => ({ eq: async () => ({ data: team.people, error: null }) }) }) }),
 }));

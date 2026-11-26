@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { teamFromRequest } from "@/lib/coach/remote/teamScope";
-import { treeAllowsRep } from "@/lib/api/treeAccess";
+import { treeAllowsRepChecked } from "@/lib/api/treeAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
@@ -89,7 +89,7 @@ export async function GET(req: Request) {
   );
   // ?team=<manager> (F23.8, 2026-11-26): narrow the per-rep table to one manager's team — only ever narrower than what
   // the caller may see (the database still applies the reporting tree to every read below).
-  const scope = await teamFromRequest(req, createAdminClient, ctx.companyId, (id) => (id === ctx.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+  const scope = await teamFromRequest(req, createAdminClient, ctx.companyId, (id) => (id === ctx.userId ? Promise.resolve(true) : treeAllowsRepChecked(req, id)));
   if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
   const memberIds = orderedMembers.map((m) => m.id as string).filter((id) => !scope.members || scope.members.has(id));
   if (memberIds.length === 0) return NextResponse.json({ agents: [] });
