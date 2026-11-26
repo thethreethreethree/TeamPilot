@@ -50,3 +50,17 @@ describe("newMatches (0342)", () => {
     expect(await newMatches({} as never, "from=not-a-date", "2026-11-20T00:00:00Z")).toBeNull();
   });
 });
+
+describe("sharedNow (0362)", () => {
+  it("the latest share / unshare per search wins", async () => {
+    const { sharedNow } = await import("../savedSearchFollow");
+    expect([...sharedNow([
+      { id: 1, search_id: "a", kind: "share" },
+      { id: 3, search_id: "a", kind: "unshare" },
+      { id: 2, search_id: "b", kind: "share" },
+      { id: 5, search_id: "c", kind: "unshare" },
+      { id: 6, search_id: "c", kind: "share" },
+    ])].sort()).toEqual(["b", "c"]);
+  });
+});
+

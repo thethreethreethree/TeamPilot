@@ -12,6 +12,9 @@ const st = vi.hoisted(() => ({
   events: [] as unknown[], // 0342 follow/seen rows
   newCalls: { count: 3, capped: false } as { count: number; capped: boolean } | null,
   sinceAsked: [] as string[],
+  shares: [] as unknown[], // 0362 share/unshare rows
+  sharedRows: [] as unknown[], // other people's searches read by id
+  profiles: [] as unknown[],
 }));
 vi.mock("@/lib/api/callerScopedDb", () => ({ callerScopedDb: () => ({}) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -36,7 +39,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       q.is = rec("is");
       q.order = () => q;
       q.in = () => q;
-      q.range = async (from: number) => ({ data: from > 0 ? [] : st.events, error: null });
+      q.range = async (from: number) => ({ data: from > 0 ? [] : table === "saved_search_shares" ? st.shares : st.events, error: null });
       q.limit = async () =>
         table === "saved_search_events"
           ? { data: st.events, error: null }
@@ -46,7 +49,8 @@ vi.mock("@/lib/supabase/admin", () => ({
         return { select: () => ({ maybeSingle: async () => ({ data: { id: "ss-new" }, error: null }) }) };
       };
       q.update = () => ((op = "update"), q);
-      q.then = (r: (v: unknown) => unknown) => r({ data: st.updateRows, error: null });
+      q.then = (r: (v: unknown) => unknown) =>
+        r({ data: op === "update" ? st.updateRows : table === "saved_searches" ? st.sharedRows : table === "profiles" ? st.profiles : st.updateRows, error: null });
       return q;
     },
   }),
@@ -67,12 +71,15 @@ beforeEach(() => {
   st.events = [];
   st.newCalls = { count: 3, capped: false };
   st.sinceAsked = [];
+  st.shares = [];
+  st.sharedRows = [];
+  st.profiles = [];
 });
 
 describe("saved searches", () => {
   it("reads only the caller's own, in their company", async () => {
     const body = await (await GET(req("GET"))).json();
-    expect(body.searches).toEqual([{ id: "ss1", name: "Price objections", query: "q=price", following: false, newCount: 0, newCapped: false }]);
+    expect(body.searches).toEqual([{ id: "ss1", name: "Price objections", query: "q=price", following: false, newCount: 0, newCapped: false, mine: true, shared: false, sharedBy: null }]);
     expect(scoped("select")).toEqual({ company: true, owner: true });
   });
 
@@ -116,5 +123,15 @@ describe("saved searches", () => {
     st.events = [{ search_id: "ss1", kind: "follow", created_at: "2026-11-20T09:00:00Z" }];
     st.newCalls = null;
     expect((await (await GET(req("GET"))).json()).searches[0]).toMatchObject({ following: true, newCount: null });
+  });
+  it("0362: a search a manager shared is listed with who shared it; my own shows whether it's shared", async () => {
+    st.shares = [{ id: 1, search_id: "ss1", kind: "share" }, { id: 2, search_id: "ss9", kind: "share" }, { id: 3, search_id: "ss8", kind: "share" }, { id: 4, search_id: "ss8", kind: "unshare" }];
+    st.sharedRows = [{ id: "ss9", name: "Team: pricing", filters: { query: "q=pricing" }, owner_id: "mgr-1" }];
+    st.profiles = [{ id: "mgr-1", full_name: "Max" }];
+    const body = await (await GET(req("GET"))).json();
+    expect(body.searches.map((x: { id: string; mine: boolean; shared: boolean; sharedBy: string | null }) => [x.id, x.mine, x.shared, x.sharedBy])).toEqual([
+      ["ss1", true, true, null],
+      ["ss9", false, true, "Max"],
+    ]);
   });
 });

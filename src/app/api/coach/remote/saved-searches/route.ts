@@ -6,7 +6,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { parseCallSearch } from "@/lib/coach/remote/search";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
-import { followStates, newMatches, type SearchEvent } from "@/lib/coach/remote/savedSearchFollow";
+import { followStates, newMatches, sharedNow, type SearchEvent, type ShareEvent } from "@/lib/coach/remote/savedSearchFollow";
 
 /**
  * /api/coach/remote/saved-searches — a person's own named searches (RSS Phase 5, Gong F12.2; 0280).
@@ -17,6 +17,8 @@ import { followStates, newMatches, type SearchEvent } from "@/lib/coach/remote/s
  *   POST  { name, query } → saves. `query` is the search's query string, validated by the same parseCallSearch.
  *   PATCH { id } → removes (stamps removed_at once; a trigger forbids any other change).
  * Owner and company are stamped from auth; every statement names both (INV29).
+ * Shared searches (0362, F12.7): searches a manager shared with the company are listed too (mine: false, sharedBy), and
+ * can be followed; their counts run through the caller's own access like any follow. Your own carry `shared`.
  */
 const MISSING = new Set(["PGRST205", "42P01"]);
 
@@ -38,11 +40,51 @@ export async function GET(req: NextRequest) {
     console.error(`[saved-searches] read failed: ${error.message}`);
     return NextResponse.json({ error: "Couldn't load saved searches." }, { status: 500 });
   }
-  const list = ((data ?? []) as Array<{ id: string; name: string; filters: { query?: string } }>).map((s) => ({
+  const own = ((data ?? []) as Array<{ id: string; name: string; filters: { query?: string } }>).map((s) => ({
     id: String(s.id),
     name: s.name,
     query: typeof s.filters?.query === "string" ? s.filters.query : "",
   }));
+  // 0362: which searches are shared now, and the shared ones that aren't mine. A missing table = none shared yet.
+  const admin0 = createAdminClient();
+  const { data: shareRows, error: shErr } = await fetchAllPagedResult<ShareEvent>(
+    (from, to) => admin0.from("saved_search_shares").select("id, search_id, kind").eq("company_id", ctx.companyId).order("id", { ascending: true }).range(from, to),
+    { label: "saved-search shares", maxRows: 20_000 },
+  );
+  if (shErr && !/PGRST205|42P01|does not exist/.test(shErr.message)) {
+    console.error(`[saved-searches] shares read failed: ${shErr.message}`);
+    return NextResponse.json({ error: "Couldn't load saved searches." }, { status: 500 });
+  }
+  const shared = sharedNow(((shareRows ?? []) as ShareEvent[]).map((e) => ({ ...e, search_id: String(e.search_id) })));
+  const ownIds = new Set(own.map((s) => s.id));
+  const otherIds = [...shared].filter((id) => !ownIds.has(id));
+  const others: Array<{ id: string; name: string; query: string; owner: string }> = [];
+  for (let i = 0; i < otherIds.length && others.length < 50; i += 150) {
+    const { data: rows, error: oErr } = await admin0
+      .from("saved_searches")
+      .select("id, name, filters, owner_id")
+      .eq("company_id", ctx.companyId)
+      .in("id", otherIds.slice(i, i + 150))
+      .is("removed_at", null);
+    if (oErr) {
+      console.error(`[saved-searches] shared read failed: ${oErr.message}`);
+      return NextResponse.json({ error: "Couldn't load saved searches." }, { status: 500 });
+    }
+    for (const r of (rows ?? []) as Array<{ id: string; name: string; filters: { query?: string }; owner_id: string }>) {
+      others.push({ id: String(r.id), name: r.name, query: typeof r.filters?.query === "string" ? r.filters.query : "", owner: String(r.owner_id) });
+    }
+  }
+  const ownerIds = [...new Set(others.map((o) => o.owner))];
+  const { data: owners, error: nErr } = ownerIds.length ? await admin0.from("profiles").select("id, full_name").eq("company_id", ctx.companyId).in("id", ownerIds) : { data: [], error: null };
+  if (nErr) {
+    console.error(`[saved-searches] names read failed: ${nErr.message}`);
+    return NextResponse.json({ error: "Couldn't load saved searches." }, { status: 500 });
+  }
+  const nameOf = new Map(((owners ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name]));
+  const list = [
+    ...own.map((s) => ({ ...s, mine: true, shared: shared.has(s.id), sharedBy: null as string | null })),
+    ...others.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50).map((o) => ({ id: o.id, name: o.name, query: o.query, mine: false, shared: true, sharedBy: nameOf.get(o.owner) ?? "A manager" })),
+  ];
   // Follow state (0342). A missing table reads as "nothing followed" only while the migration is absent.
   let states = new Map<string, { following: boolean; since: string | null }>();
   if (list.length) {

@@ -3,7 +3,7 @@
 import { FOLLOW_SEEN_EVENT } from "@/components/sales-coach/NotificationBell";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bell, BellRing, Download, Loader2, Search, Star, X } from "lucide-react";
+import { Bell, BellRing, Download, Loader2, Search, Share2, Star, X } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer";
@@ -22,7 +22,8 @@ import { REMOTE_ELEMENTS } from "@/lib/coach/pitchScore/rubricRemote";
 type Hit = { seq: number; speaker: string; text: string; atMs: number | null };
 type Row = { sessionId: string; repName: string | null; channel: string; callLabel: string | null; startedAt: string; outcome: string | null; score: number | null; hits: Hit[] };
 // following/newCount: 0342 (F12.7) — a followed search shows how many calls matched since you last opened it.
-type Saved = { id: string; name: string; query: string; following?: boolean; newCount?: number | null; newCapped?: boolean };
+// mine/shared/sharedBy: 0362 (F12.7) — a manager can share a search with the team; others see it and can follow it.
+type Saved = { id: string; name: string; query: string; following?: boolean; newCount?: number | null; newCapped?: boolean; mine?: boolean; shared?: boolean; sharedBy?: string | null };
 type Filters = {
   q: string; channel: string; rep: string; outcome: string; from: string; to: string; scoreMin: string; scoreMax: string; tracker: string;
   // 2026-11-22 (Phase 5): a rubric item and the grade the call got on it, the rep's talk share, disputed calls.
@@ -147,7 +148,12 @@ export default function SearchCallsPage() {
       setSaveName("");
     } else setErr(j.error ?? "Couldn't save the search.");
   };
-  const searchEvent = (id: string, kind: "follow" | "unfollow" | "seen") =>
+  const toggleShare = async (s: Saved) => {
+    const r = await searchEvent(s.id, s.shared ? "unshare" : "share");
+    if (r?.ok) setSaved((xs) => xs.map((x) => (x.id === s.id ? { ...x, shared: !s.shared } : x)));
+    else setErr("Couldn't change who sees that saved search.");
+  };
+  const searchEvent = (id: string, kind: "follow" | "unfollow" | "seen" | "share" | "unshare") =>
     fetch("/api/coach/remote/saved-searches/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, kind }) }).catch(() => null);
   const openSaved = (s: Saved) => {
     const nf = fromQuery(s.query);
@@ -281,8 +287,9 @@ export default function SearchCallsPage() {
                 </div>
                 {saved.map((s) => (
                   <div key={s.id} className="flex items-center gap-1 text-xs">
-                    <button type="button" onClick={() => openSaved(s)} className="min-w-0 flex-1 truncate text-left text-brand hover:underline">
+                    <button type="button" onClick={() => openSaved(s)} className="min-w-0 flex-1 truncate text-left text-brand hover:underline" title={s.mine === false ? `Shared by ${s.sharedBy ?? "a manager"}` : undefined}>
                       {s.name}
+                      {s.mine === false && <span className="ml-1 text-[10px] text-muted">· shared by {s.sharedBy ?? "a manager"}</span>}
                     </button>
                     {s.following && !s.newCount && s.newCapped ? (
                       <span className="rounded-full bg-brand/10 px-1.5 text-[10px] text-secondary" title="Too many matches to count — open the search to see them">
@@ -306,9 +313,23 @@ export default function SearchCallsPage() {
                     >
                       {s.following ? <BellRing className="h-3 w-3" aria-hidden /> : <Bell className="h-3 w-3" aria-hidden />}
                     </button>
-                    <button type="button" onClick={() => unsave(s.id)} aria-label={`Remove saved search ${s.name}`} className="p-0.5 text-muted hover:text-primary">
-                      <X className="h-3 w-3" aria-hidden />
-                    </button>
+                    {isManager && s.mine !== false && (
+                      <button
+                        type="button"
+                        onClick={() => void toggleShare(s)}
+                        aria-pressed={s.shared === true}
+                        aria-label={s.shared ? `Stop sharing ${s.name} with the team` : `Share ${s.name} with the team`}
+                        title={s.shared ? "Shared: your team sees this search and can follow it (each sees only calls they can open)" : "Share with the team"}
+                        className={`p-0.5 ${s.shared ? "text-brand" : "text-muted hover:text-primary"}`}
+                      >
+                        <Share2 className="h-3 w-3" aria-hidden />
+                      </button>
+                    )}
+                    {s.mine !== false && (
+                      <button type="button" onClick={() => unsave(s.id)} aria-label={`Remove saved search ${s.name}`} className="p-0.5 text-muted hover:text-primary">
+                        <X className="h-3 w-3" aria-hidden />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

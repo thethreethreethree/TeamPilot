@@ -47,3 +47,18 @@ export async function newMatches(db: SupabaseClient, query: string, since: strin
   if (!r.ok) return null;
   return { count: Math.min(r.rows.length, NEW_CAP), capped: r.rows.length > NEW_CAP || r.truncated || r.narrower === true };
 }
+
+/**
+ * Shared saved searches (0362; F12.7 "private or company"): the latest share / unshare per search decides whether it is
+ * shared now. One function for the list and the follow check (§2.2). Pure.
+ */
+export type ShareEvent = { id: number; search_id: string; kind: "share" | "unshare" };
+export function sharedNow(events: ShareEvent[]): Set<string> {
+  const latest = new Map<string, ShareEvent>();
+  for (const e of events) {
+    const k = String(e.search_id);
+    const had = latest.get(k);
+    if (!had || e.id > had.id) latest.set(k, e);
+  }
+  return new Set([...latest].filter(([, e]) => e.kind === "share").map(([k]) => k));
+}

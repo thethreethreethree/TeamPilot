@@ -158,6 +158,9 @@ const ALLOWLIST = new Map([
   ["pitch_score_events.update", "0252 a rep who could update could erase the evidence behind a violation; corrections go through score_overrides."],
   ["pitch_score_events.delete", "0252 same as update — a deletable violation is an unenforced one."],
   // 0282 RSS Phase 7: training scenarios, assignments, due changes, attempts.
+  ["saved_search_shares.insert", "0362 written by /api/coach/remote/saved-searches/events after the owner and manager checks; company from auth."],
+  ["saved_search_shares.update", "0362 §3.1 (DB rule too): a share is a fact; unsharing is a new row."],
+  ["saved_search_shares.delete", "0362 §3.1 (DB rule too): the history of shares stays."],
   ["training_course_due_changes.insert", "0358 written by /api/coach/remote/course-assignments PATCH (managers, tree-checked); a rep never moves their own due date."],
   ["training_course_due_changes.update", "0358 §3.1 (DB rule too): a due change is a fact; the next one is a new row."],
   ["training_course_due_changes.delete", "0358 §3.1 (DB rule too): the history of due dates stays."],

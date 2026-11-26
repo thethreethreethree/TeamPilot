@@ -2431,6 +2431,8 @@ for (const f of FILES) {
 // cannot reach another rep's data.
 const MANAGER_CHECK_RE = /requireSalesCoachManager\(|isSalesCoachManager\(|canManagerViewRepSkills\(/;
 const TREE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/saved-searches/events/route.ts",
+    "0362: requireSalesCoachManager only gates SHARING the caller's OWN saved search (a filter, no calls). The service role reads that one search row and the company's share rows, and writes the caller's own follow/seen or a share row — no rep is read or acted on. Counts for a shared search run through each follower's own client (reporting tree, hidden calls) in /saved-searches."],
   ["src/app/api/coach/remote/courses/route.ts",
     "0355 training courses are COMPANY content (a course's title, summary and steps), like 0282 scenarios. The service role reads and inserts courses and their step versions pinned to the manager's company. Giving a course to reps is /course-assignments, which asks the tree (treeFilterRepsChecked). The one rep-facing write here (0357): a NEW practice step in a saved version is assigned to reps ALREADY taking the course, assigned_by the manager who gave them the course (tree-checked then), never the editor; no rep's data is read back or returned."],
   ["src/app/api/coach/remote/market/topic-groups/route.ts",
