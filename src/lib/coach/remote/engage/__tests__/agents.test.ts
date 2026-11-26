@@ -111,4 +111,20 @@ describe("review fixes (2026-11-27)", () => {
     expect(stageChanged({ status: "open", stage_label: null }, { status: "open", label: "Demo" })).toBe(true);
     expect(stageChanged(null, { status: "open", label: null })).toBe(true);
   });
+  it("a claimed fire: a lost claim does nothing and records nothing; a won claim records the fire key", async () => {
+    const lost = await runAgent(admin, agent, "d1", false, { fireKey: "close:d1:2026-12-01:7", claim: async () => false });
+    expect(lost.acted).toBe(false);
+    expect(st.inserts).toEqual([]);
+    const won = await runAgent(admin, agent, "d1", false, { fireKey: "close:d1:2026-12-01:7", claim: async () => true });
+    expect(won.acted).toBe(true);
+    expect(st.inserts.at(-1)!.row).toMatchObject({ fire_key: "close:d1:2026-12-01:7" });
+  });
+  it("a failure before the claim doesn't use up the fire (recorded without the key; no claim made)", async () => {
+    st.canSee = false;
+    const claim = vi.fn(async () => true);
+    const r = await runAgent(admin, agent, "d1", false, { fireKey: "close:d1:2026-12-01:7", claim });
+    expect(claim).not.toHaveBeenCalled();
+    expect(r.acted).toBe(false);
+    expect(st.inserts.at(-1)!.row).not.toHaveProperty("fire_key");
+  });
 });

@@ -30,4 +30,11 @@ describe("revenue-daily-cron", () => {
     expect(r.status).toBe(500);
     expect(await r.json()).toMatchObject({ ok: false, failedCompanies: 1 });
   });
+  it("out of time is a 500 that says how many are left", async () => {
+    vi.stubEnv("CRON_SECRET", "s3cret");
+    st.result = { companies: 1, snapshots: 2, failedCompanies: 0, fired: 0, remaining: 4 };
+    const r = await call("Bearer s3cret");
+    expect(r.status).toBe(500);
+    expect((await r.json()).error).toMatch(/4 companies are left/);
+  });
 });

@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 /** Drivers from the nightly record: only 30 or 90 days; an empty day is "not recorded", never "no warnings"; one rep's filter. */
 const st = vi.hoisted(() => ({ rows: [] as unknown[], eqs: [] as unknown[] }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "u1", companyId: "co1" })) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/api/callerScopedDb", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/api/callerScopedDb", () => ({
       for (const m of ["select", "order"]) q[m] = () => q;
       q.eq = (...a: unknown[]) => (st.eqs.push(a), q);
       q.range = (f: number) => Promise.resolve({ data: f > 0 ? [] : st.rows, error: null });
+      q.maybeSingle = async () => ({ data: { timezone: "UTC" }, error: null });
       return q;
     },
   }),

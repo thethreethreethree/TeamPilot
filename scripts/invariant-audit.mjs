@@ -2797,6 +2797,7 @@ const RAW_STORAGE_WRITERS = new Map([
 // Fixed in two commits (0349ef69 and this one). The rule: the LAST .order() of a statement that calls .range(from, to)
 // is "id", or the read is listed here with the key that is unique for it.
 const PAGING_UNIQUE_ALLOWLIST = new Map([
+  ["src/lib/coach/remote/revenue/daily.ts::agent_fires::agent_id,fire_key", "agent_fires primary key (agent_id, fire_key) (0383): one row per pair."],
   ["src/lib/coach/remote/prospects.ts::deal_contacts_current::prospect_id,contact_id", "the view is distinct on (prospect_id, contact_id) (0370): one row per pair."],
   ["src/app/api/coach/remote/hide-phrases/route.ts::call_unhides::hide_id", "call_unhides_once: unique (hide_id) (0337)."],
   ["src/lib/coach/remote/hidePhrases.ts::call_unhides::hide_id", "call_unhides_once: unique (hide_id) (0337)."],

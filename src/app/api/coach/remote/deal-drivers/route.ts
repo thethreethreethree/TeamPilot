@@ -4,6 +4,7 @@ import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
+import { dayIn } from "@/lib/coach/remote/revenue/daily";
 
 /**
  * GET /api/coach/remote/deal-drivers?daysAgo=30|90[&repId=…|team] — the warnings recorded that night (0382
@@ -24,8 +25,11 @@ export async function GET(req: NextRequest) {
   const asked = req.nextUrl.searchParams.get("repId");
   if (asked && asked !== "team" && !UUID.test(asked)) return NextResponse.json({ error: "Unknown rep." }, { status: 400 });
   const repId = asked === "team" ? null : asked || ctx.userId;
-  const day = new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
   const db = callerScopedDb(req) ?? (await createClient());
+  // The company's own day, as the nightly job dates its record (revenue/daily.ts dayIn), then back daysAgo days.
+  const { data: co } = await db.from("companies").select("timezone").eq("id", ctx.companyId).maybeSingle();
+  const today = dayIn((co as { timezone?: string | null } | null)?.timezone ?? null, new Date());
+  const day = new Date(Date.parse(`${today}T00:00:00Z`) - daysAgo * 86_400_000).toISOString().slice(0, 10);
   const { data, error } = await fetchAllPagedResult<{ id: number; rep_id: string; reasons: string[] }>(
     (f, t) => {
       let q = db.from("deal_warning_snapshots").select("id, rep_id, reasons").eq("day", day);

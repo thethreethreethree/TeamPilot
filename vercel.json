@@ -59,6 +59,14 @@
     {
       "path": "/api/coach/remote/revenue-daily-cron",
       "schedule": "15 5 * * *"
+    },
+    {
+      "path": "/api/coach/remote/revenue-daily-cron",
+      "schedule": "45 5 * * *"
+    },
+    {
+      "path": "/api/coach/remote/revenue-daily-cron",
+      "schedule": "15 6 * * *"
     }
   ]
 }

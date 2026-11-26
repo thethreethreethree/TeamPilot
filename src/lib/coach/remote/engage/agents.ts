@@ -115,11 +115,17 @@ export async function firstHeard(admin: SupabaseClient, companyId: string, sessi
 }
 
 /** Run one agent on one deal (test = say what would happen, without doing it). Returns the recorded result. */
-export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: string, test: boolean, on?: { sessionId?: string; trackerId?: string; fireKey?: string }): Promise<{ ok: boolean; skipped: string | null; results: ActionResult[] }> {
+/**
+ * `on.claim` (0383, the nightly job's date triggers): called once the deal is read and the owner may see it, right before
+ * any action. It returns false when another run already claimed this fire — then nothing is done or recorded. A failure
+ * before the claim (a read) is recorded WITHOUT the fire key, so it doesn't use up the fire and the next night retries.
+ */
+export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: string, test: boolean, on?: { sessionId?: string; trackerId?: string; fireKey?: string; claim?: () => Promise<boolean> }): Promise<{ ok: boolean; skipped: string | null; results: ActionResult[]; acted?: boolean }> {
+  let claimed = false;
   const record = async (ok: boolean, skipped: string | null, results: ActionResult[]) => {
-    const { error } = await admin.from("agent_runs").insert({ agent_id: a.id, company_id: a.company_id, prospect_id: prospectId, test, ok, skipped, results, session_id: on?.sessionId ?? null, tracker_id: on?.trackerId ?? null, ...(on?.fireKey ? { fire_key: on.fireKey } : {}) });
+    const { error } = await admin.from("agent_runs").insert({ agent_id: a.id, company_id: a.company_id, prospect_id: prospectId, test, ok, skipped, results, session_id: on?.sessionId ?? null, tracker_id: on?.trackerId ?? null, ...(on?.fireKey && claimed ? { fire_key: on.fireKey } : {}) });
     if (error) console.error(`[agents] run not recorded agent=${a.id}: ${error.message}`);
-    return { ok, skipped, results };
+    return { ok, skipped, results, acted: claimed };
   };
   const { data: deal, error: dErr } = await admin.from("remote_prospects_current").select("id, name, rep_id, status, stage_label").eq("company_id", a.company_id).eq("id", prospectId).maybeSingle();
   if (dErr) return record(false, "Couldn't read the deal.", []);
@@ -127,6 +133,10 @@ export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: s
   const { data: canSee, error: sErr } = await admin.rpc("rss_agent_can_see", { p_owner: a.owner_id, p_rep: deal.rep_id });
   if (sErr) return record(false, "Couldn't check who the agent acts for.", []);
   if (canSee !== true) return record(false, "The agent's owner can't see this deal, so it didn't act.", []);
+  if (on?.claim && !test) {
+    if (!(await on.claim())) return { ok: true, skipped: "Already done by another run.", results: [], acted: false };
+    claimed = true;
+  }
   const results: ActionResult[] = [];
   for (const act of a.actions) {
     if (test) {

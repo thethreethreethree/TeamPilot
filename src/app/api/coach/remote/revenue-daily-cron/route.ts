@@ -22,9 +22,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Cron authentication failed." }, { status: 401 });
   }
   try {
-    const r = await runRevenueDaily(createAdminClient(), new Date().toISOString().slice(0, 10));
+    const r = await runRevenueDaily(createAdminClient(), new Date());
     if (r.lookupFailed) return NextResponse.json({ ok: false, error: "Couldn't read which companies to process.", ...r }, { status: 500 });
-    if (r.failedCompanies) return NextResponse.json({ ok: false, error: "Some companies' deals couldn't be read; they were skipped.", ...r }, { status: 500 });
+    if (r.failedCompanies) return NextResponse.json({ ok: false, error: "Some companies failed; they were skipped (see the log).", ...r }, { status: 500 });
+    // Out of time: the next slot (vercel.json) continues; after the last slot this still shows, so a monitor sees it.
+    if (r.remaining) return NextResponse.json({ ok: false, error: `Ran out of time; ${r.remaining} compan${r.remaining === 1 ? "y is" : "ies are"} left for the next run.`, ...r }, { status: 500 });
     return NextResponse.json({ ok: true, ...r });
   } catch (err) {
     console.error("[revenue-daily-cron] failed:", err);
