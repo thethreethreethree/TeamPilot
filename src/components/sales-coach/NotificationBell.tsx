@@ -257,7 +257,12 @@ function destination(n: Notif): string | null {
     : `/dashboard/sales-coach/${n.session_id}/after-pitch`;
 }
 
-export function NotificationBell() {
+/**
+ * Where the bell sits (2026-11-26). It used to be mounted only on the Scoreboard page and only for managers, so a rep never
+ * saw the notices addressed to them (call ready, call scored, score corrected, dispute answered, mentions). It now lives
+ * in both module shells for everyone: `align` says which way the panel opens, `tone` matches a dark sidebar.
+ */
+export function NotificationBell({ align = "right", tone = "light" }: { align?: "left" | "right"; tone?: "light" | "dark" } = {}) {
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
   /** How many exist in total, so a bounded list can say so. Null = no count available. */
@@ -405,7 +410,7 @@ export function NotificationBell() {
           if (!open && unread > 0) void markShownRead();
         }}
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}
-        className="relative rounded-lg p-2 text-secondary hover:bg-surface-raised hover:text-primary"
+        className={`relative rounded-lg p-2 ${tone === "dark" ? "text-white/60 hover:bg-white/5 hover:text-white" : "text-secondary hover:bg-surface-raised hover:text-primary"}`}
       >
         <Bell size={18} />
         {unread > 0 && (
@@ -416,7 +421,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 max-h-96 w-80 overflow-y-auto rounded-xl border border-default bg-surface shadow-lg">
+        <div className={`absolute ${align === "left" ? "left-0" : "right-0"} z-50 mt-2 max-h-96 w-80 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-default bg-surface shadow-lg`}>
           <div className="flex items-center justify-between border-b border-default px-3 py-2">
             <span className="text-sm font-semibold text-primary">Notifications</span>
             {items.length > 0 && (

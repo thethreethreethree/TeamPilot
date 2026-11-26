@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { filterManagerNavSections } from "@/lib/nav/managerNav";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
+import { NotificationBell } from "@/components/sales-coach/NotificationBell";
 import {
   NavProgressProvider,
   NavProgressBar,
@@ -329,6 +330,10 @@ export function SalesCoachShell({
                   Live Coaching · Growth Reviews
                 </p>
               </div>
+              {/* Everyone's notices (2026-11-26) — was only on the Scoreboard page, managers only. Opens to the right. */}
+              <div className="-mt-1.5 shrink-0">
+                <NotificationBell align="left" tone="dark" />
+              </div>
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
@@ -453,6 +458,10 @@ export function SalesCoachShell({
             area (founder 2026-07-03). Driven by the sidebar links' pending
             state via useLinkStatus. */}
         <NavProgressBar />
+        {/* Phones have no sidebar: the bell sits at the top right of the page, on its own chip so it reads on any page. */}
+        <div className="md:hidden absolute right-2 top-[max(0.5rem,env(safe-area-inset-top))] z-20 rounded-lg border border-default bg-surface/90 shadow-sm">
+          <NotificationBell />
+        </div>
         {children}
       </main>
 

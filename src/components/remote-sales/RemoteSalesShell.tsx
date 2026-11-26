@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { PhoneCall } from "lucide-react";
 import { useCurrentUserRole, useIsSalesCoachManager, isCompanyAdminRole } from "@/lib/hooks/useCurrentUserRole";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
+import { NotificationBell } from "@/components/sales-coach/NotificationBell";
 
 /**
  * The Remote Sales module's frame: its name, what it is, and its sections as tabs. The sections follow the RSS
@@ -61,6 +62,10 @@ export function RemoteSalesShell({ children }: { children: React.ReactNode }) {
                   ? "Your day, your pipeline, your calls — simple."
                   : "Phone and video sales calls — recorded, transcribed, scored with evidence, and coached."}
               </p>
+            </div>
+            {/* Everyone's notices — a rep's call scored, a manager's feedback request (2026-11-26). */}
+            <div className="ml-auto shrink-0">
+              <NotificationBell />
             </div>
           </div>
           <nav className="-mb-px mt-4 flex gap-1 overflow-x-auto" aria-label="Remote Sales sections">
