@@ -350,6 +350,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       next-action: send the founders an email (or a bell entry in the vendor shell) when security_reports gets a row
       done 2026-11-23: in-app (D10) — an amber count of waiting reports on the founders' "Security reports" sidebar item — docs/tbc/2026-11-23-security-alert.
 - [ ] 2026-11-23 · security-disclosure · AFTER PUSH: open https://elostate.com/.well-known/security.txt and https://elostate.com/security; send one test report and see it in Security reports
+      verified 2026-11-27: both answer 200 on production; security.txt has Contact/Policy (https://elostate.com/security), Canonical and Expires 2027-11-23. Still open: one test report sent and seen in Security reports (writes a real report, so left to the founder).
       why-unresolved: not deployed until pushed
       next-action: founder push, then the three checks
 - [ ] 2026-11-23 · security-disclosure · founders' decisions: safe-harbour wording for good-faith researchers; how to remove a reporter's name/contact on request (reports are append-only)
