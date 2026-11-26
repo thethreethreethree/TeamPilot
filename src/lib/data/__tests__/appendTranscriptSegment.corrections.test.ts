@@ -40,3 +40,19 @@ describe("appendTranscriptSegment — known mis-hearings (0354)", () => {
     expect(st.inserts[0]!.text).toBe("we're on spec trum now");
   });
 });
+
+describe("appendTranscriptSegment — corrections run after number redaction (review 2026-11-26)", () => {
+  it("a card number read out is removed whatever the corrections; the name survives", async () => {
+    st.corrections = [{ term: "Spectrum", heard: ["spec trum"] }];
+    await appendTranscriptSegment({ sessionId: "s-c", speaker: "customer", text: "spec trum card 4111 1111 1111 1111", seq: 2 });
+    expect(st.inserts[0]!.text).toBe("Spectrum card [number removed]");
+  });
+  it("a failed lookup is not cached: the next line is corrected", async () => {
+    st.corrections = [{ term: "Spectrum", heard: ["spec trum"] }];
+    st.fail = true;
+    await appendTranscriptSegment({ sessionId: "s-d", speaker: "customer", text: "spec trum", seq: 1 });
+    st.fail = false;
+    await appendTranscriptSegment({ sessionId: "s-d", speaker: "customer", text: "spec trum", seq: 2 });
+    expect(st.inserts.map((i) => i.text)).toEqual(["spec trum", "Spectrum"]);
+  });
+});

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { REDACTED } from "./redact";
 
 /**
  * A company's transcription vocabulary (Gong F8.9, 0306): names speech-to-text should recognise — products, plans,
@@ -88,50 +89,86 @@ export function parseVocabularyLines(lines: string[]): { terms: string[]; correc
     if (rest.length) heardFor.set(term.toLowerCase(), [...(heardFor.get(term.toLowerCase()) ?? []), ...rest.join("=").split(",")]);
   }
   const terms = normaliseKeyterms(rawTerms);
-  return { terms, corrections: normaliseCorrections(terms.map((term) => ({ term, heard: heardFor.get(term.toLowerCase()) ?? [] }))) };
+  return { terms, corrections: normaliseCorrections(terms.map((term) => ({ term, heard: heardFor.get(term.toLowerCase()) ?? [] })), terms) };
 }
 
-/** Each term's mis-hearings: trimmed, ≤50 characters and ≤5 words, not the term itself, deduplicated, ≤10 per term. */
-export function normaliseCorrections(input: Correction[]): Correction[] {
-  const out: Correction[] = [];
+/** Spoken or written numbers only ("one one", "nine hundred", "4111"): never a mis-hearing — it would rewrite numbers people said. */
+const NUMBER_ONLY = /^(?:(?:\d+|zero|oh|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|double|triple)[\s,.-]*)+$/i;
+
+/**
+ * Each term's mis-hearings: trimmed, ≤50 characters and ≤5 words, ≤10 per term; entries for the same term merged.
+ * Refused (review 2026-11-26, each one rewrote a correct line): a mis-hearing that is a whole-word part of any term in
+ * the list ("Spectrum Internet = spectrum" turned every correct mention into "Spectrum Internet Internet"), one made of
+ * numbers only, one listed for two terms, and "=" or "," anywhere (they can't survive the settings text).
+ */
+export function normaliseCorrections(input: Correction[], allTerms: string[] = input.map((c) => c.term)): Correction[] {
+  const byTerm = new Map<string, Correction>();
   const claimed = new Map<string, string>(); // heard (lowercase) → the term it maps to
+  const wholeWordIn = (needle: string, hay: string) =>
+    new RegExp(`(?<![\\p{L}\\p{N}])${needle.split(" ").map(escapeRe).join("\\s+")}(?![\\p{L}\\p{N}])`, "iu").test(hay);
   for (const c of input) {
-    const heard: string[] = [];
+    if (/[=,]/.test(c.term)) throw new VocabularyError(`"${c.term}" can't contain "=" or ",".`);
+    const entry = byTerm.get(c.term.toLowerCase()) ?? { term: c.term, heard: [] };
     for (const raw of c.heard) {
       const h = raw.trim().replace(/\s+/g, " ");
       if (!h) continue;
+      if (/[=,]/.test(h)) throw new VocabularyError(`"${h}" can't contain "=" or ",".`);
+      if (/[<>{}[\]\\]/.test(h)) throw new VocabularyError(`"${h}" contains a character that can't be used (< > { } [ ] \\).`);
       if (h.length > 50) throw new VocabularyError(`"${h.slice(0, 30)}…" is longer than 50 characters.`);
       if (h.split(" ").length > 5) throw new VocabularyError(`"${h}" has more than 5 words.`);
+      if (NUMBER_ONLY.test(h)) throw new VocabularyError(`"${h}" is only numbers — it would change numbers people said.`);
+      // Corrections run after number redaction, so one must not match inside its marker.
+      if (wholeWordIn(h, REDACTED)) throw new VocabularyError(`"${h}" can't be used — it's part of "${REDACTED}".`);
       const k = h.toLowerCase();
-      if (k === c.term.toLowerCase() || heard.some((x) => x.toLowerCase() === k)) continue;
+      if (entry.heard.some((x) => x.toLowerCase() === k)) continue;
+      const inTerm = allTerms.find((t) => wholeWordIn(h, t));
+      if (inTerm) throw new VocabularyError(`"${h}" is part of "${inTerm}" — it would change "${inTerm}" when it's heard right.`);
       const other = claimed.get(k);
-      if (other && other !== c.term) throw new VocabularyError(`"${h}" is listed for both "${other}" and "${c.term}".`);
+      if (other && other.toLowerCase() !== c.term.toLowerCase()) throw new VocabularyError(`"${h}" is listed for both "${other}" and "${c.term}".`);
       claimed.set(k, c.term);
-      heard.push(h);
+      entry.heard.push(h);
     }
-    if (heard.length > MAX_HEARD_PER_TERM) throw new VocabularyError(`Keep it to ${MAX_HEARD_PER_TERM} mis-hearings for "${c.term}".`);
-    if (heard.length) out.push({ term: c.term, heard });
+    if (entry.heard.length > MAX_HEARD_PER_TERM) throw new VocabularyError(`Keep it to ${MAX_HEARD_PER_TERM} mis-hearings for "${c.term}".`);
+    byTerm.set(c.term.toLowerCase(), entry);
   }
-  return out;
+  return [...byTerm.values()].filter((c) => c.heard.length > 0);
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** The line with each listed mis-hearing replaced by its term — whole words or phrases, any capitalisation; longer
- *  phrases first so "spec trum plus" isn't cut by "spec trum". Pure. */
-export function applyCorrections(text: string, corrections: Correction[]): string {
-  if (!text || corrections.length === 0) return text;
-  const pairs = corrections.flatMap((c) => c.heard.map((h) => ({ h, term: c.term }))).sort((a, b) => b.h.length - a.h.length);
-  let out = text;
-  for (const { h, term } of pairs) {
-    const pattern = h.split(" ").map(escapeRe).join("\\s+");
-    out = out.replace(new RegExp(`(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])`, "giu"), term);
-  }
+type Compiled = { re: RegExp; termFor: Map<string, string> } | null;
+const compiledFor = new WeakMap<Correction[], Compiled>();
+const keyOf = (s: string) => s.toLowerCase().replace(/\s+/g, " ");
+
+/** One pattern for the whole list, compiled once per list (it's cached with the list for a session). */
+function compile(corrections: Correction[]): Compiled {
+  const hit = compiledFor.get(corrections);
+  if (hit !== undefined) return hit;
+  const termFor = new Map<string, string>();
+  for (const c of corrections) for (const h of c.heard) termFor.set(keyOf(h), c.term);
+  const alts = [...termFor.keys()].sort((a, b) => b.length - a.length).map((h) => h.split(" ").map(escapeRe).join("\\s+"));
+  const out: Compiled = alts.length ? { re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${alts.join("|")})(?![\\p{L}\\p{N}])`, "giu"), termFor } : null;
+  compiledFor.set(corrections, out);
   return out;
 }
 
-/** The company's current corrections (latest row), or [] — never throws: a vocabulary problem must not stop a line from being stored. */
-export async function readCompanyCorrections(db: SupabaseClient, companyId: string): Promise<Correction[]> {
+/**
+ * The line with each listed mis-hearing replaced by its term — whole words or phrases, any capitalisation, longest
+ * first, in ONE pass (review 2026-11-26: replacing one after another let a later, shorter mis-hearing match inside a
+ * term just put in). The term is inserted literally ("$" is not a pattern). Pure.
+ */
+export function applyCorrections(text: string, corrections: Correction[]): string {
+  if (!text || corrections.length === 0) return text;
+  const c = compile(corrections);
+  if (!c) return text;
+  return text.replace(c.re, (m) => c.termFor.get(keyOf(m)) ?? m);
+}
+
+/**
+ * The company's current corrections (latest row); [] when none are set; null when they couldn't be read (so a caller
+ * doesn't cache a failure as "none"). Never throws: a vocabulary problem must not stop a line from being stored.
+ */
+export async function readCompanyCorrections(db: SupabaseClient, companyId: string): Promise<Correction[] | null> {
   try {
     const { data, error } = await db
       .from("company_stt_vocabulary")
@@ -141,8 +178,10 @@ export async function readCompanyCorrections(db: SupabaseClient, companyId: stri
       .limit(1)
       .maybeSingle();
     if (error) {
-      if (!["PGRST205", "42P01", "42703"].includes(String(error.code))) console.error(`[vocabulary] corrections read failed company=${companyId}: ${error.message}`);
-      return [];
+      // A table or column not there yet means "none set"; anything else is a failure to read.
+      if (["PGRST205", "42P01", "42703"].includes(String(error.code))) return [];
+      console.error(`[vocabulary] corrections read failed company=${companyId}: ${error.message}`);
+      return null;
     }
     const list = (data as { corrections?: unknown } | null)?.corrections;
     return Array.isArray(list)
@@ -152,6 +191,6 @@ export async function readCompanyCorrections(db: SupabaseClient, companyId: stri
       : [];
   } catch (e) {
     console.error(`[vocabulary] corrections read threw company=${companyId}: ${e instanceof Error ? e.message : String(e)}`);
-    return [];
+    return null;
   }
 }

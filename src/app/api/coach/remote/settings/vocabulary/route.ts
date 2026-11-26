@@ -62,7 +62,7 @@ export async function PUT(req: NextRequest) {
     const known = new Map(terms.map((t) => [t.toLowerCase(), t]));
     const missing = raw.find((c) => !known.has(String(c.term).trim().replace(/\s+/g, " ").toLowerCase()));
     if (missing) return NextResponse.json({ error: `"${String(missing.term)}" isn't in the vocabulary — add it as a term first.` }, { status: 400 });
-    corrections = normaliseCorrections(raw.map((c) => ({ term: known.get(String(c.term).trim().replace(/\s+/g, " ").toLowerCase())!, heard: c.heard as string[] })));
+    corrections = normaliseCorrections(raw.map((c) => ({ term: known.get(String(c.term).trim().replace(/\s+/g, " ").toLowerCase())!, heard: c.heard as string[] })), terms);
   } catch (e) {
     if (e instanceof VocabularyError) return NextResponse.json({ error: e.message }, { status: 400 });
     throw e;

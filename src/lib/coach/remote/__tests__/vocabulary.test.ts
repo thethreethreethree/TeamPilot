@@ -40,7 +40,7 @@ describe("readCompanyKeyterms never stops a transcription", () => {
   });
 });
 
-import { applyCorrections, parseVocabularyLines } from "../vocabulary";
+import { applyCorrections, normaliseCorrections, parseVocabularyLines } from "../vocabulary";
 
 describe("known mis-hearings (0354, F8.9)", () => {
   it("parses 'Term = heard, heard'; a plain line is a term", () => {
@@ -60,6 +60,30 @@ describe("known mis-hearings (0354, F8.9)", () => {
     expect(applyCorrections("SPEKTRUM, then", c)).toBe("Spectrum, then");
     expect(applyCorrections("a spectrummy line, aspektrum", c)).toBe("a spectrummy line, aspektrum");
     expect(applyCorrections("nothing here", [])).toBe("nothing here");
+  });
+});
+
+describe("mis-hearings that would rewrite a correct line are refused or harmless (review 2026-11-26)", () => {
+  it("a mis-hearing that is part of a name in the list is refused (it would turn 'Spectrum Internet' into 'Spectrum Internet Internet')", () => {
+    expect(() => parseVocabularyLines(["Spectrum Internet = spectrum"])).toThrow(/part of "Spectrum Internet"/);
+    expect(() => parseVocabularyLines(["Spectrum = spec", "Spec Pack"])).toThrow(/part of "Spec Pack"/);
+  });
+  it("one pass: a later, shorter mis-hearing never matches inside a name just put in", () => {
+    const c = normaliseCorrections([{ term: "Spectrum Plus", heard: ["spec trum plus"] }, { term: "Pack", heard: ["pak"] }]);
+    expect(applyCorrections("is spec trum plus a pak", c)).toBe("is Spectrum Plus a Pack");
+  });
+  it("a name with $ is inserted as written", () => {
+    expect(applyCorrections("deal att now", [{ term: "Deal $& now", heard: ["att"] }])).toBe("deal Deal $& now now");
+  });
+  it("number-only mis-hearings, '=' or ',', and words of the redaction marker are refused", () => {
+    expect(() => normaliseCorrections([{ term: "Juan", heard: ["one one"] }])).toThrow(/only numbers/);
+    expect(() => normaliseCorrections([{ term: "Plan", heard: ["nine hundred"] }])).toThrow(/only numbers/);
+    expect(() => normaliseCorrections([{ term: "Foo=Bar", heard: ["foo"] }])).toThrow(/"="/);
+    expect(() => normaliseCorrections([{ term: "Acme", heard: ["ack, me"] }])).toThrow(/","/);
+    expect(() => normaliseCorrections([{ term: "Numbr", heard: ["number"] }])).toThrow(/number removed/);
+  });
+  it("entries for the same name are merged, so the screen shows them all", () => {
+    expect(normaliseCorrections([{ term: "Spectrum", heard: ["spec trum"] }, { term: "spectrum", heard: ["spektrum"] }])).toEqual([{ term: "Spectrum", heard: ["spec trum", "spektrum"] }]);
   });
 });
 

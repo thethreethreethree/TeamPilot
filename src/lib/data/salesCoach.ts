@@ -17,15 +17,18 @@ const correctionsCache = new Map<string, { at: number; list: Correction[] }>();
 async function correctionsForSession(sb: ReturnType<typeof createServiceRoleClient>, sessionId: string): Promise<Correction[]> {
   const hit = correctionsCache.get(sessionId);
   if (hit && Date.now() - hit.at < CORRECTIONS_TTL_MS) return hit.list;
-  let list: Correction[] = [];
+  let list: Correction[] | null = null;
   try {
     // By the session's own id — its company is the session's (the tenant is the row being written).
-    const { data } = await sb.from("coaching_sessions").select("company_id").eq("id", sessionId).maybeSingle();
+    const { data, error } = await sb.from("coaching_sessions").select("company_id").eq("id", sessionId).maybeSingle();
     const companyId = (data as { company_id?: string } | null)?.company_id;
-    if (companyId) list = await readCompanyCorrections(sb, companyId);
+    if (!error && companyId) list = await readCompanyCorrections(sb, companyId);
   } catch (e) {
     console.error(`[salesCoach] corrections lookup failed session=${sessionId}: ${e instanceof Error ? e.message : String(e)}`);
   }
+  // Only an answer is cached (review 2026-11-26): a failed read retries on the next line instead of storing lines
+  // uncorrected for five minutes.
+  if (list === null) return [];
   if (correctionsCache.size > 500) correctionsCache.clear();
   correctionsCache.set(sessionId, { at: Date.now(), list });
   return list;
@@ -391,8 +394,9 @@ export async function appendTranscriptSegment(args: {
     speaker: args.speaker,
     // D15 number redaction (REDACTION in decisions.ts), through the one helper every transcript writer uses —
     // this path, replaceSessionTranscript and the line-correction route (transcriptRedactionGate.test.ts).
-    // 0354 (F8.9): the company's known mis-hearings are replaced by their term first.
-    text: transcriptTextForStorage(applyCorrections(args.text, corrections)),
+    // 0354 (F8.9): then the company's known mis-hearings are replaced by their term — AFTER redaction (review
+    // 2026-11-26), so a correction can neither hide a number from redaction nor have its own name redacted.
+    text: applyCorrections(transcriptTextForStorage(args.text), corrections),
     seq: args.seq,
     spoken_at: args.spokenAt ?? null,
   };
@@ -473,7 +477,7 @@ export async function replaceSessionTranscript(
       speaker: s.speaker,
       // D15 applies here too (2026-11-23): this is the uploaded-recording and recovery path, and it used to store
       // the text exactly as heard.
-      text: transcriptTextForStorage(applyCorrections(s.text, corrections)), // 0354: known mis-hearings first
+      text: applyCorrections(transcriptTextForStorage(s.text), corrections), // 0354: mis-hearings after redaction
       seq: s.seq,
       spokenAt: s.spokenAt ?? null,
       speakerId: s.speakerId ?? null,
