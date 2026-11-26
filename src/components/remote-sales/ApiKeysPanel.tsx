@@ -50,8 +50,8 @@ export function ApiKeysPanel() {
       </p>
       <p className="mt-1 text-secondary">
         AI assistants (Claude, ChatGPT, Copilot): add EloState as an MCP server at <code>{typeof window === "undefined" ? "" : window.location.origin}/api/mcp</code> with
-        a key that has “Also for AI assistants”. They can list deals, read a deal or account, and ask about a deal from its
-        calls. Read-only.
+        a key that has “Also for AI assistants”. They can list deals, read a deal or account, find calls, ask about a deal
+        or account from its calls, and write a deal&rsquo;s brief (saved on the deal, as yours). Nothing else is changed.
       </p>
       {shown && (
         <div className="mt-2 rounded-lg border border-brand/60 bg-brand/10 p-2" role="status">

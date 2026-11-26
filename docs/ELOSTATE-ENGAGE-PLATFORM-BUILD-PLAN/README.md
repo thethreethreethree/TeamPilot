@@ -18,6 +18,9 @@ Phases        E1–E5
 | E3 Public read API, company keys, usage | 602cdcc2 | 0378 |
 | E4 MCP server | 9eb3a304 | — |
 | E5 Agents | 353dc762 | 0379 |
+| E5 Tracker trigger | ad6c03d1 | 0380 |
+| Review fixes (hidden calls, account reach, agents once, forecast paging) | 91b1eeb6 | 0381 |
+| E4 completed: ask_account, generate_brief, find_calls | (this commit) | — |
 
 Waiting on outside setup (each named in docs/00 and docs/08): automatic email (Postmark), the dialer (Twilio), per-person
 MCP keys (a JWT secret), date-based agent triggers and warning history (CRON_SECRET), CRM sync (a client's CRM).

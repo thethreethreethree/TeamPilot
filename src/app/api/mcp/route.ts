@@ -9,7 +9,8 @@ export const maxDuration = 60;
  * POST /api/mcp — EloState's MCP server (Engage plan E4; Gong M32 F32.1–F32.4), Streamable HTTP with JSON replies.
  * Claude, ChatGPT or Copilot connect with a company key that has the MCP scope (Protection → API keys), sent as
  * `Authorization: Bearer els_…`. Methods: initialize, notifications/initialized, ping, tools/list, tools/call.
- * Every request is recorded against the key (the usage report, F31.9). Read-only: no tool writes anything.
+ * Every request is recorded against the key (the usage report, F31.9). Read-only, except generate_brief, which saves the
+ * brief it writes on the deal (recorded as written by the person who made the key).
  */
 const PROTOCOL = "2025-03-26";
 type Rpc = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
       protocolVersion: PROTOCOL,
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: "elostate", version: "1.0.0" },
-      instructions: "EloState sales data: deals, accounts, contacts, AI deal briefs, and answers from call transcripts. Read-only.",
+      instructions: "EloState sales data: deals, accounts, contacts, AI deal briefs, and answers from call transcripts. Read-only, except generate_brief saves the brief it writes on the deal.",
     });
   }
   if (method === "ping") return reply(msg.id, {});
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     const name = String(msg.params?.name ?? "");
     const args = (msg.params?.arguments ?? {}) as Record<string, unknown>;
     try {
-      const text = await runTool(createAdminClient(), caller.companyId, name, args);
+      const text = await runTool(createAdminClient(), caller.companyId, name, args, caller.createdBy);
       return reply(msg.id, { content: [{ type: "text", text }] });
     } catch (e) {
       if (e instanceof ToolError) return reply(msg.id, { content: [{ type: "text", text: e.message }], isError: true });
