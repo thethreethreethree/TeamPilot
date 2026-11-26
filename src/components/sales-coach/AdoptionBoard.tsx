@@ -15,32 +15,52 @@ type Row = {
   rate: number | null;
   goal: { direction: "at_least" | "at_most"; targetPct: number } | null;
   goalStatus: "met" | "not_met" | null;
+  /** ?by=team (F18.4): this message's share of calls per team, same order as `teams`. */
+  byTeam?: Array<{ teamId: string; calls: number; said: number; rate: number | null }>;
 };
+type Team = { id: string; name: string };
 const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
 
-export function AdoptionBoard({ onOpen }: { onOpen: (trackerId: string) => void }) {
+export function AdoptionBoard({ onOpen, canManage = false }: { onOpen: (trackerId: string) => void; canManage?: boolean }) {
   const [days, setDays] = useState<30 | 90>(90);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // F18.4 (2026-11-26): managers can see each message by team — a manager and everyone below them.
+  const [view, setView] = useState<"all" | "team">("all");
+  const [teams, setTeams] = useState<Team[]>([]);
 
   useEffect(() => {
     let live = true;
     setRows(null);
     setFailed(false);
-    fetch(`/api/coach/remote/trackers/adoption-board?days=${days}`, { cache: "no-store" })
+    fetch(`/api/coach/remote/trackers/adoption-board?days=${days}${view === "team" ? "&by=team" : ""}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j: { rows: Row[] }) => live && setRows(j.rows))
+      .then((j: { rows: Row[]; teams?: Team[] }) => {
+        if (!live) return;
+        setRows(j.rows);
+        setTeams(j.teams ?? []);
+      })
       .catch(() => live && setFailed(true));
     return () => {
       live = false;
     };
-  }, [days]);
+  }, [days, view]);
 
   if (rows && rows.length === 0) return null;
   return (
     <section aria-label="Message adoption" className="mb-4 rounded-xl border border-default bg-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-primary">How often each message is said</h3>
+        <div className="flex items-center gap-2">
+        {canManage && (
+          <div role="group" aria-label="View" className="inline-flex overflow-hidden rounded-lg border border-default text-xs">
+            {(["all", "team"] as const).map((v) => (
+              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`px-2 py-0.5 ${view === v ? "bg-brand/15 font-semibold text-primary" : "text-secondary"}`}>
+                {v === "all" ? "Messages" : "By team"}
+              </button>
+            ))}
+          </div>
+        )}
         <div role="group" aria-label="Period" className="inline-flex overflow-hidden rounded-lg border border-default text-xs">
           {([30, 90] as const).map((d) => (
             <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={`px-2 py-0.5 ${days === d ? "bg-brand/15 font-semibold text-primary" : "text-secondary"}`}>
@@ -48,11 +68,50 @@ export function AdoptionBoard({ onOpen }: { onOpen: (trackerId: string) => void 
             </button>
           ))}
         </div>
+        </div>
       </div>
       {failed ? (
         <p className="mt-2 text-xs text-muted">Couldn&apos;t build the board. Refresh to try again.</p>
       ) : !rows ? (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Counting…</p>
+      ) : view === "team" ? (
+        teams.length === 0 ? (
+          <p className="mt-2 text-xs text-muted">No teams yet — teams appear once people have a manager set on the Team page.</p>
+        ) : (
+          <div className="mt-2 overflow-x-auto" aria-label="Adoption by team">
+            <table className="w-full text-left text-xs">
+              <thead className="text-[10px] uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="py-1 pr-2 font-medium">Message</th>
+                  {teams.map((t) => (
+                    <th key={t.id} className="py-1 pr-2 text-right font-medium">{t.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-t border-default">
+                    <td className="py-1.5 pr-2">
+                      <button type="button" onClick={() => onOpen(r.id)} className="text-left font-medium text-primary hover:underline">
+                        {r.name}
+                      </button>
+                    </td>
+                    {teams.map((t) => {
+                      const c = r.byTeam?.find((x) => x.teamId === t.id);
+                      return (
+                        <td key={t.id} className="py-1.5 pr-2 text-right tabular-nums">
+                          <span className="text-primary">{pct(c?.rate ?? null)}</span>
+                          <span className="ml-1 text-[10px] text-muted">{c ? `${c.said}/${c.calls}` : ""}</span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-1 text-[10px] text-muted">A team is a manager and everyone below them, so a larger team includes the teams under it.</p>
+          </div>
+        )
       ) : (
         <div className="mt-2 overflow-x-auto">
           <table className="w-full text-left text-xs">

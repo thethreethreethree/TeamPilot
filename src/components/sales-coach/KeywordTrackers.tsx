@@ -218,7 +218,7 @@ export function KeywordTrackers() {
           ) : (
             <>
             {/* All messages at a glance (F18.1); choosing one opens its Adoption view in the list. */}
-            <AdoptionBoard onOpen={(id) => setAdoptionFor(id)} />
+            <AdoptionBoard onOpen={(id) => setAdoptionFor(id)} canManage={read.canManage} />
             <ul className="mb-3 space-y-1.5">
               {read.trackers.map((t) => (
                 <li key={t.id} className="flex flex-wrap items-center gap-2 text-sm">

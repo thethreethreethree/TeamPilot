@@ -17,8 +17,18 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+// ?by=team (F18.4): the org chart and the tree check.
+const org = vi.hoisted(() => ({ manager: true, visible: null as string[] | null, people: [] as Array<{ id: string; managerId: string | null }> }));
+vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn(async () => (org.manager ? { userId: "m", companyId: "co1" } : null)) }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeFilterRepsChecked: vi.fn(async (_r: unknown, ids: string[]) => (org.visible === null ? ids : org.visible.filter((i) => ids.includes(i)))) }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
+vi.mock("@/lib/coach/remote/teamScope", async (orig) => ({
+  ...(await orig<typeof import("@/lib/coach/remote/teamScope")>()),
+  companyPeople: vi.fn(async () => org.people.map((p) => ({ ...p, companyId: "co1", isCompanyAdmin: false, isSalesCoachManager: false }))),
+}));
+
 import { GET } from "../route";
-const req = () => ({ nextUrl: new URL("http://x/api") }) as never;
+const req = (q = "") => ({ nextUrl: new URL(`http://x/api${q}`) }) as never;
 const ago = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
 
 beforeEach(() => {
@@ -43,3 +53,27 @@ describe("GET adoption board", () => {
     expect((await GET(req())).status).toBe(500);
   });
 });
+
+describe("GET adoption board ?by=team (F18.4, 2026-11-26)", () => {
+  beforeEach(() => {
+    org.manager = true;
+    org.visible = null;
+    // m1 leads r; m2 leads r2 (who has no calls here)
+    org.people = [{ id: "m1", managerId: null }, { id: "r", managerId: "m1" }, { id: "m2", managerId: null }, { id: "r2", managerId: "m2" }];
+    st.reads.profiles = { data: [{ id: "m1", full_name: "Max" }, { id: "m2", full_name: "Rae" }], error: null };
+  });
+  it("each message's share of calls per team the caller may see", async () => {
+    const j = await (await GET(req("?by=team"))).json();
+    expect(j.teams).toEqual([{ id: "m1", name: "Max's team" }, { id: "m2", name: "Rae's team" }]);
+    const old = j.rows.find((r: { id: string }) => r.id === "t-old");
+    expect(old.byTeam).toEqual([{ teamId: "m1", calls: 2, said: 1, rate: 0.5 }, { teamId: "m2", calls: 0, said: 0, rate: null }]);
+  });
+  it("only teams whose manager the tree allows; managers only", async () => {
+    org.visible = ["m1"];
+    const j = await (await GET(req("?by=team"))).json();
+    expect(j.teams.map((t: { id: string }) => t.id)).toEqual(["m1"]);
+    org.manager = false;
+    expect((await GET(req("?by=team"))).status).toBe(403);
+  });
+});
+

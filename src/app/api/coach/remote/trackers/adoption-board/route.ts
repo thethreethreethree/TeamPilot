@@ -5,12 +5,20 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { computeAdoption, currentGoal, goalStatus } from "@/lib/coach/remote/adoption";
 import { readAdoptionInputs } from "@/lib/coach/remote/adoptionRead";
+import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
+import { treeFilterRepsChecked } from "@/lib/api/treeAccess";
+import { companyPeople, teamMembers, teamsIn } from "@/lib/coach/remote/teamScope";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * GET /api/coach/remote/trackers/adoption-board?days=30|90 — every active tracked message on one board: its share of
  * calls, its goal and whether it's on target (2026-11-23; ledger F18.1 "Initiative board"). The same reads and rules
  * as one tracker's Adoption view (adoptionRead.ts, adoption.ts), done once for all trackers. Caller's client: a
  * manager's tree, a rep's own calls. A failed read is a 500.
+ *
+ * ?by=team (2026-11-26; ledger F18.4 "adoption by team"): managers only — each message's share of calls per team (a
+ * manager and everyone below them), for the teams whose manager the caller's reporting tree allows. The service role
+ * only reads the org chart (who reports to whom); every call and hit is still read through the caller's client.
  */
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "tracker-adoption-board", windowMs: 60_000, max: 20 });
@@ -45,10 +53,36 @@ export async function GET(req: NextRequest) {
     goalsBy.set(g.tracker_id, [...(goalsBy.get(g.tracker_id) ?? []), g]);
   }
 
+  let teams: Array<{ id: string; name: string; members: Set<string> }> | null = null;
+  if (req.nextUrl.searchParams.get("by") === "team") {
+    if (!(await requireSalesCoachManager(req))) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+    let people: Awaited<ReturnType<typeof companyPeople>>;
+    try {
+      people = await companyPeople(createAdminClient(), ctx.companyId);
+    } catch (e) {
+      return fail("org chart", e instanceof Error ? e.message : String(e));
+    }
+    const found = teamsIn(people);
+    const visible = await treeFilterRepsChecked(req, found.map((t) => t.id));
+    if (visible === null) return fail("tree check");
+    const { data: names, error: nErr } = visible.length ? await db.from("profiles").select("id, full_name").in("id", visible) : { data: [], error: null };
+    if (nErr) return fail("team names", nErr.message);
+    const nameOf = new Map(((names ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name ?? "A manager"]));
+    teams = visible
+      .map((id) => ({ id, name: `${nameOf.get(id) ?? "A manager"}'s team`, members: teamMembers(id, people) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   const rows = list.map((t) => {
-    const r = computeAdoption(startOf(t), inputs.calls, inputs.hitsByTracker.get(t.id) ?? []);
+    const hits = inputs.hitsByTracker.get(t.id) ?? [];
+    const r = computeAdoption(startOf(t), inputs.calls, hits);
     const goal = currentGoal(goalsBy.get(t.id) ?? []);
-    return { id: t.id, name: t.name, since: startOf(t), calls: r.calls, said: r.said, rate: r.rate, goal, goalStatus: goalStatus(goal, r.rate) };
+    // By team: the same rule over each team's calls only (calls this caller may see).
+    const byTeam = teams?.map((tm) => {
+      const x = computeAdoption(startOf(t), inputs.calls.filter((c) => tm.members.has(String(c.repId))), hits);
+      return { teamId: tm.id, calls: x.calls, said: x.said, rate: x.rate };
+    });
+    return { id: t.id, name: t.name, since: startOf(t), calls: r.calls, said: r.said, rate: r.rate, goal, goalStatus: goalStatus(goal, r.rate), ...(byTeam ? { byTeam } : {}) };
   });
-  return NextResponse.json({ days, rows });
+  return NextResponse.json({ days, rows, ...(teams ? { teams: teams.map(({ id, name }) => ({ id, name })) } : {}) });
 }
