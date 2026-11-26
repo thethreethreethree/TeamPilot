@@ -10,13 +10,14 @@ import { hiddenFrom } from "../hidePhrases";
  * the deal, send an 'agent.ran' webhook. An agent acts on a deal only if its owner could see it (rss_agent_can_see),
  * and reads only the calls its owner may hear (hidden calls are left out for them). Every run is recorded.
  */
-export type Trigger = { kind: "deal_stage"; status?: "open" | "won" | "lost"; label?: string };
+export type Trigger = { kind: "deal_stage"; status?: "open" | "won" | "lost"; label?: string } | { kind: "tracker_heard"; tracker_id: string };
 export type Action = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
 export type StageEvent = { companyId: string; prospectId: string; status: string; label: string | null };
 
 /** Whether a stage change fires the trigger: every part the trigger names must match (stage names ignore case). Pure. */
 export function triggerMatches(t: Trigger, e: { status: string; label: string | null }): boolean {
   if (t.kind !== "deal_stage") return false;
+
   if (!t.status && !t.label) return false;
   if (t.status && t.status !== e.status) return false;
   if (t.label && (e.label ?? "").trim().toLowerCase() !== t.label.trim().toLowerCase()) return false;
@@ -37,6 +38,48 @@ export async function runAgentsForStage(admin: SupabaseClient, e: StageEvent): P
     if (!triggerMatches(a.trigger, e)) continue;
     await runAgent(admin, a, e.prospectId, false);
   }
+}
+
+/**
+ * 0380: a tracker first heard on a call — run the agents watching that tracker, on the deal the call belongs to (a call
+ * on no deal fires nothing). `trackerIds` are the trackers heard for the first time on this call (any transcript
+ * version), so a rescan never fires twice. Never throws.
+ */
+export async function runAgentsForTrackers(admin: SupabaseClient, e: { companyId: string; sessionId: string; trackerIds: string[] }): Promise<void> {
+  if (!e.trackerIds.length) return;
+  const { data: link, error: lErr } = await admin.from("remote_prospect_calls").select("prospect_id").eq("company_id", e.companyId).eq("session_id", e.sessionId).maybeSingle();
+  if (lErr || !link) return;
+  const { data: agents, error } = await admin.from("agents").select("id, company_id, owner_id, name, trigger, actions").eq("company_id", e.companyId).eq("enabled", true).is("retired_at", null).limit(100);
+  if (error) {
+    console.error(`[agents] read failed company=${e.companyId}: ${error.message}`);
+    return;
+  }
+  for (const a of (agents ?? []) as AgentRow[]) {
+    if (a.trigger.kind === "tracker_heard" && e.trackerIds.includes(a.trigger.tracker_id)) await runAgent(admin, a, String(link.prospect_id), false);
+  }
+}
+
+/**
+ * What the tracker scanners call after storing hits: agents for the trackers heard for the first time on this call.
+ * NEVER throws — an agent problem must not fail the scan that stored the hits (logged instead).
+ */
+export async function fireTrackerAgents(admin: SupabaseClient, e: { companyId: string; sessionId: string; version: number; heard: string[] }): Promise<void> {
+  try {
+    const first = await firstHeard(admin, e.companyId, e.sessionId, e.version, e.heard);
+    await runAgentsForTrackers(admin, { companyId: e.companyId, sessionId: e.sessionId, trackerIds: first });
+  } catch (err) {
+    console.error(`[agents] tracker trigger failed session=${e.sessionId}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/** The trackers in `heard` that this call had no hit for in any earlier transcript version: heard for the first time. */
+export async function firstHeard(admin: SupabaseClient, companyId: string, sessionId: string, version: number, heard: string[]): Promise<string[]> {
+  const ids = [...new Set(heard)];
+  if (!ids.length) return [];
+  const { data, error } = await admin.from("tracker_hits").select("tracker_id").eq("company_id", companyId).eq("session_id", sessionId).lt("transcript_version", version).in("tracker_id", ids).limit(1000);
+  if (error) return [];
+  const before = new Set(((data ?? []) as Array<{ tracker_id: string }>).map((r) => String(r.tracker_id)));
+  return ids.filter((id) => !before.has(id));
 }
 
 /** Run one agent on one deal (test = say what would happen, without doing it). Returns the recorded result. */

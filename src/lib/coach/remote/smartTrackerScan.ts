@@ -1,4 +1,5 @@
 import "server-only";
+import { fireTrackerAgents } from "./engage/agents";
 import { trackerAppliesTo } from "@/lib/coach/remote/trackers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -94,6 +95,8 @@ async function writeHits(admin: SupabaseClient, at: { sessionId: string; company
     console.error(`[smartTrackerScan] hits insert failed session=${at.sessionId}: ${iErr.message}`);
     return null;
   }
+  // Engage E5 (0380): agents watching a tracker heard on this call for the first time.
+  if (!iErr) await fireTrackerAgents(admin, { companyId: at.companyId, sessionId: at.sessionId, version: at.version, heard: fresh.map((h) => h.trackerId) });
   return fresh.length;
 }
 

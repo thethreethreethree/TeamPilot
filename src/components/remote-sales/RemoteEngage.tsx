@@ -359,7 +359,7 @@ function Analytics() {
 }
 
 type AgentAction = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
-type AgentRow = { id: string; name: string; trigger: { status?: string; label?: string }; actions: AgentAction[]; enabled: boolean };
+type AgentRow = { id: string; name: string; trigger: { kind?: string; status?: string; label?: string; tracker_id?: string }; actions: AgentAction[]; enabled: boolean };
 type RunRow = { id: number; agent_id: string; prospect_id: string | null; test: boolean; ok: boolean; skipped: string | null; results: Array<{ kind: string; ok: boolean; detail: string }>; created_at: string };
 const ACTION_WORD = (a: AgentAction) => (a.kind === "brief" ? "write the deal brief" : a.kind === "notify" ? (a.to === "rep" ? "notify the deal's rep" : "notify me") : a.kind === "todo" ? `add the to-do “${a.title}”${a.due_days ? ` due in ${a.due_days} days` : ""}` : "send an agent.ran webhook");
 
@@ -368,7 +368,19 @@ const ACTION_WORD = (a: AgentAction) => (a.kind === "brief" ? "write the deal br
  * An agent acts only on deals its owner can see. Each run is listed with what every action did; a test run on a chosen
  * deal says what would happen and changes nothing.
  */
+function useTrackers() {
+  const [trackers, setTrackers] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    fetch("/api/coach/remote/trackers", { cache: "no-store" })
+      .then(async (r) => { if (!r.ok) throw new Error(String(r.status)); const j = (await r.json()) as { trackers?: Array<{ id: string; name: string }> }; setTrackers(j.trackers ?? []); })
+      .catch(() => setTrackers([])); // names only: an agent still shows as "a tracker"
+  }, []);
+  return trackers;
+}
+
 function Agents() {
+  const trackers = useTrackers();
+  const trackerName = (id?: string) => trackers.find((t) => t.id === id)?.name ?? null;
   const [data, setData] = useState<{ agents: AgentRow[]; runs: RunRow[] } | null>(null);
   const [failed, setFailed] = useState(false);
   const [deals, setDeals] = useState<Array<{ id: string; name: string | null }>>([]);
@@ -422,7 +434,8 @@ function Agents() {
                 </span>
               </div>
               <p className="mt-1 text-secondary">
-                When a deal {a.trigger.label ? `reaches “${a.trigger.label}”` : ""}{a.trigger.label && a.trigger.status ? " and " : ""}{a.trigger.status ? (a.trigger.status === "won" ? "is won" : a.trigger.status === "lost" ? "is lost" : "is open") : ""}: {a.actions.map(ACTION_WORD).join(", then ")}.
+                {a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
+                When a deal {a.trigger.label ? `reaches “${a.trigger.label}”` : ""}{a.trigger.label && a.trigger.status ? " and " : ""}{a.trigger.status ? (a.trigger.status === "won" ? "is won" : a.trigger.status === "lost" ? "is lost" : "is open") : ""}: {a.actions.map(ACTION_WORD).join(", then ")}.</>}
               </p>
               <ul className="mt-1 space-y-0.5">
                 {data.runs.filter((r) => r.agent_id === a.id).slice(0, 5).map((r) => (
@@ -440,6 +453,9 @@ function Agents() {
 }
 
 function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
+  const trackers = useTrackers();
+  const [when, setWhen] = useState<"stage" | "tracker">("stage");
+  const [trackerId, setTrackerId] = useState("");
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
   const [label, setLabel] = useState("");
@@ -457,7 +473,7 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
   ];
   const save = async () => {
     setErr(null);
-    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
+    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: when === "tracker" ? { kind: "tracker_heard", tracker_id: trackerId } : { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
     const j = (await r.json().catch(() => ({}))) as { error?: string };
     if (!r.ok) return setErr(j.error ?? "Couldn't save the agent.");
     onSaved();
@@ -465,6 +481,21 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
   return (
     <div className="space-y-2 rounded-xl border border-default bg-surface p-3">
       <input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={80} placeholder="Agent name, e.g. Proposal prep" aria-label="Agent name" className={`${field} w-full`} />
+      <div role="group" aria-label="When it runs" className="inline-flex overflow-hidden rounded-lg border border-default">
+        {(["stage", "tracker"] as const).map((w) => (
+          <button key={w} type="button" aria-pressed={when === w} onClick={() => setWhen(w)} className={`px-2.5 py-1 ${when === w ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>{w === "stage" ? "A deal reaches a stage" : "A tracker is heard on a deal's call"}</button>
+        ))}
+      </div>
+      {when === "tracker" ? (
+        <div className="flex flex-wrap items-center gap-2 text-secondary">
+          When
+          <select value={trackerId} onChange={(e) => setTrackerId(e.currentTarget.value)} aria-label="Tracker" className={field}>
+            <option value="">pick a tracker…</option>
+            {trackers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          is first heard on one of a deal&apos;s calls
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center gap-2 text-secondary">
         When a deal
         <input value={label} onChange={(e) => setLabel(e.currentTarget.value)} list="stage-names-in-use" maxLength={60} placeholder="reaches this stage (optional)" aria-label="Stage" className={`${field} w-48`} />
@@ -475,6 +506,7 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
           <option value="open">is open</option>
         </select>
       </div>
+      )}
       <div className="space-y-1 text-secondary">
         <label className="flex items-center gap-1"><input type="checkbox" checked={brief} onChange={(e) => setBrief(e.currentTarget.checked)} /> Write the deal brief</label>
         <label className="flex items-center gap-1">
@@ -493,7 +525,7 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
         <label className="flex items-center gap-1"><input type="checkbox" checked={webhook} onChange={(e) => setWebhook(e.currentTarget.checked)} /> Send an agent.ran webhook (to webhooks listening for it, on Protection)</label>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={!name.trim() || (!status && !label.trim()) || actions.length === 0} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Save agent</button>
+        <button type="button" disabled={!name.trim() || (when === "stage" ? !status && !label.trim() : !trackerId) || actions.length === 0} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Save agent</button>
         <button type="button" onClick={onCancel} className="px-2 text-muted hover:text-primary">Cancel</button>
       </div>
       {err && <p className="text-amber-700 dark:text-amber-300">{err}</p>}

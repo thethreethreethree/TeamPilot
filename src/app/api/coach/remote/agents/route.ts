@@ -17,7 +17,11 @@ export const maxDuration = 90;
  *   POST { id, enabled } → on or off · POST { retire: id } → retired for good.
  *   POST { test: id, prospectId } → what it would do on that deal, recorded as a test run (nothing is changed).
  */
-const TriggerZ = z.object({ kind: z.literal("deal_stage"), status: z.enum(["open", "won", "lost"]).optional(), label: z.string().trim().min(1).max(60).optional() });
+const TriggerZ = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("deal_stage"), status: z.enum(["open", "won", "lost"]).optional(), label: z.string().trim().min(1).max(60).optional() }),
+  // 0380: a tracker first heard on one of a deal's calls. It must be one of the company's trackers.
+  z.object({ kind: z.literal("tracker_heard"), tracker_id: z.string().uuid() }),
+]);
 const ActionZ = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("brief") }),
   z.object({ kind: z.literal("notify"), to: z.enum(["rep", "owner"]) }),
@@ -57,6 +61,10 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
   const db = callerScopedDb(req) ?? (await createClient());
   if ("name" in body) {
+    if (body.trigger.kind === "tracker_heard") {
+      const { data: t } = await db.from("keyword_trackers").select("id").eq("id", body.trigger.tracker_id).maybeSingle();
+      if (!t) return NextResponse.json({ error: "Pick one of your company's trackers." }, { status: 400 });
+    }
     const { data, error } = await db.from("agents").insert({ company_id: ctx.companyId, owner_id: ctx.userId, name: body.name, trigger: body.trigger, actions: body.actions }).select("id").single();
     if (error || !data) {
       if (error?.code === "42501") return NextResponse.json({ error: "Only a manager or admin can make agents." }, { status: 403 });
