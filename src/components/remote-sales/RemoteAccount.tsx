@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Building2, CheckSquare, Loader2, Phone, TrendingUp, UserPlus } from "lucide-react";
 import { AddContact } from "./DealAccountContacts";
+import { AskCalls } from "./AskCalls";
 
 /**
  * One account (revenue Phase 1, 0370; Gong F21.2 panel + F21.3 console): the name (editable), open/won/lost totals, its
@@ -95,6 +96,12 @@ export function RemoteAccount({ id }: { id: string }) {
           <div><dt className="text-muted">Lost</dt><dd className="text-sm font-semibold tabular-nums text-primary">{totals.lost}</dd></div>
         </dl>
       </header>
+
+      <AskCalls
+        title="Ask about this account"
+        calls={d.timeline.filter((i): i is Extract<Item, { kind: "call" }> => i.kind === "call").map((i) => ({ sessionId: i.sessionId, label: `${day(i.at)}${i.label ? ` · ${i.label}` : ""}` }))}
+        starters={["What does this account care about most?", "What objections keep coming up?", "Who are the people we talk to, and what do they want?"]}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
         <section aria-label="Timeline" className="rounded-xl border border-default bg-surface p-4">
