@@ -19,6 +19,38 @@ type Member = { id: string; full_name: string | null };
 const STATE: Record<string, string> = { not_started: "Not started", in_progress: "In progress", done: "Done", overdue: "Overdue" };
 const input = "w-full rounded-lg border border-default bg-base px-2 py-1.5 text-xs text-primary";
 const blank = (): Step => ({ title: "", body: "", kind: "lesson", scenarioId: null });
+
+/**
+ * Autosave (2026-11-26, F17.1): the editor keeps an UNSAVED draft in this browser only — a per-viewer convenience, so a
+ * closed tab or a reload doesn't lose a half-written course. It is never the course (saving is), it can be missing
+ * (private window, cleared storage), and a draft of an edited course is dropped when the course has moved on to a newer
+ * version than the one it started from. Every read and write is wrapped: storage that throws just means no autosave.
+ */
+type Draft = { id: string | null; title: string; summary: string; steps: Step[]; version: number };
+const draftKey = (id: string | null) => `teampilot:course-draft:${id ?? "new"}`;
+function readDraft(id: string | null): Draft | null {
+  try {
+    const raw = window.localStorage.getItem(draftKey(id));
+    const d = raw ? (JSON.parse(raw) as Draft) : null;
+    return d && Array.isArray(d.steps) ? d : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraft(d: Draft) {
+  try {
+    window.localStorage.setItem(draftKey(d.id), JSON.stringify(d));
+  } catch {
+    /* no storage: no autosave */
+  }
+}
+function dropDraft(id: string | null) {
+  try {
+    window.localStorage.removeItem(draftKey(id));
+  } catch {
+    /* nothing to drop */
+  }
+}
 /** A step is ready to save: a lesson has text; a practice names a scenario (its note is optional). */
 const ready = (s: Step) => !!s.title.trim() && (s.kind === "practice" ? !!s.scenarioId : !!s.body.trim());
 
@@ -48,7 +80,31 @@ export function CourseManager() {
   const [libFailed, setLibFailed] = useState(false);
   const [membersFailed, setMembersFailed] = useState(false);
   // The editor: null = closed; id null = a new course.
-  const [editing, setEditing] = useState<{ id: string | null; title: string; summary: string; steps: Step[] } | null>(null);
+  const [editing, setEditing] = useState<{ id: string | null; title: string; summary: string; steps: Step[]; version?: number } | null>(null);
+  const [restored, setRestored] = useState(false);
+  // Open the editor — with this browser's unsaved draft when there is one for the same starting point.
+  const openEditor = (start: { id: string | null; title: string; summary: string; steps: Step[]; version: number }) => {
+    const d = readDraft(start.id);
+    if (d && d.version === start.version) {
+      setEditing({ ...d });
+      setRestored(true);
+    } else {
+      if (d) dropDraft(start.id);
+      setEditing(start);
+      setRestored(false);
+    }
+  };
+  const closeEditor = (id: string | null) => {
+    dropDraft(id);
+    setEditing(null);
+    setRestored(false);
+  };
+  // Keep the draft as it's typed (a short wait, so each keystroke isn't a write).
+  useEffect(() => {
+    if (!editing) return;
+    const t = setTimeout(() => writeDraft({ id: editing.id, title: editing.title, summary: editing.summary, steps: editing.steps, version: editing.version ?? 0 }), 400);
+    return () => clearTimeout(t);
+  }, [editing]);
   const [assignFor, setAssignFor] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [due, setDue] = useState("");
@@ -147,7 +203,7 @@ export function CourseManager() {
         <div className="flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-primary"><BookOpen className="h-4 w-4 text-brand" aria-hidden /> Courses</h2>
           {!editing && (
-            <button type="button" onClick={() => setEditing({ id: null, title: "", summary: "", steps: [blank()] })} className="rounded-lg border border-default px-2 py-1 text-xs text-secondary hover:text-primary">
+            <button type="button" onClick={() => openEditor({ id: null, title: "", summary: "", steps: [blank()], version: 0 })} className="rounded-lg border border-default px-2 py-1 text-xs text-secondary hover:text-primary">
               New course
             </button>
           )}
@@ -155,6 +211,23 @@ export function CourseManager() {
         {msg && <p role="status" className="text-xs text-secondary">{msg}</p>}
         {editing && (
           <div className="space-y-2 rounded-xl border border-default p-3" aria-label={editing.id ? "Edit course" : "New course"}>
+            {restored && (
+              <p className="text-[11px] text-secondary" role="status">
+                Picked up your unsaved changes from this browser.{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const c = courses?.find((x) => x.id === editing.id);
+                    dropDraft(editing.id);
+                    setRestored(false);
+                    setEditing(c ? { id: c.id, title: c.title, summary: c.summary ?? "", steps: c.steps.map((x) => ({ ...x })), version: c.version } : { id: null, title: "", summary: "", steps: [blank()], version: 0 });
+                  }}
+                  className="text-brand hover:underline"
+                >
+                  Start over
+                </button>
+              </p>
+            )}
             {editing.id === null ? (
               <>
                 <label className="block text-[11px] text-muted">Title<input value={editing.title} maxLength={120} onChange={(e) => setEditing({ ...editing, title: e.target.value })} className={input} /></label>
@@ -226,13 +299,13 @@ export function CourseManager() {
                     setAssignFor(j.id);
                     setPicked([]);
                   }
-                  setEditing(null);
+                  closeEditor(editing.id);
                 }}
                 className="rounded-lg bg-ember-400 px-3 py-1 text-xs font-semibold text-ink-950 disabled:opacity-60"
               >
                 {busy ? "Saving…" : "Save course"}
               </button>
-              <button type="button" onClick={() => setEditing(null)} className="rounded-lg px-2 py-1 text-xs text-muted">Cancel</button>
+              <button type="button" onClick={() => closeEditor(editing.id)} className="rounded-lg px-2 py-1 text-xs text-muted">Cancel</button>
             </div>
           </div>
         )}
@@ -248,7 +321,7 @@ export function CourseManager() {
                 </span>
                 <span className="ml-auto flex gap-2">
                   <button type="button" onClick={() => { setAssignFor(assignFor === c.id ? null : c.id); setPicked([]); }} className="text-brand hover:underline">Assign</button>
-                  <button type="button" onClick={() => setEditing({ id: c.id, title: c.title, summary: c.summary ?? "", steps: c.steps.map((s) => ({ ...s })) })} className="text-secondary hover:text-primary">Edit lessons</button>
+                  <button type="button" onClick={() => openEditor({ id: c.id, title: c.title, summary: c.summary ?? "", steps: c.steps.map((s) => ({ ...s })), version: c.version })} className="text-secondary hover:text-primary">Edit lessons</button>
                   <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Retire “${c.title}”? Reps who have it keep it; it can't be assigned again.`)) void send("PATCH", "/api/coach/remote/courses", { courseId: c.id, retire: true }, "Retired."); }} className="text-muted hover:text-primary">Retire</button>
                 </span>
               </div>

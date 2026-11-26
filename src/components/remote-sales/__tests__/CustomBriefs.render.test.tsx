@@ -53,6 +53,25 @@ describe("CustomBriefs — a late stored-answers read", () => {
   });
 });
 
+describe("CustomBriefs — a read that starts after the run", () => {
+  it("still can't overwrite the run's answers", async () => {
+    const releases: Array<() => void> = [];
+    vi.stubGlobal("fetch", vi.fn((u: string, init?: { method?: string }) => {
+      if (u === "/api/coach/remote/brief-templates") return ok({ available: true, templates: [T] });
+      if (init?.method === "POST") return new Promise((res) => releases.push(() => res({ ok: true, status: 200, json: () => Promise.resolve({ brief: { answers: [{ question: "Budget?", answer: "Ten.", seqs: [1] }] } }) })));
+      return new Promise((res) => releases.push(() => res({ ok: true, status: 200, json: () => Promise.resolve({ available: true, brief: null }) })));
+    }));
+    render(<CustomBriefs sessionId="s1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Answer from this call" }));
+    await waitFor(() => expect(releases.length).toBe(2));
+    releases[1]!(); // the run answers first …
+    await screen.findByText("Ten.");
+    releases[0]!(); // … then the older read lands
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByText("Ten.")).toBeTruthy();
+  });
+});
+
 describe("BriefTemplatesManager", () => {
   it("a manager writes a template; a rep sees nothing", async () => {
     const posts: unknown[] = [];

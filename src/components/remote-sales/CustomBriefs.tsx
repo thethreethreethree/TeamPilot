@@ -65,6 +65,8 @@ export function CustomBriefs({ sessionId, onSeek }: { sessionId: string; onSeek?
       const r = await fetch(`/api/coach/remote/${sessionId}/custom-brief`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: asked }) });
       const j = (await r.json().catch(() => ({}))) as { brief?: { answers: Answer[] }; error?: string };
       if (pickedRef.current !== asked) return;
+      // Any stored-answers read still in flight (even one that started after this run) is now stale.
+      runSeq.current += 1;
       if (!r.ok || !j.brief) setMsg(j.error ?? "Couldn't run that brief.");
       else setAnswers(j.brief.answers);
     } catch {
