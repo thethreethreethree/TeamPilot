@@ -2,6 +2,8 @@
 
 import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { DealAccountContacts, type DealContact } from "./DealAccountContacts";
+import { DealBoard } from "./DealBoard";
+import { kindOf, type Stage } from "@/lib/coach/remote/revenue/dealBoard";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -48,6 +50,9 @@ type Prospect = {
   openTodos: number;
   nextTodo: { id: string; title: string; due: string | null } | null;
   sentiment?: { last: "warming" | "cooling" | "flat"; trend: "warming" | "cooling" | "steady" | null; calls: number } | null;
+  accountId?: string | null;
+  accountName?: string | null;
+  contacts?: number;
 };
 type Totals = Record<"open" | "won" | "lost", { count: number; amount: number }>;
 
@@ -69,6 +74,8 @@ const shortDate = (iso: string | null) => (iso ? new Date(iso.length === 10 ? `$
  * rep's. If the setting can't be read, the full view shows (the module's safe default).
  */
 const SimpleView = createContext(false);
+/** The company's deal stages (0371), when it has a list: the deal panel picks from it. Null = free-text stage names. */
+const StageList = createContext<Stage[] | null>(null);
 
 export function RemotePipeline() {
   const router = useRouter();
@@ -81,7 +88,23 @@ export function RemotePipeline() {
   const simple = macro === true;
 
   const [tab, setTab] = useState<"open" | "won" | "lost">("open");
-  const [view, setView] = useState<"list" | "calendar" | "sources" | "forecast">("list");
+  const [view, setView] = useState<"list" | "board" | "calendar" | "sources" | "forecast">("list");
+  // The company's stage list (0371). A failed read leaves stage names as free text, and says so on the board.
+  const [stages, setStages] = useState<Stage[] | null>(null);
+  const [stagesFailed, setStagesFailed] = useState(false);
+  const loadStages = useCallback(async () => {
+    try {
+      const r = await fetch("/api/coach/remote/deal-stages", { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      setStages(((await r.json()) as { stages: Stage[] | null }).stages);
+      setStagesFailed(false);
+    } catch {
+      setStagesFailed(true);
+    }
+  }, []);
+  useEffect(() => {
+    void loadStages();
+  }, [loadStages]);
   const [whose, setWhose] = useState<string>("mine");
   useEffect(() => {
     if (simple) setView("list");
@@ -139,6 +162,7 @@ export function RemotePipeline() {
 
   return (
     <SimpleView.Provider value={simple}>
+    <StageList.Provider value={stages}>
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold text-primary">Pipeline</h2>
@@ -163,7 +187,7 @@ export function RemotePipeline() {
             </select>
           )}
           {!simple && <div role="group" aria-label="View" className="inline-flex overflow-hidden rounded-lg border border-default">
-            {(["list", "calendar", "sources", "forecast"] as const).map((v) => (
+            {(["list", "board", "calendar", "sources", "forecast"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
@@ -171,7 +195,7 @@ export function RemotePipeline() {
                 onClick={() => setView(v)}
                 className={`px-2.5 py-1.5 text-xs ${view === v ? "bg-brand/15 font-semibold text-primary" : "bg-surface text-secondary hover:text-primary"}`}
               >
-                {v === "list" ? "List" : v === "calendar" ? "Calendar" : v === "sources" ? "Sources" : "Forecast"}
+                {v === "list" ? "List" : v === "board" ? "Board" : v === "calendar" ? "Calendar" : v === "sources" ? "Sources" : "Forecast"}
               </button>
             ))}
           </div>}
@@ -188,7 +212,18 @@ export function RemotePipeline() {
       {/* Stage names already used in this pipeline (2026-11-23): picking one keeps spellings the same, so a practice
           scenario tagged "Demo" reaches every prospect at "Demo" (stage tags match on the normalised name). */}
       <datalist id="stage-names-in-use">{stagesInUse((data?.prospects ?? []).map((p) => p.stageLabel)).map((s) => <option key={s} value={s} />)}</datalist>
-      {view === "calendar" ? (
+      {view === "board" ? (
+        failed ? (
+          <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>
+        ) : !data ? (
+          <p className="flex items-center justify-center gap-2 p-6 text-xs text-muted"><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading pipeline…</p>
+        ) : (
+          <>
+            {stagesFailed && <p className="text-xs text-amber-700 dark:text-amber-300">Couldn&apos;t load your company&apos;s stage list; stages are grouped by name.</p>}
+            <DealBoard key={whose} deals={data.prospects} stages={stages} canEditStages={isManager} onStagesSaved={() => void loadStages()} onOpen={goTo} repName={whose !== "mine" ? nameOf : null} today={today()} />
+          </>
+        )
+      ) : view === "calendar" ? (
         <RemoteCalendar key={whose} scope={whose} nameOf={nameOf} onOpenProspect={goTo} />
       ) : view === "sources" ? (
         <SourcesView key={whose} whose={whose} prospects={data?.prospects ?? null} failed={failed} />
@@ -286,6 +321,7 @@ export function RemotePipeline() {
         </>
       )}
     </div>
+    </StageList.Provider>
     </SimpleView.Provider>
   );
 }
@@ -360,6 +396,7 @@ type Detail = {
 
 function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () => void; onClose: () => void }) {
   const simple = useContext(SimpleView);
+  const stageList = useContext(StageList);
   const [d, setD] = useState<Detail | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -438,6 +475,26 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
         </button>
       </div>
       <div className="grid grid-cols-1 gap-2 text-xs text-secondary sm:grid-cols-2">
+        {stageList?.length ? (
+          <label className="flex items-center gap-2">
+            Stage
+            <select
+              value={kindOf(stageList, p.stage_label ?? "") ? stageList.find((x) => x.name.trim().toLowerCase() === (p.stage_label ?? "").trim().toLowerCase())!.name : p.stage_label ? `__keep__` : ""}
+              disabled={busy}
+              aria-label="Stage"
+              onChange={(e) => {
+                const name = e.currentTarget.value;
+                const kind = kindOf(stageList, name);
+                if (kind) void post({ action: "set", kind: "stage", value: { status: kind, label: name } });
+              }}
+              className={`${field} min-w-0 flex-1`}
+            >
+              {!p.stage_label && <option value="">Pick a stage</option>}
+              {p.stage_label && !kindOf(stageList, p.stage_label) && <option value="__keep__">{p.stage_label} (not on the list)</option>}
+              {stageList.map((x) => <option key={x.name} value={x.name}>{x.name}{x.kind === "won" ? " · won" : x.kind === "lost" ? " · lost" : ""}</option>)}
+            </select>
+          </label>
+        ) : (
         <label className="flex items-center gap-2">
           Stage
           <select
@@ -463,6 +520,7 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
             className={`${field} min-w-0 flex-1`}
           />
         </label>
+        )}
         <label className="flex items-center gap-2">
           Amount
           <input

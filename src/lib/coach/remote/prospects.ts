@@ -32,6 +32,10 @@ export type ProspectRow = {
   createdAt: string;
   openTodos: number;
   nextTodo: { id: string; title: string; due: string | null } | null;
+  /** Revenue Phase 1–2 (0370): the deal's account and how many contacts are on it. */
+  accountId?: string | null;
+  accountName?: string | null;
+  contacts?: number;
 };
 
 type CurrentRow = {
@@ -40,6 +44,7 @@ type CurrentRow = {
   source?: string | null;
   close_date?: string | null;
   next_call_time?: string | null;
+  account_id?: string | null;
 };
 type TaskRow = { id: string; title: string; status: string | null; due_date: string | null };
 
@@ -74,7 +79,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
     (from, to) => {
       let q = db
         .from("remote_prospects_current")
-        .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source, close_date, next_call_time")
+        .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source, close_date, next_call_time, account_id")
         .order("created_at", { ascending: false })
         .order("id", { ascending: false });
       if (repId) q = q.eq("rep_id", repId);
@@ -129,11 +134,37 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
       return null;
     }
   }
+  // Accounts and contact counts (0370), in chunks; a failed read fails the list (never "no account").
+  const accountIds = [...new Set(rows.map((r) => r.account_id).filter((x): x is string => !!x))];
+  const accountName = new Map<string, string>();
+  for (let i = 0; i < accountIds.length; i += 150) {
+    const { data: a, error: aErr } = await db.from("accounts_current").select("id, name").in("id", accountIds.slice(i, i + 150));
+    if (aErr) {
+      console.error(`[prospects] accounts failed: ${aErr.message}`);
+      return null;
+    }
+    for (const x of (a ?? []) as Array<{ id: string; name: string | null }>) accountName.set(String(x.id), x.name ?? "(no name)");
+  }
+  const contactCount = new Map<string, number>();
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data: dc, error: dErr } = await fetchAllPagedResult<{ prospect_id: string; contact_id: string }>(
+      (from, to) => db.from("deal_contacts_current").select("prospect_id, contact_id").in("prospect_id", ids.slice(i, i + 150)).neq("role", "removed").order("prospect_id").order("contact_id").range(from, to),
+      { label: "deal contacts", maxRows: 200_000 },
+    );
+    if (dErr) {
+      console.error(`[prospects] deal contacts failed: ${dErr.message}`);
+      return null;
+    }
+    for (const x of dc ?? []) contactCount.set(String(x.prospect_id), (contactCount.get(String(x.prospect_id)) ?? 0) + 1);
+  }
   // OFFSET paging can hand back a row twice when a deal changes mid-read; each deal appears once.
   const seen = new Set<string>();
   const unique = rows.filter((r) => (seen.has(String(r.id)) ? false : (seen.add(String(r.id)), true)));
   return unique.map((r) => ({
     ...toRow(r, tasksOf.get(String(r.id)) ?? []),
     sentiment: sentiment!.get(String(r.id)) ?? null,
+    accountId: r.account_id ?? null,
+    accountName: r.account_id ? accountName.get(String(r.account_id)) ?? null : null,
+    contacts: contactCount.get(String(r.id)) ?? 0,
   }));
 }
