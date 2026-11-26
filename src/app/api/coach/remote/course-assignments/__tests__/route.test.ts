@@ -58,7 +58,7 @@ beforeEach(() => {
     training_course_steps: [S(1, 1, "old"), S(2, 1, "u1"), S(2, 2, "u2")],
     training_courses: [{ id: "k1", company_id: "co1", title: "Discovery", summary: null, retired_at: null }],
     training_step_completions: [{ id: 1, company_id: "co1", assignment_id: "a1", step_uid: "u1" }, { id: 2, company_id: "co1", assignment_id: "a1", step_uid: "old" }],
-    profiles: [{ id: "rep1", company_id: "co1", full_name: "Rae" }, { id: "mgr1", company_id: "co1", full_name: "Max" }],
+    profiles: [{ id: "rep1", company_id: "co1", full_name: "Rae", status: "active" }, { id: "mgr1", company_id: "co1", full_name: "Max", status: "active" }],
   };
 });
 
@@ -147,5 +147,14 @@ describe("course assignments", () => {
     expect(r.status).toBe(200);
     const moved = st.inserts.find(([t]) => t === "training_due_changes");
     expect(moved?.[1]).toEqual([{ company_id: "co1", assignment_id: "ta1", due_at: soon, changed_by: "mgr1" }]); // ta2 is done: left alone
+  });
+  it("a removed (inactive) person can't be given a course, even by a direct call", async () => {
+    st.who = { userId: "mgr1", companyId: "co1" };
+    st.manager = true;
+    st.tables.profiles = [{ id: "rep2", company_id: "co1", full_name: "Gone", status: "removed" }];
+    const soon = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    const r = await POST(new Request("http://t/x", { method: "POST", body: JSON.stringify({ courseId: "k1", repIds: ["rep2"], dueAt: soon }) }) as never);
+    expect(r.status).toBe(403);
+    expect(st.inserts).toEqual([]);
   });
 });

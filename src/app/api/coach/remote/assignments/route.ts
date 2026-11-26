@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
   if (!scen || scen.retired_at) return NextResponse.json({ error: "Scenario not found." }, { status: 404 });
 
   const allowed = await treeFilterReps(req, repIds);
-  const { data: members } = await admin.from("profiles").select("id").eq("company_id", mgr.companyId).in("id", allowed);
+  const { data: members } = await admin.from("profiles").select("id").eq("company_id", mgr.companyId).eq("status", "active").in("id", allowed);
   const targets = ((members ?? []) as Array<{ id: string }>).map((m) => String(m.id));
   if (targets.length === 0) return NextResponse.json({ error: "None of those reps are on your team." }, { status: 403 });
   // A plain insert of only the reps who do not already have it: Postgres refuses ON CONFLICT (even DO NOTHING) on a

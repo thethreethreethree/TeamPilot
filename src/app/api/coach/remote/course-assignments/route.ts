@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
   if (!course || course.retired_at) return NextResponse.json({ error: "Course not found." }, { status: 404 });
   const allowed = await treeFilterRepsChecked(req, repIds);
   if (allowed === null) return NextResponse.json({ error: "Couldn't check your reporting tree — try again." }, { status: 503 });
-  const { data: members, error: mErr } = allowed.length ? await admin.from("profiles").select("id").eq("company_id", mgr.companyId).in("id", allowed) : { data: [], error: null };
+  const { data: members, error: mErr } = allowed.length ? await admin.from("profiles").select("id").eq("company_id", mgr.companyId).eq("status", "active").in("id", allowed) : { data: [], error: null };
   if (mErr) {
     console.error(`[course-assignments] members read failed: ${mErr.message}`);
     return NextResponse.json({ error: "Couldn't assign it." }, { status: 500 });
