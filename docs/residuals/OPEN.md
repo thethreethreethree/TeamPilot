@@ -629,6 +629,8 @@ product says so where it matters, never silently.
       failed." — the route answers that only when the secret is set (unset is 503). The "unset" above was wrong, and the
       job's first scheduled run is 05:15 UTC 2026-11-28.
       next-action: on 2026-11-28, check the cron's run in Vercel and that deal_warning_snapshots has rows for that day.
+      update (d4dc9ec2): the job now runs in three slots (05:15, 05:45, 06:15 UTC), each continuing what the last left;
+      a 500 from the last slot that says "left for the next run" means the night didn't finish. Days are company-local.
 - [ ] 2026-11-27 · revenue-r2 · No CRM sync (Salesforce / HubSpot / Dynamics).
       why-unresolved: no client CRM is on record to sync with (plan R2).
       next-action: when a paying client names their CRM, build its connector first.
