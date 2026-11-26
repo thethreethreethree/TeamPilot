@@ -8,13 +8,11 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
 import { dealReviewCoach } from "@/lib/claude";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
-import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
-import { isSalesCall } from "@/lib/coach/v5/salesOnly";
-import { isRemoteContext } from "@/lib/coach/sessionContext";
-import { loadLines, numberedTranscript } from "@/lib/coach/remote/followThrough";
+import { numberedTranscript } from "@/lib/coach/remote/followThrough";
+import { loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
 import {
   allowed, DEAL_REVIEW_SYSTEM, parseReview, replayNotes, reviewPrompt, REVIEW_CALLS, REVIEW_LINES,
-  type CallLines, type Element, type NoteEvent,
+  type Element, type NoteEvent,
 } from "@/lib/coach/remote/revenue/playbook";
 
 export const maxDuration = 90;
@@ -124,23 +122,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
     return NextResponse.json({ ok: true });
   }
 
-  // The reviewer: the deal's latest calls the caller may open, newest first.
-  const { data: links, error: lErr } = await db.from("remote_prospect_calls").select("session_id").eq("prospect_id", pid).order("id").limit(200);
-  if (lErr) return NextResponse.json({ error: "Couldn't read this deal's calls." }, { status: 500 });
-  const ids = ((links ?? []) as Array<{ session_id: string }>).map((l) => l.session_id);
-  if (!ids.length) return NextResponse.json({ error: "Link calls to this deal first — the reviewer reads its calls." }, { status: 409 });
-  const { data: sess, error: sErr } = await db.from("coaching_sessions").select("id, started_at, audio_started_at, context, session_kind").in("id", ids).order("started_at", { ascending: false });
-  if (sErr) return NextResponse.json({ error: "Couldn't read this deal's calls." }, { status: 500 });
-  const usable = ((sess ?? []) as Array<{ id: string; started_at: string; audio_started_at: string | null; context: string | null; session_kind: string | null }>)
-    .filter((s) => isRemoteContext(s.context) && isSalesCall(s.session_kind ?? "sales"))
-    .slice(0, REVIEW_CALLS);
-  const calls: CallLines[] = [];
-  const perCall = Math.max(60, Math.floor(REVIEW_LINES / Math.max(1, usable.length)));
-  for (const s of usable) {
-    const loaded = await loadLines(db as never, s.id, audioBaseIso(s.started_at, s.audio_started_at) ?? s.started_at);
-    if (loaded === null) return NextResponse.json({ error: "Couldn't read this deal's transcripts." }, { status: 500 });
-    if (loaded.lines.length) calls.push({ sessionId: s.id, startedAt: s.started_at, lines: loaded.lines.slice(0, perCall) });
-  }
+  // The reviewer: the deal's latest calls the caller may open, newest first (dealCalls.ts, through the caller's client).
+  const dc = await loadDealCalls(db as never, pid, { maxCalls: REVIEW_CALLS, maxLines: REVIEW_LINES });
+  if (dc === "failed") return NextResponse.json({ error: "Couldn't read this deal's calls." }, { status: 500 });
+  if (!dc.linked) return NextResponse.json({ error: "Link calls to this deal first — the reviewer reads its calls." }, { status: 409 });
+  const calls = dc.calls;
   if (!calls.length) return NextResponse.json({ error: "This deal's calls have no transcripts to review yet." }, { status: 409 });
   const ai = await dealReviewCoach({
     companyId: ctx.companyId,

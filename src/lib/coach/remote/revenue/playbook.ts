@@ -128,11 +128,15 @@ Return exactly: {"elements": [{"n": <element number>, "answer": "...", "cites": 
 
 export type CallLines = { sessionId: string; startedAt: string; lines: Array<{ seq: number; speaker: string; text: string; atMs: number | null }> };
 
-/** The elements and the calls, as the model sees them: C1, C2, ... newest first. */
+/** A deal's calls as the model sees them: C1, C2, ... newest first. Every AI read over a deal numbers calls this way. */
+export function callsBlock(calls: CallLines[], numbered: (lines: CallLines["lines"]) => string): string {
+  return calls.map((c, i) => `=== C${i + 1} · call on ${c.startedAt.slice(0, 10)} ===\n${numbered(c.lines)}`).join("\n\n");
+}
+
+/** The elements and the calls, as the model sees them. */
 export function reviewPrompt(elements: Element[], calls: CallLines[], numbered: (lines: CallLines["lines"]) => string): string {
   const els = elements.map((e, i) => `${i + 1}. ${e.name} (${e.letter}): ${e.question}`).join("\n");
-  const cs = calls.map((c, i) => `=== C${i + 1} · call on ${c.startedAt.slice(0, 10)} ===\n${numbered(c.lines)}`).join("\n\n");
-  return `Playbook elements:\n${els}\n\nCalls:\n${cs}`;
+  return `Playbook elements:\n${els}\n\nCalls:\n${callsBlock(calls, numbered)}`;
 }
 
 /**

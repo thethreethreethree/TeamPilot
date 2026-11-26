@@ -16,6 +16,7 @@ const st = vi.hoisted(() => ({
   insertError: null as { code?: string; message: string } | null,
   ai: { text: "", suppressed: false } as { text: string; suppressed?: boolean },
 }));
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "rep-1", companyId: "co1", isAdmin: false })) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));

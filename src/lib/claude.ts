@@ -778,6 +778,20 @@ export async function dealReviewCoach(args: { companyId?: string; systemPrompt: 
   });
 }
 
+/** Revenue Phase 3c (0374; Gong F20.3, F20.4): a deal brief from its calls, on click only like a call brief (controlExempt). */
+export async function dealBriefCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 1800,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_deal_brief",
+    sessionId: args.sessionId,
+  });
+}
+
 /** Remote Sales Macro Mode (0303): a follow-up email or text for the rep to edit and send. Day-1 (controlExempt). */
 export async function followUpDraftCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
   return call({

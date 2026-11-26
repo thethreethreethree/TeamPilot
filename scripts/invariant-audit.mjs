@@ -2559,6 +2559,8 @@ for (const f of FILES) {
 // append-only rules yield to it — are not a second door: the function stays single and only the erasure route calls it
 // (checked above). Each is named here WITH what it adds, so a new mention of the flag still fails until reviewed.
 const ERASURE_EXTENSIONS = new Map([
+  ["0374_deal_briefs.sql",
+    "Deal briefs (revenue Phase 3c) quote and summarise the customer: deal_briefs' append-only rules yield to erasure with 0285's exact pattern; rss_erase_sessions and rss_erase_prospects are 0373's exact bodies plus one step deleting the erased deals' briefs. Same functions, same single caller."],
   ["0373_deal_playbooks.sql",
     "Playbook notes and the AI reviewer's reads (revenue Phase 3b) can quote the customer: deal_element_notes' append-only rules yield to erasure with 0285's exact pattern; rss_erase_sessions is 0370's exact body plus one step blanking the notes and reads on the erased calls' deals, and rss_erase_prospects is 0323's exact body plus the same step for the confirmed prospects. Same functions, same single caller."],
   ["0370_accounts_and_contacts.sql",
@@ -2844,7 +2846,6 @@ const PAGING_UNIQUE_ALLOWLIST = new Map([
 // reads a call table under the hide rules (or events about a call) calls hiddenFrom /
 // hiddenInCompanyFrom / hiddenCallsForCompany, or is listed here with why no hidden call can reach a person.
 const HIDE_ROUTE_ALLOWLIST = new Map([
-  ["src/app/api/coach/remote/prospects/[pid]/playbook/route.ts", "0373: every call and transcript line is read through the CALLER's client (coaching_sessions and transcripts' RLS, rss_not_hidden applies); the service role only inserts the AI's notes afterwards and reads no call."],
   ["src/app/api/coach/remote/settings/vocabulary/reapply/route.ts", "company admins only (a hide never hides a call from an admin, 0337), and it returns counts only — no call, line or label reaches the person."],
   ["src/app/api/coach/remote/courses/route.ts", "0359: reads library_items ids and folder ids only, to check a lesson's call is in a company folder; returns nothing about the call. The rep opens it in the library, whose route filters hidden calls (hiddenFrom)."],
   ["src/app/api/coach/sales-session/recordings/route.ts", "in-person (door) recordings — the hide is for phone/video calls (0337)."],
