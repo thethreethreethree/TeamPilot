@@ -18,8 +18,9 @@ What EloState needs to compete with Gong beyond coaching: accounts, deals, warni
 | 6 The deals behind a forecast number, how it moved; 4 win/loss rows open their deals, CSV | 2e18c7cb | — |
 | 2 Deal panel tabs with what to do about each warning; 1 near-duplicate accounts suggested | c2a308b5 | — |
 
-Not built, and why: forecast due day and reminder (decision R12, and CRON_SECRET); nightly warning and activity history
-(CRON_SECRET); forecast notes (0381: free text erasure can't reach); the PROPOSAL rows in docs/00 (deliberately not built).
+| 3a / 4 Nightly warnings record, drivers now / 30 / 90 days (and E5 close-date agents) | 92249504 | 0382 |
+
+Not built, and why: forecast due day and reminder (decision R12); forecast notes (0381: free text erasure can't reach); the PROPOSAL rows in docs/00 (deliberately not built).
 
 Next: `docs/ELOSTATE-ENGAGE-PLATFORM-BUILD-PLAN` (Engage, API, MCP, agents).
 

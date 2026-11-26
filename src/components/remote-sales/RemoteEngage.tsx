@@ -494,7 +494,7 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
             <input type="number" min={1} max={60} value={closeDays} onChange={(e) => setCloseDays(Math.min(60, Math.max(1, Number(e.currentTarget.value) || 1)))} aria-label="Days before the close date" className={`${field} w-16`} />
             days away or less
           </div>
-          <p className="text-[11px] text-muted">Checked each night, once per deal and close date. The nightly job runs once CRON_SECRET is set.</p>
+          <p className="text-[11px] text-muted">Checked each night, once per deal and close date.</p>
         </div>
       ) : when === "tracker" ? (
         <div className="flex flex-wrap items-center gap-2 text-secondary">

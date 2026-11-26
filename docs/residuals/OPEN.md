@@ -624,6 +624,11 @@ product says so where it matters, never silently.
       drivers 30/90, the close-date agent trigger), tested and probed. It answers 503 until `CRON_SECRET` is set.
       next-action: set `CRON_SECRET` in Vercel; the next morning, check the cron's response and that deal_warning_snapshots
       has today's rows.
+      CORRECTION 2026-11-27: `CRON_SECRET` IS set in production. Evidence: after the 92249504 deploy, GET
+      https://elostate.com/api/coach/remote/revenue-daily-cron without the secret answers 401 "Cron authentication
+      failed." — the route answers that only when the secret is set (unset is 503). The "unset" above was wrong, and the
+      job's first scheduled run is 05:15 UTC 2026-11-28.
+      next-action: on 2026-11-28, check the cron's run in Vercel and that deal_warning_snapshots has rows for that day.
 - [ ] 2026-11-27 · revenue-r2 · No CRM sync (Salesforce / HubSpot / Dynamics).
       why-unresolved: no client CRM is on record to sync with (plan R2).
       next-action: when a paying client names their CRM, build its connector first.

@@ -23,6 +23,6 @@ Phases        E1–E5
 | E4 completed: ask_account, generate_brief, find_calls | 18ab81dd | — |
 
 Waiting on outside setup (each named in docs/00 and docs/08): automatic email (Postmark), the dialer (Twilio), per-person
-MCP keys (a JWT secret), date-based agent triggers and warning history (CRON_SECRET), CRM sync (a client's CRM).
+MCP keys (a JWT secret), CRM sync (a client's CRM). Date-based agent triggers and warning history are built (0382, 92249504) and run nightly; CRON_SECRET is set in production (the cron route answers 401 without it).
 
 Read `docs/00-OPEN-DECISIONS.md` first; then 01–08; `BUILD-PLAN/00-BRIEF.md`; and the scaffold `elostate-engage/` (`npm test`).
