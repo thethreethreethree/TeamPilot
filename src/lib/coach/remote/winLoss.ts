@@ -92,3 +92,50 @@ export function byDealSize(ps: P[], money: (n: number) => string): Band[] {
   if (noAmount.length) out.push(band("No amount set", noAmount));
   return out;
 }
+
+// ── Revenue Phase 4 (0370 contacts, 0375 closed_at; Gong F20.10): by contacts, by power in the deal, by time to close.
+type Q = P & { contacts?: number; createdAt?: string; closedAt?: string | null; powerOnDeal?: boolean | null };
+
+/** By how many contacts were on the deal: none, 1, 2–3, 4 or more. Empty rows are left out. */
+export function byContactCount(ps: Q[]): Band[] {
+  const c = closedDeals(ps) as Q[];
+  const groups: Array<[string, (n: number) => boolean]> = [
+    ["No contacts", (n) => n === 0],
+    ["1 contact", (n) => n === 1],
+    ["2–3 contacts", (n) => n >= 2 && n <= 3],
+    ["4 or more contacts", (n) => n >= 4],
+  ];
+  return groups.map(([label, test]) => band(label, c.filter((p) => test(p.contacts ?? 0)))).filter((b) => b.won + b.lost > 0);
+}
+
+/**
+ * Gong's "power in deal": a director, VP or C-level contact on the deal, against none. Deals whose contacts have no
+ * known titles are their own row (powerOnDeal null), never counted as "no power".
+ */
+export function byPower(ps: Q[]): Band[] {
+  const c = closedDeals(ps) as Q[];
+  return [
+    band("A director, VP or C-level on the deal", c.filter((p) => p.powerOnDeal === true)),
+    band("No one that senior", c.filter((p) => p.powerOnDeal === false)),
+    band("Titles not known", c.filter((p) => p.powerOnDeal === null || p.powerOnDeal === undefined)),
+  ].filter((b) => b.won + b.lost > 0);
+}
+
+/** By days from opening to closing: under 30, 30–90, over 90; a deal with no closing date recorded is its own row. */
+export function byDuration(ps: Q[]): Band[] {
+  const c = closedDeals(ps) as Q[];
+  const days = (p: Q) => (p.createdAt && p.closedAt ? (Date.parse(p.closedAt) - Date.parse(p.createdAt)) / 86_400_000 : null);
+  return [
+    band("Closed in under 30 days", c.filter((p) => { const d = days(p); return d !== null && d < 30; })),
+    band("30–90 days", c.filter((p) => { const d = days(p); return d !== null && d >= 30 && d <= 90; })),
+    band("Over 90 days", c.filter((p) => { const d = days(p); return d !== null && d > 90; })),
+    band("Closing date not recorded", c.filter((p) => days(p) === null)),
+  ].filter((b) => b.won + b.lost > 0);
+}
+
+/** Whether a deal had a director, VP or C-level contact; null when none of its contacts has a known title. */
+export function powerOnDeal(contacts: Array<{ rank: string }> | undefined): boolean | null {
+  const known = (contacts ?? []).filter((c) => c.rank !== "unknown");
+  if (!known.length) return null;
+  return known.some((c) => c.rank === "c_level" || c.rank === "vp" || c.rank === "director");
+}

@@ -40,6 +40,8 @@ export type ProspectRow = {
   contacts?: number;
   /** Revenue Phase 3a (0372 rss_deal_signals): the facts behind Gong's warnings, for dealRisk. Open deals only. */
   signals?: { lastTwoWayAt: string | null; pricingMentioned: boolean; stageEnteredAt: string | null; contacts: Array<{ rank: Rank; lastOnCall: string | null }> };
+  /** Revenue Phase 4 (0375): when the deal last became won or lost; null while open or if never set. */
+  closedAt?: string | null;
   /** The company's limit for this deal's stage (0372 stall_days), when it has one. */
   stallDays?: number | null;
   /** Revenue Phase 3b (0373): each playbook element's letter and its note's state on this deal. */
@@ -165,11 +167,13 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
     }
     for (const x of dc ?? []) contactCount.set(String(x.prospect_id), (contactCount.get(String(x.prospect_id)) ?? 0) + 1);
   }
-  // Revenue Phase 3a (0372): the facts behind Gong's warnings, for OPEN deals, as the caller (RLS applies). A failed read
-  // fails the list: a deal shown with no warnings because its facts didn't load would read as healthy.
-  type SignalRow = { prospect_id: string; last_two_way_at: string | null; pricing_mentioned: boolean; stage_entered_at: string | null; contacts: Array<{ title: string | null; last_on_call: string | null }> | null };
+  // Revenue Phase 3a (0372) / 4 (0375): the facts behind Gong's warnings (used for open deals) and win/loss (contacts'
+  // ranks, when a deal closed — used for closed ones), as the caller (RLS applies), for every deal. A failed read fails
+  // the list: a deal shown with no warnings because its facts didn't load would read as healthy.
+  type SignalRow = { prospect_id: string; last_two_way_at: string | null; pricing_mentioned: boolean; stage_entered_at: string | null; contacts: Array<{ title: string | null; last_on_call: string | null }> | null; closed_at?: string | null };
   const signals = new Map<string, NonNullable<ProspectRow["signals"]>>();
-  const openIds = rows.filter((r) => r.status !== "won" && r.status !== "lost").map((r) => String(r.id));
+  const closedAt = new Map<string, string | null>();
+  const openIds = rows.map((r) => String(r.id));
   for (let i = 0; i < openIds.length; i += 150) {
     const { data: sg, error: sErr } = await db.rpc("rss_deal_signals", { p_ids: openIds.slice(i, i + 150) });
     if (sErr) {
@@ -183,6 +187,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
         stageEnteredAt: x.stage_entered_at,
         contacts: (x.contacts ?? []).map((c) => ({ rank: rankOf(c.title), lastOnCall: c.last_on_call })),
       });
+      closedAt.set(String(x.prospect_id), x.closed_at ?? null);
     }
   }
   // Each stage's own limit (0372 stall_days) from the company's list; a stage with none never stalls.
@@ -238,5 +243,6 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
     signals: signals.get(String(r.id)),
     stallDays: r.stage_label ? stall.get(r.stage_label.trim().toLowerCase()) ?? null : null,
     playbook: playbookOf.get(String(r.id)),
+    closedAt: closedAt.get(String(r.id)) ?? null,
   }));
 }

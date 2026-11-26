@@ -5,6 +5,7 @@ import { DealAccountContacts, type DealContact } from "./DealAccountContacts";
 import { DealBoard } from "./DealBoard";
 import { DealPlaybook } from "./DealPlaybook";
 import { DealBrief } from "./DealBrief";
+import { DealDrivers } from "./DealDrivers";
 import { kindOf, type Stage } from "@/lib/coach/remote/revenue/dealBoard";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import Link from "next/link";
@@ -19,7 +20,7 @@ import { addDays, weekStart } from "@/lib/coach/remote/calendar";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
-import { byCallCount, byDealSize, byMention, MIN_CLOSED, overallWinRate, type Band } from "@/lib/coach/remote/winLoss";
+import { byCallCount, byContactCount, byDealSize, byDuration, byMention, byPower, MIN_CLOSED, overallWinRate, powerOnDeal, type Band } from "@/lib/coach/remote/winLoss";
 import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS, withMovedDates } from "@/lib/coach/remote/dealRisk";
 import { stageFunnel } from "@/lib/coach/remote/pipelineChanges";
 
@@ -55,6 +56,8 @@ type Prospect = {
   accountId?: string | null;
   accountName?: string | null;
   contacts?: number;
+  signals?: NonNullable<Parameters<typeof dealRisk>[0]["signals"]>;
+  closedAt?: string | null;
 };
 type Totals = Record<"open" | "won" | "lost", { count: number; amount: number }>;
 
@@ -90,7 +93,7 @@ export function RemotePipeline() {
   const simple = macro === true;
 
   const [tab, setTab] = useState<"open" | "won" | "lost">("open");
-  const [view, setView] = useState<"list" | "board" | "calendar" | "sources" | "forecast">("list");
+  const [view, setView] = useState<"list" | "board" | "calendar" | "sources" | "forecast" | "drivers">("list");
   // The company's stage list (0371). A failed read leaves stage names as free text, and says so on the board.
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [stagesFailed, setStagesFailed] = useState(false);
@@ -189,7 +192,7 @@ export function RemotePipeline() {
             </select>
           )}
           {!simple && <div role="group" aria-label="View" className="inline-flex overflow-hidden rounded-lg border border-default">
-            {(["list", "board", "calendar", "sources", "forecast"] as const).map((v) => (
+            {(isManager ? (["list", "board", "calendar", "sources", "forecast", "drivers"] as const) : (["list", "board", "calendar", "sources", "forecast"] as const)).map((v) => (
               <button
                 key={v}
                 type="button"
@@ -197,7 +200,7 @@ export function RemotePipeline() {
                 onClick={() => setView(v)}
                 className={`px-2.5 py-1.5 text-xs ${view === v ? "bg-brand/15 font-semibold text-primary" : "bg-surface text-secondary hover:text-primary"}`}
               >
-                {v === "list" ? "List" : v === "board" ? "Board" : v === "calendar" ? "Calendar" : v === "sources" ? "Sources" : "Forecast"}
+                {v === "list" ? "List" : v === "board" ? "Board" : v === "calendar" ? "Calendar" : v === "sources" ? "Sources" : v === "drivers" ? "Drivers" : "Forecast"}
               </button>
             ))}
           </div>}
@@ -223,6 +226,17 @@ export function RemotePipeline() {
           <>
             {stagesFailed && <p className="text-xs text-amber-700 dark:text-amber-300">Couldn&apos;t load your company&apos;s stage list; stages are grouped by name.</p>}
             <DealBoard key={whose} deals={data.prospects} stages={stages} canEditStages={isManager} onStagesSaved={() => void loadStages()} onOpen={goTo} repName={whose !== "mine" ? nameOf : null} today={today()} />
+          </>
+        )
+      ) : view === "drivers" ? (
+        failed ? (
+          <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>
+        ) : !data ? (
+          <p className="flex items-center justify-center gap-2 p-6 text-xs text-muted"><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading pipeline…</p>
+        ) : (
+          <>
+            {whose === "mine" && <p className="text-xs text-secondary">Drivers compare reps: pick “My team&apos;s pipeline” above.</p>}
+            <DealDrivers deals={data.prospects} nameOf={(id) => (id === data.viewerId ? "You" : nameOf(id))} today={today()} />
           </>
         )
       ) : view === "calendar" ? (
@@ -903,7 +917,11 @@ function SourcesView({ whose, prospects, failed }: { whose: string; prospects: P
  * pipeline in view. A rate needs MIN_CLOSED closed deals in its row; below that the row shows its counts only.
  */
 function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Prospect[] }) {
-  const ps = prospects.map((p) => ({ id: p.id, status: p.status, amount: p.amount, callCount: p.callCount }));
+  const ps = prospects.map((p) => ({
+    id: p.id, status: p.status, amount: p.amount, callCount: p.callCount,
+    // Revenue Phase 4 (Gong F20.10): contacts, power in the deal, time to close.
+    contacts: p.contacts ?? 0, createdAt: p.createdAt, closedAt: p.closedAt ?? null, powerOnDeal: powerOnDeal(p.signals?.contacts),
+  }));
   const all = overallWinRate(ps);
   // What was said on each closed deal's calls — read on demand, through the person's own access (mentions route).
   const [mentions, setMentions] = useState<{ mentions: Record<string, string[]>; withCalls: Set<string> | null } | null | "failed">(null);
@@ -957,6 +975,9 @@ function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Pros
       </p>
       {table("By number of calls", byCallCount(ps))}
       {table("By deal size", byDealSize(ps, money))}
+      {table("By contacts on the deal", byContactCount(ps))}
+      {table("By seniority on the deal", byPower(ps))}
+      {table("By time to close", byDuration(ps))}
       {mentions === "failed" ? (
         <p role="alert" className="text-[11px] text-amber-700 dark:text-amber-300">Couldn&apos;t load what was said on these deals.</p>
       ) : mentions === null ? (

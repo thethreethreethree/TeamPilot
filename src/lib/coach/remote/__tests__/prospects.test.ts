@@ -69,7 +69,7 @@ describe("listProspects", () => {
     expect(await listProspects(db({ prospects: [withAcc], links: [], tasks: [], fail: "deal_contacts_current" }).client)).toBeNull();
   });
 
-  it("carries Gong's warning facts for open deals and each stage's limit (0372); a failed signal read fails the list", async () => {
+  it("carries Gong's warning facts and each stage's limit (0372); a failed signal read fails the list", async () => {
     const won = { ...P, id: "p2", status: "won" };
     const staged = { ...P, stage_label: "Demo" };
     const { client, seen } = db({
@@ -78,9 +78,9 @@ describe("listProspects", () => {
       stageList: { stages: [{ name: "demo", kind: "open", stall_days: 7 }] },
     });
     const rows = (await listProspects(client))!;
-    expect(seen["rpc:rss_deal_signals"]).toEqual([["rpc", { p_ids: ["p1"] }]]); // open deals only
+    expect(seen["rpc:rss_deal_signals"]).toEqual([["rpc", { p_ids: ["p1", "p2"] }]]); // every deal (0375: closed ones for win/loss)
     expect(rows[0]).toMatchObject({ stallDays: 7, signals: { pricingMentioned: true, contacts: [{ rank: "vp", lastOnCall: null }] } });
-    expect(rows[1]!.signals).toBeUndefined();
+    expect(rows[1]!.signals).toBeUndefined(); // no signal row came back for it
     expect(await listProspects(db({ prospects: [P], links: [], tasks: [], fail: "signals" }).client)).toBeNull();
   });
 

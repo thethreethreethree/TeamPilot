@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
 import { rankOf, type Rank } from "./rank";
+import { activityLevel, activityScore, type Level } from "./activity";
 
 /**
  * Accounts and contacts (revenue Phase 1, 0370; Gong M21). Every read here goes through the CALLER's client, so 0370's
@@ -20,6 +21,8 @@ export type AccountRow = {
   lastCallAt: string | null;
   contacts: number;
   reps: string[];
+  /** Revenue Phase 4 (0375; Gong F21.4): engagement over the last 90 days, from two-way calls. */
+  activity: { level: Level; score: number; calls90: number };
 };
 
 export type ContactRow = { id: string; name: string; title: string | null; rank: Rank; accountId: string | null };
@@ -72,6 +75,14 @@ export async function listAccounts(db: SupabaseClient, me: string, scope: "mine"
     }
     for (const c of cs) contactCount.set(c.account_id, (contactCount.get(c.account_id) ?? 0) + 1);
   }
+  // Two-way calls per account in the last year (rss_account_activity, as the caller), in chunks; a failed read throws.
+  const callsOf = new Map<string, string[]>();
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data: act, error: actErr } = await db.rpc("rss_account_activity", { p_accounts: ids.slice(i, i + 150) });
+    if (actErr) throw new AccountReadError(`activity: ${actErr.message}`);
+    for (const x of (act ?? []) as Array<{ account_id: string; call_at: string }>) callsOf.set(x.account_id, [...(callsOf.get(x.account_id) ?? []), x.call_at]);
+  }
+  const todayIso = new Date().toISOString();
   const accounts = rows.map((a) => {
     const mine = deals.filter((d) => d.account_id === a.id);
     const open = mine.filter((d) => d.status === "open");
@@ -87,6 +98,11 @@ export async function listAccounts(db: SupabaseClient, me: string, scope: "mine"
       lastCallAt: lastCall,
       contacts: contactCount.get(a.id) ?? 0,
       reps: [...new Set(mine.map((d) => d.rep_id))],
+      activity: (() => {
+        const calls = callsOf.get(a.id) ?? [];
+        const score = activityScore(calls, todayIso, 90);
+        return { level: activityLevel(score), score, calls90: calls.filter((c) => Date.parse(todayIso) - Date.parse(c) < 90 * 86_400_000).length };
+      })(),
     };
   });
   accounts.sort((x, y) => (y.lastCallAt ?? y.createdAt).localeCompare(x.lastCallAt ?? x.createdAt));

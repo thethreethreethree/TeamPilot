@@ -8,9 +8,11 @@ import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 /**
  * Remote Sales → Accounts (revenue Phase 1, 0370; Gong F21.1 account boards). Every account the caller can see: their
  * own deals' accounts ("Mine") or, for a manager, their whole team's ("Team"). Each row: open deals and their amount,
- * won and lost, last call, contacts. A row opens the account page. Activity level is Phase 4 and is absent until then.
+ * won and lost, last call, contacts, and activity (Gong F21.4: High / Medium / Low / Inactive over 90 days, from calls
+ * where the customer spoke; revenue/activity.ts states the formula). A row opens the account page.
  */
-type Row = { id: string; name: string; openDeals: number; openAmount: number; wonDeals: number; lostDeals: number; lastCallAt: string | null; contacts: number };
+type Row = { id: string; name: string; openDeals: number; openAmount: number; wonDeals: number; lostDeals: number; lastCallAt: string | null; contacts: number; activity?: { level: "high" | "medium" | "low" | "inactive"; score: number; calls90: number } };
+const LEVEL_WORD = { high: "High", medium: "Medium", low: "Low", inactive: "Inactive" } as const;
 
 const money = (n: number) => (n ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "—");
 const day = (s: string | null) => (s ? new Date(s).toLocaleDateString(undefined, { dateStyle: "medium" }) : "—");
@@ -89,6 +91,7 @@ export function RemoteAccounts() {
                 <th className="px-3 py-2 text-right font-semibold">Won · lost</th>
                 <th className="px-3 py-2 font-semibold">Last call</th>
                 <th className="px-3 py-2 text-right font-semibold">Contacts</th>
+                <th className="px-3 py-2 font-semibold" title="Engagement over 90 days, from calls where the customer spoke">Activity</th>
               </tr>
             </thead>
             <tbody>
@@ -100,6 +103,13 @@ export function RemoteAccounts() {
                   <td className="px-3 py-2 text-right tabular-nums text-secondary">{a.wonDeals} · {a.lostDeals}</td>
                   <td className="px-3 py-2 text-secondary">{day(a.lastCallAt)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-secondary">{a.contacts}</td>
+                  <td className="px-3 py-2">
+                    {a.activity && (
+                      <span title={`${a.activity.calls90} two-way call${a.activity.calls90 === 1 ? "" : "s"} in 90 days`} className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${a.activity.level === "high" ? "bg-brand/20 text-primary" : a.activity.level === "medium" ? "bg-base text-primary" : "text-muted"}`}>
+                        {LEVEL_WORD[a.activity.level]}
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
