@@ -248,7 +248,10 @@ export default function LibraryPage() {
               {archivedFolders.map((f) => (
                 <li key={f.id} className="flex items-center gap-2">
                   <span className="text-primary">{f.name}</span>
-                  {f.canArchive && (
+                  {/* Inside a folder that is also archived: restoring this one alone would show nothing (review 2026-11-26). */}
+                  {f.canArchive && f.insideArchived ? (
+                    <span className="ml-auto text-muted">Restore the folder it&apos;s in first</span>
+                  ) : f.canArchive && (
                     <button type="button" onClick={() => void setArchived(f.id, false)} aria-label={`Restore folder ${f.name}`} className="ml-auto text-brand hover:underline">
                       Restore
                     </button>

@@ -36,4 +36,24 @@ describe("Library — nested folders", () => {
     expect(screen.queryByText(/Empty folders/)).toBeNull(); // "Old / Inner" is hidden with "Old", not an empty folder
     expect(screen.getByText(/Archived folders \(1\)/)).toBeTruthy();
   });
+
+  it("a folder archived inside an archived folder says to restore its parent first, with no dead Restore", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        available: true, isManager: false, items: [item("i1", "a", "Objections")],
+        folders: [
+          { id: "a", name: "Objections", parentId: null, archived: false, insideArchived: false, canArchive: true },
+          { id: "o", name: "Old", parentId: null, archived: true, insideArchived: false, canArchive: true },
+          { id: "o2", name: "Old / Inner", parentId: "o", archived: true, insideArchived: true, canArchive: true },
+        ],
+      }),
+    })));
+    render(<LibraryPage />);
+    await screen.findByText("Call i1");
+    expect(screen.getByRole("button", { name: "Restore folder Old" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Restore folder Old / Inner" })).toBeNull();
+    expect(screen.getByText("Restore the folder it's in first")).toBeTruthy();
+  });
 });
+

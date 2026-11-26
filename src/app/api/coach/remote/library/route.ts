@@ -309,6 +309,13 @@ export async function POST(req: NextRequest) {
     if (!f) return NextResponse.json({ error: "Folder not found." }, { status: 404 });
     folderId = String(f.id);
     pathIds.push(folderId);
+    // Its ancestors too (review 2026-11-26): saving by id into a folder inside an archived one must bring that one back.
+    let up: string | null = folderId;
+    for (let i = 0; up && i < 3; i += 1) {
+      const { data: row }: { data: { parent_id: string | null } | null } = await admin.from("library_folders").select("parent_id").eq("company_id", ctx.companyId).eq("id", up).maybeSingle();
+      up = row?.parent_id ?? null;
+      if (up) pathIds.push(up);
+    }
   } else {
     // 0353 (F12.6): a name may be a path — "Objections / Pricing" — and each level is found or created inside the one
     // before it. No name: the library's default folder.

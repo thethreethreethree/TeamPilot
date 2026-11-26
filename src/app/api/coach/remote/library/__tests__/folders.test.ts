@@ -19,6 +19,7 @@ const st = vi.hoisted(() => ({
   existing: [] as unknown[],
   events: [] as unknown[], // 0346 folder archive/restore rows
   folder: null as Record<string, unknown> | null, // the folder an archive/restore targets
+  queue: [] as Array<Record<string, unknown>>, // successive single-row folder reads (add by id, then its ancestors)
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -28,7 +29,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       for (const m of ["select", "in", "order", "limit", "is"]) b[m] = () => b;
       b.eq = (k: string, v: unknown) => (t === "library_folders" && st.lookups.push([k, v]), b);
       b.insert = (row: Record<string, unknown>) => (st.inserts.push({ t, row }), b);
-      b.maybeSingle = async () => ({ data: t === "library_folders" ? (st.folder ?? { id: "f-new" }) : { id: "item-1" }, error: null });
+      b.maybeSingle = async () => ({ data: t === "library_folders" ? (st.queue.length ? st.queue.shift() : st.folder ?? { id: "f-new" }) : { id: "item-1" }, error: null });
       b.then = (res: (v: unknown) => unknown) => res({ data: t === "library_folders" ? st.existing : t === "library_folder_events" ? st.events : [], error: null });
       b.range = async (f: number) => ({ data: f > 0 ? [] : t === "library_folder_events" ? st.events : [], error: null });
       return b;
@@ -44,6 +45,7 @@ beforeEach(() => {
   st.existing = [];
   st.events = [];
   st.folder = null;
+  st.queue = [];
 });
 
 describe("library folders by name", () => {
@@ -117,6 +119,18 @@ describe("nested folders (0353, F12.6)", () => {
     const r = await add({ scope: "mine", folderName: "Objections / Pricing" });
     expect((await r.json()).restored).toBe(true);
     expect(st.inserts.filter((i) => i.t === "library_folder_events")).toHaveLength(1);
+  });
+
+  it("adding by folder id restores an archived folder above it (review 2026-11-26)", async () => {
+    const { requireSalesCoachManager } = await import("@/lib/api/requireSalesCoachManager");
+    vi.mocked(requireSalesCoachManager).mockResolvedValue({ userId: "u1", companyId: "co1" } as never);
+    // the target "Pricing" (f-child), then its parent row lookups: f-child → parent f-top → no parent
+    st.queue = [{ id: "f-child" }, { parent_id: "f-top" }, { parent_id: null }];
+    st.events = [{ id: 7, folder_id: "f-top", kind: "archive" }];
+    const r = await add({ scope: "company", folderId: "f-child" });
+    vi.mocked(requireSalesCoachManager).mockResolvedValue(null);
+    expect((await r.json()).restored).toBe(true);
+    expect(st.inserts.find((i) => i.t === "library_folder_events")!.row).toMatchObject({ folder_id: "f-top", kind: "restore" });
   });
 });
 
