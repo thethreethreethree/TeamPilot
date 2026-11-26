@@ -39,6 +39,8 @@ export default defineConfig({
      * right trade: CI still goes red, fifteen seconds later, and nobody is taught to ignore it.
      */
     testTimeout: 20_000,
+    // Testing Library's wait budget for render tests (vitest.setup.ts): 5 s instead of 1 s, for the same reason.
+    setupFiles: ["./vitest.setup.ts"],
     // .tsx included so component-RENDER tests run (a `// @vitest-environment jsdom` file comment opts those
     // individual files into a DOM; the default stays node, so the node-only suite is untouched).
     include: [
