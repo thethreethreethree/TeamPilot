@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadDealCalls } from "../revenue/dealCalls";
 import { writeDealBrief } from "../revenue/dealBriefRun";
 import { hiddenFrom } from "../hidePhrases";
+import { webhooksConfigured } from "../webhooks";
 
 /**
  * Agents (Engage plan E5, 0379; Gong M27 F27.3–F27.6). One trigger — a deal reaching a stage (by status, by stage name,
@@ -192,5 +193,10 @@ async function doAction(admin: SupabaseClient, a: AgentRow, deal: { id: string; 
   const rows = ((eps ?? []) as Array<{ id: string }>).map((ep) => ({ company_id: a.company_id, endpoint_id: ep.id, event: "agent.ran", payload: { agent: { id: a.id, name: a.name }, deal: { id: deal.id, status: deal.status, stage: deal.stage_label } } }));
   if (!rows.length) return { kind: "webhook", ok: true, detail: "No webhook listens for agent.ran." };
   const { error } = await admin.from("webhook_deliveries").insert(rows);
-  return error ? { kind: "webhook", ok: false, detail: "Couldn't queue the webhook." } : { kind: "webhook", ok: true, detail: `Queued ${rows.length} webhook${rows.length === 1 ? "" : "s"}.` };
+  if (error) return { kind: "webhook", ok: false, detail: "Couldn't queue the webhook." };
+  const queued = `Queued ${rows.length} webhook${rows.length === 1 ? "" : "s"}`;
+  // Fail loud (§1.5.3): without the signing secret the sender sends nothing, so the run says so rather than "queued".
+  return webhooksConfigured()
+    ? { kind: "webhook", ok: true, detail: `${queued}.` }
+    : { kind: "webhook", ok: false, detail: `${queued}, but webhook sending isn't switched on on this server yet (RSS_WEBHOOK_SIGNING_SECRET), so nothing is sent.` };
 }

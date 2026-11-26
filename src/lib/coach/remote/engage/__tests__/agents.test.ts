@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 const st = vi.hoisted(() => ({ canSee: true, deal: { id: "d1", name: "Acme", rep_id: "rep-1", status: "open", stage_label: "Proposal" } as unknown, inserts: [] as Array<{ table: string; row: unknown }> }));
 vi.mock("server-only", () => ({}));
+const wh = vi.hoisted(() => ({ on: true }));
+vi.mock("../../webhooks", () => ({ webhooksConfigured: () => wh.on }));
 vi.mock("../../revenue/dealCalls", () => ({ loadDealCalls: vi.fn(async () => ({ calls: [], linked: 0 })) }));
 vi.mock("../../revenue/dealBriefRun", () => ({ writeDealBrief: vi.fn() }));
 const hid = vi.hoisted(() => ({ set: new Set<string>() }));
@@ -126,5 +128,24 @@ describe("review fixes (2026-11-27)", () => {
     expect(claim).not.toHaveBeenCalled();
     expect(r.acted).toBe(false);
     expect(st.inserts.at(-1)!.row).not.toHaveProperty("fire_key");
+  });
+  it("a webhook queued while sending is off says nothing is sent (not 'queued' as if it will go)", async () => {
+    wh.on = false;
+    const hookAgent = { ...agent, actions: [{ kind: "webhook" as const }] };
+    const db = {
+      from: (table: string) => {
+        const q: Record<string, unknown> = {};
+        for (const m of ["select", "eq", "is", "limit", "contains"]) q[m] = () => q;
+        q.maybeSingle = async () => ({ data: table === "remote_prospects_current" ? st.deal : null, error: null });
+        q.then = (r: (v: unknown) => unknown) => r({ data: table === "webhook_endpoints" ? [{ id: "ep1" }] : [], error: null });
+        q.insert = (row: unknown) => (st.inserts.push({ table, row }), Promise.resolve({ error: null }));
+        return q;
+      },
+      rpc: async () => ({ data: true, error: null }),
+    } as never;
+    const r = await runAgent(db, hookAgent, "d1", false);
+    expect(r.results[0]).toMatchObject({ kind: "webhook", ok: false });
+    expect(r.results[0]!.detail).toMatch(/nothing is sent/);
+    wh.on = true;
   });
 });
