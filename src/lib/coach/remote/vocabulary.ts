@@ -60,3 +60,98 @@ export async function readCompanyKeyterms(db: SupabaseClient, companyId: string)
 export function keytermsQuery(terms: string[]): string {
   return terms.map((t) => `&keyterms=${encodeURIComponent(t)}`).join("");
 }
+
+/**
+ * Known mis-hearings (0354, Gong F8.9): for a term, what speech-to-text writes instead — "Spectrum" heard as "spec
+ * trum", "spektrum". A company admin lists them; every transcript line is stored with them replaced by the term, so
+ * search and trackers find the name. Whole words or phrases only, any capitalisation. A person's typed correction of a
+ * line is stored as they typed it. Lines already stored stay as they are.
+ */
+export type Correction = { term: string; heard: string[] };
+export const MAX_HEARD_PER_TERM = 10;
+
+/**
+ * The settings text, one line per term: "Spectrum" (a term) or "Spectrum = spec trum, spektrum" (a term and what it's
+ * heard as). Returns the terms (validated by normaliseKeyterms) and the corrections. Throws VocabularyError.
+ */
+export function parseVocabularyLines(lines: string[]): { terms: string[]; corrections: Correction[] } {
+  const rawTerms: string[] = [];
+  const heardFor = new Map<string, string[]>();
+  for (const line of lines) {
+    const [left, ...rest] = line.split("=");
+    const term = (left ?? "").trim().replace(/\s+/g, " ");
+    if (!term) {
+      if (rest.join("=").trim()) throw new VocabularyError(`"${line.trim().slice(0, 40)}" has no name before "=".`);
+      continue;
+    }
+    rawTerms.push(term);
+    if (rest.length) heardFor.set(term.toLowerCase(), [...(heardFor.get(term.toLowerCase()) ?? []), ...rest.join("=").split(",")]);
+  }
+  const terms = normaliseKeyterms(rawTerms);
+  return { terms, corrections: normaliseCorrections(terms.map((term) => ({ term, heard: heardFor.get(term.toLowerCase()) ?? [] }))) };
+}
+
+/** Each term's mis-hearings: trimmed, ≤50 characters and ≤5 words, not the term itself, deduplicated, ≤10 per term. */
+export function normaliseCorrections(input: Correction[]): Correction[] {
+  const out: Correction[] = [];
+  const claimed = new Map<string, string>(); // heard (lowercase) → the term it maps to
+  for (const c of input) {
+    const heard: string[] = [];
+    for (const raw of c.heard) {
+      const h = raw.trim().replace(/\s+/g, " ");
+      if (!h) continue;
+      if (h.length > 50) throw new VocabularyError(`"${h.slice(0, 30)}…" is longer than 50 characters.`);
+      if (h.split(" ").length > 5) throw new VocabularyError(`"${h}" has more than 5 words.`);
+      const k = h.toLowerCase();
+      if (k === c.term.toLowerCase() || heard.some((x) => x.toLowerCase() === k)) continue;
+      const other = claimed.get(k);
+      if (other && other !== c.term) throw new VocabularyError(`"${h}" is listed for both "${other}" and "${c.term}".`);
+      claimed.set(k, c.term);
+      heard.push(h);
+    }
+    if (heard.length > MAX_HEARD_PER_TERM) throw new VocabularyError(`Keep it to ${MAX_HEARD_PER_TERM} mis-hearings for "${c.term}".`);
+    if (heard.length) out.push({ term: c.term, heard });
+  }
+  return out;
+}
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The line with each listed mis-hearing replaced by its term — whole words or phrases, any capitalisation; longer
+ *  phrases first so "spec trum plus" isn't cut by "spec trum". Pure. */
+export function applyCorrections(text: string, corrections: Correction[]): string {
+  if (!text || corrections.length === 0) return text;
+  const pairs = corrections.flatMap((c) => c.heard.map((h) => ({ h, term: c.term }))).sort((a, b) => b.h.length - a.h.length);
+  let out = text;
+  for (const { h, term } of pairs) {
+    const pattern = h.split(" ").map(escapeRe).join("\\s+");
+    out = out.replace(new RegExp(`(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])`, "giu"), term);
+  }
+  return out;
+}
+
+/** The company's current corrections (latest row), or [] — never throws: a vocabulary problem must not stop a line from being stored. */
+export async function readCompanyCorrections(db: SupabaseClient, companyId: string): Promise<Correction[]> {
+  try {
+    const { data, error } = await db
+      .from("company_stt_vocabulary")
+      .select("corrections")
+      .eq("company_id", companyId)
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      if (!["PGRST205", "42P01", "42703"].includes(String(error.code))) console.error(`[vocabulary] corrections read failed company=${companyId}: ${error.message}`);
+      return [];
+    }
+    const list = (data as { corrections?: unknown } | null)?.corrections;
+    return Array.isArray(list)
+      ? (list as Array<{ term?: unknown; heard?: unknown }>)
+          .filter((c) => typeof c.term === "string" && Array.isArray(c.heard))
+          .map((c) => ({ term: c.term as string, heard: (c.heard as unknown[]).filter((h): h is string => typeof h === "string") }))
+      : [];
+  } catch (e) {
+    console.error(`[vocabulary] corrections read threw company=${companyId}: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+}

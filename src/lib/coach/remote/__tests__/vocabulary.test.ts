@@ -39,3 +39,27 @@ describe("readCompanyKeyterms never stops a transcription", () => {
     expect(await readCompanyKeyterms(throwing as never, "c1")).toEqual([]);
   });
 });
+
+import { applyCorrections, parseVocabularyLines } from "../vocabulary";
+
+describe("known mis-hearings (0354, F8.9)", () => {
+  it("parses 'Term = heard, heard'; a plain line is a term", () => {
+    expect(parseVocabularyLines(["Spectrum = spec trum,  spektrum ", "AT&T Fiber", "", "Specs = "])).toEqual({
+      terms: ["Spectrum", "AT&T Fiber", "Specs"],
+      corrections: [{ term: "Spectrum", heard: ["spec trum", "spektrum"] }],
+    });
+  });
+  it("refuses a mis-hearing listed for two terms, and a line with nothing before '='", () => {
+    expect(() => parseVocabularyLines(["Spectrum = spec", "Specter = spec"])).toThrow(VocabularyError);
+    expect(() => parseVocabularyLines([" = spec"])).toThrow(VocabularyError);
+  });
+  it("replaces whole words and phrases, any capitalisation, longest first — never inside a word", () => {
+    const c = [{ term: "Spectrum", heard: ["spec trum", "spektrum"] }, { term: "Spectrum Plus", heard: ["spec trum plus"] }];
+    expect(applyCorrections("We have Spec  Trum right now", c)).toBe("We have Spectrum right now");
+    expect(applyCorrections("is spec trum plus cheaper", c)).toBe("is Spectrum Plus cheaper");
+    expect(applyCorrections("SPEKTRUM, then", c)).toBe("Spectrum, then");
+    expect(applyCorrections("a spectrummy line, aspektrum", c)).toBe("a spectrummy line, aspektrum");
+    expect(applyCorrections("nothing here", [])).toBe("nothing here");
+  });
+});
+

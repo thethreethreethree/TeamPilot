@@ -6,6 +6,30 @@ import { createAdminClient as createServiceRoleClient } from "@/lib/supabase/adm
 import { selectWinningLines } from "@/lib/coach/v5/winningLines";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
 import { transcriptTextForStorage } from "@/lib/coach/remote/redact";
+import { applyCorrections, readCompanyCorrections, type Correction } from "@/lib/coach/remote/vocabulary";
+
+/**
+ * The company's known mis-hearings for a session's lines (0354, F8.9), cached a few minutes per session so a live call
+ * doesn't read them on every line. Never throws and never blocks a line: on any failure the line is stored as heard.
+ */
+const CORRECTIONS_TTL_MS = 5 * 60_000;
+const correctionsCache = new Map<string, { at: number; list: Correction[] }>();
+async function correctionsForSession(sb: ReturnType<typeof createServiceRoleClient>, sessionId: string): Promise<Correction[]> {
+  const hit = correctionsCache.get(sessionId);
+  if (hit && Date.now() - hit.at < CORRECTIONS_TTL_MS) return hit.list;
+  let list: Correction[] = [];
+  try {
+    // By the session's own id — its company is the session's (the tenant is the row being written).
+    const { data } = await sb.from("coaching_sessions").select("company_id").eq("id", sessionId).maybeSingle();
+    const companyId = (data as { company_id?: string } | null)?.company_id;
+    if (companyId) list = await readCompanyCorrections(sb, companyId);
+  } catch (e) {
+    console.error(`[salesCoach] corrections lookup failed session=${sessionId}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (correctionsCache.size > 500) correctionsCache.clear();
+  correctionsCache.set(sessionId, { at: Date.now(), list });
+  return list;
+}
 
 /**
  * Live Sales Coach — data layer (subsystem 2: Recording & Storage).
@@ -361,12 +385,14 @@ export async function appendTranscriptSegment(args: {
   endedAt?: string | null;
 }): Promise<TranscriptSegment | null> {
   const sb = createServiceRoleClient();
+  const corrections = await correctionsForSession(sb, args.sessionId);
   const base = {
     session_id: args.sessionId,
     speaker: args.speaker,
     // D15 number redaction (REDACTION in decisions.ts), through the one helper every transcript writer uses —
     // this path, replaceSessionTranscript and the line-correction route (transcriptRedactionGate.test.ts).
-    text: transcriptTextForStorage(args.text),
+    // 0354 (F8.9): the company's known mis-hearings are replaced by their term first.
+    text: transcriptTextForStorage(applyCorrections(args.text, corrections)),
     seq: args.seq,
     spoken_at: args.spokenAt ?? null,
   };
@@ -436,6 +462,7 @@ export async function replaceSessionTranscript(
   }[]
 ): Promise<{ ok: boolean; count: number }> {
   const sb = createServiceRoleClient();
+  const corrections = await correctionsForSession(sb, sessionId);
   const { data, error } = await sb.rpc("replace_session_transcript", {
     p_session_id: sessionId,
     // `spokenAt` is read by the RPC from 0249 onward. Sending it against a
@@ -446,7 +473,7 @@ export async function replaceSessionTranscript(
       speaker: s.speaker,
       // D15 applies here too (2026-11-23): this is the uploaded-recording and recovery path, and it used to store
       // the text exactly as heard.
-      text: transcriptTextForStorage(s.text),
+      text: transcriptTextForStorage(applyCorrections(s.text, corrections)), // 0354: known mis-hearings first
       seq: s.seq,
       spokenAt: s.spokenAt ?? null,
       speakerId: s.speakerId ?? null,

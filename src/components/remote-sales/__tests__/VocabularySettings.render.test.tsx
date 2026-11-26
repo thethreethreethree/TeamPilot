@@ -41,7 +41,7 @@ describe("transcription vocabulary", () => {
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([, i]) => i?.method === "PUT")).toBe(true));
     const put = fetchMock.mock.calls.find(([, i]) => i?.method === "PUT")!;
-    expect(JSON.parse(String(put[1].body))).toEqual({ terms: ["AT&T Fiber", "Spectrum"] });
+    expect(JSON.parse(String(put[1].body))).toEqual({ terms: ["AT&T Fiber", "Spectrum"], corrections: [] });
   });
 
   it("clearing the list offers 'Turn off'", async () => {
@@ -57,4 +57,27 @@ describe("transcription vocabulary", () => {
     expect(await screen.findByText(/couldn.t load the vocabulary/i)).toBeTruthy();
     expect(screen.queryByText(/now: off/i)).toBeNull();
   });
+
+  it("0354: \"Term = heard, heard\" saves the term and what it's heard as; existing ones load the same way", async () => {
+    serve({ terms: ["Spectrum"], corrections: [{ term: "Spectrum", heard: ["spec trum"] }], canManage: true, max: 100 }, { terms: ["Spectrum", "AT&T Fiber"] });
+    render(<VocabularySettings />);
+    const box = (await screen.findByRole("textbox")) as HTMLTextAreaElement;
+    expect(box.value).toBe("Spectrum = spec trum");
+    fireEvent.change(box, { target: { value: "Spectrum = spec trum, spektrum\nAT&T Fiber" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock.mock.calls.some((c) => c[1]?.method === "PUT")).toBe(true));
+    const put = fetchMock.mock.calls.find((c) => c[1]?.method === "PUT")!;
+    expect(JSON.parse(String(put[1].body))).toEqual({ terms: ["Spectrum", "AT&T Fiber"], corrections: [{ term: "Spectrum", heard: ["spec trum", "spektrum"] }] });
+    expect(await screen.findByText(/and 2 mis-hearings to fix/)).toBeTruthy();
+  });
+
+  it("a mis-hearing claimed by two terms is shown before saving, and Save stays off", async () => {
+    serve({ terms: [], canManage: true, max: 100 });
+    render(<VocabularySettings />);
+    const box = (await screen.findByRole("textbox")) as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "Spectrum = spec\nSpecter = spec" } });
+    expect(screen.getByRole("alert").textContent).toMatch(/listed for both/);
+    expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(true);
+  });
 });
+
