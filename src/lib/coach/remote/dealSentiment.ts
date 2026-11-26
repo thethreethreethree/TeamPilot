@@ -73,10 +73,11 @@ export async function readDealSentiment(db: SupabaseClient, prospectIds: string[
     const s = extractSessionSignals({ outcome: null, pivotPayload: null, momentsPayload: e.payload }).sentiment;
     bySession.set(sid, { reading: s, at: e.created_at });
   }
+  const linksOf = new Map<string, string[]>();
+  for (const l of rows) linksOf.set(l.prospect_id, [...(linksOf.get(l.prospect_id) ?? []), l.session_id]);
   for (const pid of prospectIds) {
-    const readings = rows
-      .filter((l) => l.prospect_id === pid)
-      .map((l) => bySession.get(l.session_id))
+    const readings = (linksOf.get(pid) ?? [])
+      .map((sid) => bySession.get(sid))
       .filter((x): x is { reading: Reading; at: string } => !!x && x.reading !== null)
       .sort((a, b) => a.at.localeCompare(b.at))
       .map((x) => x.reading);

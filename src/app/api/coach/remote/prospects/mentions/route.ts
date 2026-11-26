@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   const prospects = await listProspects(db, repId);
   if (prospects === null) return fail("prospects", "listProspects");
   const closedIds = prospects.filter((p) => p.status === "won" || p.status === "lost").map((p) => p.id);
-  if (closedIds.length === 0) return NextResponse.json({ mentions: {} });
+  if (closedIds.length === 0) return NextResponse.json({ mentions: {}, withCalls: [] });
 
   // Deal → its calls.
   const sessionsOf = new Map<string, string[]>();
@@ -49,17 +49,32 @@ export async function GET(req: NextRequest) {
   }
   const sessionIds = [...new Set([...sessionsOf.values()].flat())];
 
-  // Call → trackers heard on it (latest transcript or not — a tracker heard is heard).
+  // Each call's CURRENT transcript version — its newest stats version, as the adoption board reads it (review
+  // 2026-11-26: a hit on an old version, e.g. a mis-hearing a re-transcription fixed, must not count). A call with no
+  // stats row hasn't been analyzed, or isn't one this person may read: it neither mentions nor counts.
+  const versionOf = new Map<string, number>();
+  for (let i = 0; i < sessionIds.length; i += CHUNK) {
+    const { data, error } = await fetchAllPagedResult<{ session_id: string; transcript_version: number; id: number }>(
+      (from, to) => db.from("session_interaction_stats").select("session_id, transcript_version, id").in("session_id", sessionIds.slice(i, i + CHUNK)).order("id", { ascending: true }).range(from, to),
+      { label: "mention versions", maxRows: 200_000 },
+    );
+    if (error) return fail("versions", error.message);
+    for (const s of data ?? []) versionOf.set(String(s.session_id), Math.max(versionOf.get(String(s.session_id)) ?? 0, Number(s.transcript_version)));
+  }
+
+  // Call → trackers heard on its current transcript.
   const trackersOn = new Map<string, Set<string>>();
   const trackerIds = new Set<string>();
-  for (let i = 0; i < sessionIds.length; i += CHUNK) {
-    const { data, error } = await fetchAllPagedResult<{ session_id: string; tracker_id: string; id: number }>(
-      (from, to) => db.from("tracker_hits").select("session_id, tracker_id, id").in("session_id", sessionIds.slice(i, i + CHUNK)).order("id", { ascending: true }).range(from, to),
+  const readable = sessionIds.filter((s) => versionOf.has(s));
+  for (let i = 0; i < readable.length; i += CHUNK) {
+    const { data, error } = await fetchAllPagedResult<{ session_id: string; tracker_id: string; transcript_version: number; id: number }>(
+      (from, to) => db.from("tracker_hits").select("session_id, tracker_id, transcript_version, id").in("session_id", readable.slice(i, i + CHUNK)).order("id", { ascending: true }).range(from, to),
       { label: "mention hits", maxRows: 200_000 },
     );
     if (error) return fail("hits", error.message);
     for (const h of data ?? []) {
       const s = String(h.session_id);
+      if (Number(h.transcript_version) !== versionOf.get(s)) continue;
       if (!trackersOn.has(s)) trackersOn.set(s, new Set());
       trackersOn.get(s)!.add(String(h.tracker_id));
       trackerIds.add(String(h.tracker_id));
@@ -74,10 +89,15 @@ export async function GET(req: NextRequest) {
   }
 
   const mentions: Record<string, string[]> = {};
+  // Deals with at least one analyzed call this person may read — the only deals that COULD have a mention, so the
+  // only ones compared (review 2026-11-26: a deal with no readable call is not "not mentioned").
+  const withCalls: string[] = [];
   for (const pid of closedIds) {
+    const calls = (sessionsOf.get(pid) ?? []).filter((s) => versionOf.has(s));
+    if (calls.length) withCalls.push(pid);
     const names = new Set<string>();
-    for (const s of sessionsOf.get(pid) ?? []) for (const t of trackersOn.get(s) ?? []) if (nameOf.has(t)) names.add(nameOf.get(t)!);
+    for (const s of calls) for (const t of trackersOn.get(s) ?? []) if (nameOf.has(t)) names.add(nameOf.get(t)!);
     if (names.size) mentions[pid] = [...names].sort();
   }
-  return NextResponse.json({ mentions });
+  return NextResponse.json({ mentions, withCalls });
 }

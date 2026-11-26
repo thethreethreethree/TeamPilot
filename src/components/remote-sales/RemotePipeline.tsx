@@ -105,6 +105,11 @@ export function RemotePipeline() {
       setFailed(true);
     }
   }, [whose]);
+  // A different person's pipeline: clear the last one first (review 2026-11-26), so no view briefly shows the previous
+  // person's deals — and so Sources never pairs them with the new person's mentions.
+  useEffect(() => {
+    setData(null);
+  }, [whose]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -834,19 +839,25 @@ function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Pros
   const ps = prospects.map((p) => ({ id: p.id, status: p.status, amount: p.amount, callCount: p.callCount }));
   const all = overallWinRate(ps);
   // What was said on each closed deal's calls — read on demand, through the person's own access (mentions route).
-  const [mentions, setMentions] = useState<Record<string, string[]> | null | "failed">(null);
+  const [mentions, setMentions] = useState<{ mentions: Record<string, string[]>; withCalls: Set<string> | null } | null | "failed">(null);
   const hasClosed = all.won + all.lost > 0;
+  // Refetch when the set of closed deals changes (a deal marked won or lost), not on every render.
+  const closedKey = ps.filter((p) => p.status !== "open").map((p) => `${p.id}:${p.status}`).sort().join(",");
   useEffect(() => {
     if (!hasClosed) return;
     let live = true;
     fetch(`/api/coach/remote/prospects/mentions${whose === "mine" ? "" : `?repId=${encodeURIComponent(whose)}`}`)
-      .then(async (r) => (r.ok ? (((await r.json()) as { mentions?: Record<string, string[]> }).mentions ?? {}) : Promise.reject(new Error(String(r.status)))))
+      .then(async (r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        const j = (await r.json()) as { mentions?: Record<string, string[]>; withCalls?: string[] };
+        return { mentions: j.mentions ?? {}, withCalls: Array.isArray(j.withCalls) ? new Set(j.withCalls) : null };
+      })
       .then((m) => live && setMentions(m))
       .catch(() => live && setMentions("failed"));
     return () => {
       live = false;
     };
-  }, [whose, hasClosed]);
+  }, [whose, hasClosed, closedKey]);
   if (!hasClosed) return null;
   const table = (title: string, rows: Band[]) => (
     <div className="overflow-x-auto rounded-xl border border-default bg-surface" aria-label={title}>
@@ -885,7 +896,7 @@ function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Pros
         <p className="text-[11px] text-muted">Loading what was said on these deals…</p>
       ) : (
         (() => {
-          const rows = byMention(ps, mentions);
+          const rows = byMention(ps, mentions.mentions, 5, mentions.withCalls ?? undefined);
           if (rows.length === 0) return <p className="text-[11px] text-muted">No tracker was heard on these deals&apos; calls yet.</p>;
           const rate = (b: Band) => (b.winRate === null ? "too few to read" : `${Math.round(b.winRate * 100)}%`);
           return (
@@ -914,6 +925,7 @@ function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Pros
       )}
       <p className="text-[11px] text-muted">
         Closed deals only. A rate shows once a row has {MIN_CLOSED} closed deals. Deal sizes are thirds of this pipeline&apos;s own closed deals.
+        &ldquo;By what was said&rdquo; compares only deals with a call you can listen to.
       </p>
     </div>
   );

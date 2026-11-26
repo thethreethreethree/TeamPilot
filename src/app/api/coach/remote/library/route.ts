@@ -189,12 +189,20 @@ export async function GET(req: NextRequest) {
   let heardBy: Map<string, number> | null = null;
   if (scope === "company" && isManager && items.length) {
     const repBySession = new Map(items.map((i) => [String(i.session_id), String(i.rep_id)]));
+    // Only plays from when the call was first saved to the library count (review 2026-11-26): a listen months before
+    // it was shared is not the folder being used.
+    const savedAt = new Map<string, string>();
+    for (const i of items) {
+      const sid = String(i.session_id);
+      const at = String(i.created_at);
+      if (!savedAt.has(sid) || at < savedAt.get(sid)!) savedAt.set(sid, at);
+    }
     const sids = [...repBySession.keys()];
     const listeners = new Map<string, Set<string>>();
     let ok = true;
     for (let i = 0; ok && i < sids.length; i += 150) {
-      const { data, error: lErr } = await fetchAllPagedResult<{ session_id: string; listener_id: string; id: number }>(
-        (from, to) => admin.from("listen_events").select("session_id, listener_id, id").eq("company_id", ctx.companyId).in("session_id", sids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      const { data, error: lErr } = await fetchAllPagedResult<{ session_id: string; listener_id: string; created_at: string; id: number }>(
+        (from, to) => admin.from("listen_events").select("session_id, listener_id, created_at, id").eq("company_id", ctx.companyId).in("session_id", sids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
         { label: "library usage", maxRows: 100_000 },
       );
       if (lErr) {
@@ -205,6 +213,7 @@ export async function GET(req: NextRequest) {
       for (const r of data ?? []) {
         const sid = String(r.session_id);
         if (String(r.listener_id) === repBySession.get(sid)) continue; // the rep replaying their own call
+        if (new Date(String(r.created_at)).getTime() < new Date(savedAt.get(sid) ?? 0).getTime()) continue; // before it was saved
         if (!listeners.has(sid)) listeners.set(sid, new Set());
         listeners.get(sid)!.add(String(r.listener_id));
       }

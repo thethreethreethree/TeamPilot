@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { askCoachTurn } from "@/lib/claude";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { listProspects, type ProspectRow } from "./prospects";
+import { readDealSentiment } from "./dealSentiment";
 import { dealRisk, RISK_WORDS } from "./dealRisk";
 
 /**
@@ -94,11 +95,15 @@ export function historyBlock(turns: Turn[]): string {
 
 export async function askPipeline(args: { db: SupabaseClient; companyId: string; repId?: string; question: string; today?: string; history?: Turn[] }): Promise<PipelineAnswer> {
   const { db, companyId, question } = args;
-  const all = await listProspects(db, args.repId, { sentiment: true });
+  const all = await listProspects(db, args.repId);
   if (all === null) return { ok: false, status: 500, error: "Couldn't read the pipeline — try again." };
   if (all.length === 0) return { ok: false, status: 400, error: "There are no prospects in this pipeline yet." };
   const activity = (p: ProspectRow) => p.lastCallAt ?? p.createdAt;
-  const prospects = [...all].sort((a, b) => activity(b).localeCompare(activity(a))).slice(0, PIPELINE_CAP);
+  const recent = [...all].sort((a, b) => activity(b).localeCompare(activity(a))).slice(0, PIPELINE_CAP);
+  // Sentiment only for the deals the answer reads (review 2026-11-26) — not every deal in a large pipeline.
+  const sentimentOf = await readDealSentiment(db, recent.map((p) => p.id));
+  if (sentimentOf === null) return { ok: false, status: 500, error: "Couldn't read the pipeline — try again." };
+  const prospects = recent.map((p) => ({ ...p, sentiment: sentimentOf.get(p.id) ?? null }));
 
   // Each prospect's calls, then the latest brief per prospect. A failed read stops before the paid AI call.
   const ids = prospects.map((p) => p.id);

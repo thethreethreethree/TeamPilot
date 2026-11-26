@@ -3,9 +3,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/claude", () => ({ askCoachTurn: vi.fn() }));
 vi.mock("../prospects", () => ({ listProspects: vi.fn() }));
+vi.mock("../dealSentiment", () => ({ readDealSentiment: vi.fn(async () => new Map()) }));
 
 import { askCoachTurn } from "@/lib/claude";
 import { listProspects, type ProspectRow } from "../prospects";
+import { readDealSentiment } from "../dealSentiment";
 import { askPipeline, buildPipelineContext, cleanHistory, historyBlock, MAX_TURNS, resolvePipelineCitations } from "../askPipeline";
 
 const mock = (f: unknown) => f as ReturnType<typeof vi.fn>;
@@ -136,6 +138,7 @@ describe("askPipeline", () => {
     const r = await askPipeline({ db: db({}), companyId: "c", question: "q?" });
     expect(r).toMatchObject({ ok: true, prospects: 60, capped: true });
     expect(mock(askCoachTurn).mock.calls[0]![0].userMessage).toContain("the 60 with the most recent activity of 65");
+    expect((mock(readDealSentiment).mock.calls.at(-1)![1] as string[]).length).toBe(60); // sentiment only for the deals read
   });
 });
 

@@ -44,8 +44,10 @@ export function byCallCount(ps: P[]): Band[] {
  * TOP trackers by closed deals mentioned are shown (most first); each side gets a rate only from MIN_CLOSED deals.
  */
 export type MentionRow = { tracker: string; mentioned: Band; notMentioned: Band };
-export function byMention(ps: Array<P & { id: string }>, mentions: Record<string, string[]>, top = 5): MentionRow[] {
-  const c = closedDeals(ps) as Array<P & { id: string }>;
+export function byMention(ps: Array<P & { id: string }>, mentions: Record<string, string[]>, top = 5, comparable?: Set<string>): MentionRow[] {
+  // Only deals that had a call this person can read are compared (review 2026-11-26): a deal with no such call could
+  // never have a mention, so counting it as "not mentioned" would measure "had calls", not "this was said".
+  const c = (closedDeals(ps) as Array<P & { id: string }>).filter((p) => !comparable || comparable.has(p.id));
   const count = new Map<string, number>();
   for (const p of c) for (const t of new Set(mentions[p.id] ?? [])) count.set(t, (count.get(t) ?? 0) + 1);
   return [...count.entries()]
@@ -68,8 +70,14 @@ export function byDealSize(ps: P[], money: (n: number) => string): Band[] {
   const noAmount = c.filter((p) => !(typeof p.amount === "number" && p.amount > 0));
   const out: Band[] = [];
   if (withAmount.length >= 3) {
-    const t1 = Math.ceil(withAmount.length / 3);
-    const t2 = Math.ceil((2 * withAmount.length) / 3);
+    // Cut points move past equal amounts (review 2026-11-26), so one amount never shows in two bands.
+    const past = (i: number) => {
+      let j = i;
+      while (j > 0 && j < withAmount.length && withAmount[j]!.amount === withAmount[j - 1]!.amount) j += 1;
+      return j;
+    };
+    const t1 = past(Math.ceil(withAmount.length / 3));
+    const t2 = Math.max(t1, past(Math.ceil((2 * withAmount.length) / 3)));
     const parts = [withAmount.slice(0, t1), withAmount.slice(t1, t2), withAmount.slice(t2)];
     const names = ["Smaller", "Middle", "Larger"];
     parts.forEach((rows, i) => {

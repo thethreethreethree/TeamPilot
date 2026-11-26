@@ -41,7 +41,7 @@ function AskFolder({ name, items }: { name: string; items: Item[] }) {
       }}
     >
       <label className="block text-[11px] text-muted">
-        Ask the coach about {more ? "the newest 10 calls in this folder" : "the calls in this folder"}
+        Ask the coach about {more ? "the 10 most recently saved calls in this folder" : "the calls in this folder"}
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={2000} placeholder="e.g. What do these calls have in common?" className="mt-1 w-full rounded-lg border border-default bg-surface px-2 py-1.5 text-xs text-primary" />
       </label>
       <button type="submit" disabled={busy || q.trim().length < 3} className="mt-1 rounded-lg border border-default px-3 py-1 text-xs text-secondary hover:text-primary disabled:opacity-50">

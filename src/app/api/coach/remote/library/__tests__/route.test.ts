@@ -140,10 +140,11 @@ describe("GET — every item is read; removals before the cap (2026-11-26)", () 
 describe("GET — folder usage for managers (F12.9, 2026-11-26)", () => {
   it("a manager sees how many people other than the rep played each company call; a peer sees no count", async () => {
     DATA.listen_events = [
-      { id: 1, session_id: "s2", listener_id: "rep2" }, // the rep replaying their own call — not counted
-      { id: 2, session_id: "s2", listener_id: "mgr1" },
-      { id: 3, session_id: "s2", listener_id: "mgr1" }, // the same person twice counts once
-      { id: 4, session_id: "s2", listener_id: "peer" },
+      { id: 1, session_id: "s2", listener_id: "rep2", created_at: "2026-11-21T00:00:00Z" }, // the rep replaying their own call — not counted
+      { id: 2, session_id: "s2", listener_id: "mgr1", created_at: "2026-11-21T00:00:00Z" },
+      { id: 3, session_id: "s2", listener_id: "mgr1", created_at: "2026-11-22T00:00:00Z" }, // the same person twice counts once
+      { id: 4, session_id: "s2", listener_id: "peer", created_at: "2026-11-21T00:00:00Z" },
+      { id: 5, session_id: "s2", listener_id: "early", created_at: "2026-11-20T07:00:00Z" }, // before it was first saved (08:00) — not counted
     ];
     try {
       who.userId = "mgr1";

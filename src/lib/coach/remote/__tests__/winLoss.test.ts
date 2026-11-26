@@ -37,5 +37,15 @@ describe("win/loss breakdowns", () => {
     expect(rows[0]!.notMentioned).toMatchObject({ won: 1, lost: 4, winRate: 0.2 });
     expect(rows[1]!.mentioned.winRate).toBeNull(); // 2 deals: too few
   });
+  it("only deals with a readable call are compared (review 2026-11-26)", () => {
+    const ps = [{ id: "a", ...d("won", 1) }, { id: "b", ...d("lost", 0) }, { id: "c", ...d("lost", 1) }];
+    const rows = byMention(ps, { a: ["Pricing"] }, 5, new Set(["a", "c"]));
+    expect(rows[0]!.notMentioned).toMatchObject({ won: 0, lost: 1 }); // "b" had no call: left out
+  });
+  it("a deal-size cut never splits equal amounts across two bands", () => {
+    const rows = byDealSize([d("won", 1, 100), d("lost", 1, 500), d("won", 1, 500), d("won", 1, 500), d("lost", 1, 900), d("won", 1, 900)], money);
+    const labels = rows.map((r) => r.label);
+    expect(labels.filter((l) => l.includes("$500")).length).toBe(1);
+  });
 });
 

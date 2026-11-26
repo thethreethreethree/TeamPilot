@@ -38,10 +38,16 @@ beforeEach(() => {
       { id: 1, prospect_id: "p-won", session_id: "s1" },
       { id: 2, prospect_id: "p-lost", session_id: "s2" },
     ],
+    session_interaction_stats: [
+      { session_id: "s1", transcript_version: 1 },
+      { session_id: "s1", transcript_version: 2 },
+      { session_id: "s2", transcript_version: 1 },
+    ],
     tracker_hits: [
-      { id: 1, session_id: "s1", tracker_id: "t-price" },
-      { id: 2, session_id: "s1", tracker_id: "t-price" },
-      { id: 3, session_id: "s2", tracker_id: "t-spec" },
+      { id: 1, session_id: "s1", tracker_id: "t-price", transcript_version: 2 },
+      { id: 2, session_id: "s1", tracker_id: "t-price", transcript_version: 2 },
+      { id: 3, session_id: "s2", tracker_id: "t-spec", transcript_version: 1 },
+      { id: 4, session_id: "s1", tracker_id: "t-spec", transcript_version: 1 }, // an older transcript — doesn't count
     ],
     keyword_trackers: [{ id: "t-price", name: "Pricing" }, { id: "t-spec", name: "Spectrum" }],
   };
@@ -51,6 +57,13 @@ describe("GET /prospects/mentions", () => {
   it("names the trackers heard on each closed deal's calls, once each", async () => {
     const body = await (await get()).json();
     expect(body.mentions).toEqual({ "p-won": ["Pricing"], "p-lost": ["Spectrum"] });
+    expect(body.withCalls).toEqual(["p-won", "p-lost"]);
+  });
+  it("a deal whose call isn't analyzed or readable has no mentions and isn't compared", async () => {
+    st.tables.session_interaction_stats = [{ session_id: "s1", transcript_version: 2 }];
+    const body = await (await get()).json();
+    expect(body.mentions).toEqual({ "p-won": ["Pricing"] });
+    expect(body.withCalls).toEqual(["p-won"]);
   });
   it("a failed hits read is a 500, never 'nothing was mentioned'", async () => {
     st.fail = "tracker_hits";

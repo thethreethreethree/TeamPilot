@@ -92,12 +92,16 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
   const linkRows: Array<{ prospect_id: string; task_id: string }> = [];
   const ids = rows.map((r) => r.id);
   for (let i = 0; i < ids.length; i += 150) {
-    const { data: links, error: lErr } = await db.from("remote_prospect_tasks").select("prospect_id, task_id").in("prospect_id", ids.slice(i, i + 150));
+    // Paged too (review 2026-11-26): 150 deals with many to-dos each can pass the 1000-row reply cap.
+    const { data: links, error: lErr } = await fetchAllPagedResult<{ prospect_id: string; task_id: string; id: number }>(
+      (from, to) => db.from("remote_prospect_tasks").select("prospect_id, task_id, id").in("prospect_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      { label: "prospect to-do links", maxRows: 200_000 },
+    );
     if (lErr) {
       console.error(`[prospects] to-do links failed: ${lErr.message}`);
       return null;
     }
-    linkRows.push(...((links ?? []) as Array<{ prospect_id: string; task_id: string }>));
+    linkRows.push(...(links ?? []));
   }
   const tasks: TaskRow[] = [];
   const taskIds = linkRows.map((l) => l.task_id);
@@ -111,6 +115,11 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
     tasks.push(...((t ?? []) as TaskRow[]));
   }
   const byId = new Map(tasks.map((t) => [String(t.id), t]));
+  const tasksOf = new Map<string, TaskRow[]>();
+  for (const l of linkRows) {
+    const t = byId.get(String(l.task_id));
+    if (t) tasksOf.set(String(l.prospect_id), [...(tasksOf.get(String(l.prospect_id)) ?? []), t]);
+  }
   // Deal sentiment (2026-11-23, dealSentiment.ts) — only for callers that show it; a failed read fails the whole list.
   let sentiment: Map<string, DealSentiment> | null = new Map();
   if (opts.sentiment) {
@@ -120,11 +129,11 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
       return null;
     }
   }
-  return rows.map((r) => ({
-    ...toRow(
-      r,
-      linkRows.filter((l) => l.prospect_id === r.id).flatMap((l) => (byId.has(String(l.task_id)) ? [byId.get(String(l.task_id))!] : [])),
-    ),
+  // OFFSET paging can hand back a row twice when a deal changes mid-read; each deal appears once.
+  const seen = new Set<string>();
+  const unique = rows.filter((r) => (seen.has(String(r.id)) ? false : (seen.add(String(r.id)), true)));
+  return unique.map((r) => ({
+    ...toRow(r, tasksOf.get(String(r.id)) ?? []),
     sentiment: sentiment!.get(String(r.id)) ?? null,
   }));
 }
