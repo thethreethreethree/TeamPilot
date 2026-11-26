@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 
 /** Nested folders on the Library page (0353, F12.6): headed by path, a folder's subfolders after it, and a folder inside an archived one is hidden, not offered. */
 vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
@@ -54,6 +54,36 @@ describe("Library — nested folders", () => {
     expect(screen.getByRole("button", { name: "Restore folder Old" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Restore folder Old / Inner" })).toBeNull();
     expect(screen.getByText("Restore the folder it's in first")).toBeTruthy();
+  });
+
+  it("F13.10: a folder of calls you can open offers Ask the coach, sending that folder's calls; one you can't doesn't", async () => {
+    const posts: unknown[] = [];
+    const locked = { ...item("i9", "z", "Zebra"), sessionId: "s9", canOpenCall: false };
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: { method?: string; body?: string }) => {
+      if (init?.method === "POST") {
+        posts.push({ url, body: JSON.parse(init.body ?? "{}") });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ answer: "They all stall on price.", citations: [] }) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          available: true, isManager: false,
+          items: [item("i1", "a", "Objections"), { ...item("i2", "a", "Objections"), sessionId: "s2" }, locked],
+          folders: [
+            { id: "a", name: "Objections", parentId: null, archived: false, insideArchived: false, canArchive: true },
+            { id: "z", name: "Zebra", parentId: null, archived: false, insideArchived: false, canArchive: true },
+          ],
+        }),
+      });
+    }));
+    render(<LibraryPage />);
+    await screen.findByText("Call i1");
+    expect(screen.queryByRole("form", { name: "Ask about Zebra" })).toBeNull();
+    const form = screen.getByRole("form", { name: "Ask about Objections" });
+    fireEvent.change(form.querySelector("input")!, { target: { value: "What do these have in common?" } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(posts).toEqual([{ url: "/api/coach/remote/ask", body: { question: "What do these have in common?", sessionIds: ["s1", "s2"] } }]));
+    expect(await screen.findByText(/They all stall on price/)).toBeTruthy();
   });
 });
 

@@ -4,6 +4,54 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Archive, Loader2, Play, Pause, Trash2 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer";
+
+/**
+ * Ask the coach about one folder's calls (F13.10, 2026-11-26) — the same Ask Coach as Search (/api/coach/remote/ask,
+ * up to 10 calls, newest first). Offered only when you can open every call in the folder: Ask Coach opens each call
+ * through your own access, and a folder you see by a rep's consent may hold calls you can listen to but not open.
+ */
+function AskFolder({ name, items }: { name: string; items: Item[] }) {
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [answer, setAnswer] = useState<{ text: string; citations: Citation[] } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const sessionIds = [...new Set(items.map((i) => i.sessionId))].slice(0, 10);
+  const more = new Set(items.map((i) => i.sessionId)).size > sessionIds.length;
+  return (
+    <form
+      className="rounded-xl border border-default bg-base/40 p-2 text-xs"
+      aria-label={`Ask about ${name}`}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (q.trim().length < 3) return;
+        setBusy(true);
+        setErr(null);
+        setAnswer(null);
+        try {
+          const r = await fetch("/api/coach/remote/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q.trim(), sessionIds }) });
+          const j = (await r.json().catch(() => ({}))) as { answer?: string | null; citations?: Citation[]; error?: string };
+          if (!r.ok) setErr(j.error ?? "The coach couldn't answer.");
+          else setAnswer({ text: j.answer ?? "The coach isn't answering on this account right now.", citations: j.citations ?? [] });
+        } catch {
+          setErr("Couldn't reach the server.");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label className="block text-[11px] text-muted">
+        Ask the coach about {more ? "the newest 10 calls in this folder" : "the calls in this folder"}
+        <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={2000} placeholder="e.g. What do these calls have in common?" className="mt-1 w-full rounded-lg border border-default bg-surface px-2 py-1.5 text-xs text-primary" />
+      </label>
+      <button type="submit" disabled={busy || q.trim().length < 3} className="mt-1 rounded-lg border border-default px-3 py-1 text-xs text-secondary hover:text-primary disabled:opacity-50">
+        {busy ? "Asking…" : "Ask"}
+      </button>
+      {err && <p role="alert" className="mt-1 text-amber-700 dark:text-amber-300">{err}</p>}
+      {answer && <CitedAnswer text={answer.text} citations={answer.citations} labelFor={(c) => items.find((i) => i.sessionId === c.sessionId)?.callLabel ?? "call"} />}
+    </form>
+  );
+}
 
 /**
  * Sales Coach → Library (RSS Phase 5; docs/rss/docs/06-UI-SPEC.md "Library": Mine and Company).
@@ -184,6 +232,7 @@ export default function LibraryPage() {
                 </button>
               )}
             </div>
+            {items.length > 0 && items.every((i) => i.canOpenCall) && <AskFolder name={folder} items={items} />}
             <ul className="space-y-2">
               {items.map((i) => (
                 <li key={i.id} className="flex items-start gap-3 rounded-2xl border border-default bg-surface p-3">
