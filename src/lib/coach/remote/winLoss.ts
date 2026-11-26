@@ -1,0 +1,66 @@
+/**
+ * Pipeline → win/loss by how deals ran (2026-11-26; Gong ledger F20.10). Win rate = won ÷ (won + lost), closed deals
+ * only, for the pipeline in view — broken down by how many calls a deal had and by its size. Pure, so the arithmetic
+ * is tested.
+ *
+ * HONESTY (§3.4): a rate is shown only from MIN_CLOSED closed deals in that row; below that the row shows its counts and
+ * no rate, because 2 of 3 is not "67%". Deal-size bands are this pipeline's own thirds (by closed deals' amounts), not
+ * fixed dollar lines that would mean different things to different companies; deals with no amount are their own row.
+ */
+export const MIN_CLOSED = 5;
+
+type P = { status: "open" | "won" | "lost"; amount: number | null; callCount: number };
+export type Band = { label: string; won: number; lost: number; winRate: number | null };
+
+function band(label: string, rows: P[]): Band {
+  const won = rows.filter((r) => r.status === "won").length;
+  const lost = rows.filter((r) => r.status === "lost").length;
+  return { label, won, lost, winRate: won + lost >= MIN_CLOSED ? won / (won + lost) : null };
+}
+
+const closedDeals = (ps: P[]) => ps.filter((p) => p.status === "won" || p.status === "lost");
+
+/** Win rate on all closed deals in view (null below MIN_CLOSED). */
+export function overallWinRate(ps: P[]): Band {
+  return band("All closed deals", closedDeals(ps));
+}
+
+/** By how many calls the deal had: none, 1, 2–3, 4–6, 7 or more. Empty rows are left out. */
+export function byCallCount(ps: P[]): Band[] {
+  const c = closedDeals(ps);
+  const groups: Array<[string, (n: number) => boolean]> = [
+    ["No calls", (n) => n === 0],
+    ["1 call", (n) => n === 1],
+    ["2–3 calls", (n) => n >= 2 && n <= 3],
+    ["4–6 calls", (n) => n >= 4 && n <= 6],
+    ["7 or more calls", (n) => n >= 7],
+  ];
+  return groups.map(([label, test]) => band(label, c.filter((p) => test(p.callCount)))).filter((b) => b.won + b.lost > 0);
+}
+
+/**
+ * By deal size, in thirds of this pipeline's closed deals that have an amount: smaller, middle, larger — each label
+ * carries its range. Needs at least 3 such deals to cut; deals with no amount are their own row.
+ */
+export function byDealSize(ps: P[], money: (n: number) => string): Band[] {
+  const c = closedDeals(ps);
+  const withAmount = c.filter((p) => typeof p.amount === "number" && p.amount > 0).sort((a, b) => a.amount! - b.amount!);
+  const noAmount = c.filter((p) => !(typeof p.amount === "number" && p.amount > 0));
+  const out: Band[] = [];
+  if (withAmount.length >= 3) {
+    const t1 = Math.ceil(withAmount.length / 3);
+    const t2 = Math.ceil((2 * withAmount.length) / 3);
+    const parts = [withAmount.slice(0, t1), withAmount.slice(t1, t2), withAmount.slice(t2)];
+    const names = ["Smaller", "Middle", "Larger"];
+    parts.forEach((rows, i) => {
+      if (rows.length === 0) return;
+      const lo = rows[0]!.amount!;
+      const hi = rows[rows.length - 1]!.amount!;
+      out.push(band(`${names[i]} (${lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`})`, rows));
+    });
+  } else if (withAmount.length) {
+    out.push(band("With an amount", withAmount));
+  }
+  if (noAmount.length) out.push(band("No amount set", noAmount));
+  return out;
+}

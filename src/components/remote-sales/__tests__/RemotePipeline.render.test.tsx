@@ -158,5 +158,22 @@ describe("the pipeline", () => {
     expect(asked).toMatch(/from=.*&to=.*&weeks=8/);
     expect(card.textContent).toMatch(/Open pipeline over 8 weeks: \$500 → \$1,500/);
   });
+  it("Sources shows win and loss by number of calls and deal size; a row below 5 closed deals gives no rate (F20.10)", async () => {
+    const closed = [
+      ...[1, 2, 3, 4].map((i) => ({ ...P(`w${i}`, `Won ${i}`, "won", 1000 * i), callCount: 3 })),
+      { ...P("l1", "Lost 1", "lost", 500), callCount: 3 },
+      { ...P("l2", "Lost 2", "lost", null), callCount: 0 },
+    ];
+    respond({ "/api/coach/remote/prospects": { ...MINE, prospects: [{ ...MINE.prospects[0], callCount: 1 }, ...closed] } });
+    render(<RemotePipeline />);
+    await screen.findByText("Pat Prospect");
+    fireEvent.click(screen.getByRole("button", { name: "Sources" }));
+    const calls = await screen.findByRole("table", { name: "By number of calls" }).catch(() => screen.getByLabelText("By number of calls"));
+    expect(calls.textContent).toContain("2–3 calls");
+    expect(calls.textContent).toMatch(/2–3 calls410?80%/); // 4 won, 1 lost → 80%
+    expect(calls.textContent).toMatch(/No calls01too few to read/);
+    expect(screen.getByText(/4 won, 2 lost · 67% overall/)).toBeTruthy();
+    expect(screen.getByLabelText("By deal size").textContent).toContain("No amount set");
+  });
 });
 

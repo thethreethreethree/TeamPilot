@@ -14,6 +14,7 @@ import { addDays, weekStart } from "@/lib/coach/remote/calendar";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
+import { byCallCount, byDealSize, MIN_CLOSED, overallWinRate, type Band } from "@/lib/coach/remote/winLoss";
 import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS, withMovedDates } from "@/lib/coach/remote/dealRisk";
 import { stageFunnel } from "@/lib/coach/remote/pipelineChanges";
 
@@ -820,7 +821,54 @@ function SourcesView({ prospects, failed }: { prospects: Prospect[] | null; fail
         </table>
       </div>
       <p className="text-[11px] text-muted">Win rate counts closed deals only (won ÷ won + lost); “—” means none have closed yet.</p>
+      <WinLossBreakdown prospects={prospects} />
     </section>
+  );
+}
+
+/**
+ * Win/loss by how deals ran (F20.10, 2026-11-26; winLoss.ts): by how many calls a deal had and by its size, for the
+ * pipeline in view. A rate needs MIN_CLOSED closed deals in its row; below that the row shows its counts only.
+ */
+function WinLossBreakdown({ prospects }: { prospects: Prospect[] }) {
+  const ps = prospects.map((p) => ({ status: p.status, amount: p.amount, callCount: p.callCount }));
+  const all = overallWinRate(ps);
+  if (all.won + all.lost === 0) return null;
+  const table = (title: string, rows: Band[]) => (
+    <div className="overflow-x-auto rounded-xl border border-default bg-surface" aria-label={title}>
+      <table className="w-full text-left text-xs">
+        <thead className="text-[10px] uppercase tracking-wide text-muted">
+          <tr>
+            <th className="px-3 py-2 font-medium">{title}</th>
+            <th className="px-3 py-2 text-right font-medium">Won</th>
+            <th className="px-3 py-2 text-right font-medium">Lost</th>
+            <th className="px-3 py-2 text-right font-medium">Win rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label} className="border-t border-default">
+              <td className="px-3 py-2 text-primary">{r.label}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.won}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.lost}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-primary">{r.winRate === null ? <span className="text-muted">too few to read</span> : `${Math.round(r.winRate * 100)}%`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+  return (
+    <div className="space-y-2 pt-2" aria-label="Win and loss by how deals ran">
+      <p className="text-xs font-semibold text-primary">
+        Win and loss by how deals ran · {all.won} won, {all.lost} lost{all.winRate !== null ? ` · ${Math.round(all.winRate * 100)}% overall` : ""}
+      </p>
+      {table("By number of calls", byCallCount(ps))}
+      {table("By deal size", byDealSize(ps, money))}
+      <p className="text-[11px] text-muted">
+        Closed deals only. A rate shows once a row has {MIN_CLOSED} closed deals. Deal sizes are thirds of this pipeline&apos;s own closed deals.
+      </p>
+    </div>
   );
 }
 
