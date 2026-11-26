@@ -26,6 +26,22 @@ export async function loadDealCalls(
   if (lErr) return "failed";
   const ids = ((links ?? []) as Array<{ session_id: string }>).map((l) => l.session_id);
   if (!ids.length) return { calls: [], linked: 0 };
+  const calls = await loadCallsByIds(db, ids, { maxCalls, maxLines });
+  return calls === "failed" ? "failed" : { calls, linked: ids.length };
+}
+
+/**
+ * The newest `maxCalls` phone/video sales calls among `ids`, with their current transcripts (the line budget shared).
+ * Loads transcripts only for the calls kept. The deal reads above and the MCP account ask (several deals) both use it.
+ */
+export async function loadCallsByIds(
+  db: SupabaseClient,
+  ids: string[],
+  opts: { maxCalls?: number; maxLines?: number } = {},
+): Promise<Array<CallLines & { version: number }> | "failed"> {
+  const maxCalls = opts.maxCalls ?? DEAL_CALLS;
+  const maxLines = opts.maxLines ?? DEAL_LINES;
+  if (!ids.length) return [];
   const { data: sess, error: sErr } = await db.from("coaching_sessions").select("id, started_at, audio_started_at, context, session_kind").in("id", ids).order("started_at", { ascending: false });
   if (sErr) return "failed";
   const usable = ((sess ?? []) as Array<{ id: string; started_at: string; audio_started_at: string | null; context: string | null; session_kind: string | null }>)
@@ -38,5 +54,5 @@ export async function loadDealCalls(
     if (loaded === null) return "failed";
     if (loaded.lines.length) calls.push({ sessionId: s.id, startedAt: s.started_at, version: loaded.version, lines: loaded.lines.slice(0, perCall) });
   }
-  return { calls, linked: ids.length };
+  return calls;
 }

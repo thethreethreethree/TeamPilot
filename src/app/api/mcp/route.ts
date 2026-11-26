@@ -3,7 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { authenticateApiKey, recordApiUsage } from "@/lib/api/publicApi";
 import { MCP_TOOLS, runTool, ToolError } from "@/lib/api/mcpTools";
 
-export const maxDuration = 60;
+// generate_brief runs the same AI read as the deal page's brief, which allows 90 seconds.
+export const maxDuration = 90;
 
 /**
  * POST /api/mcp — EloState's MCP server (Engage plan E4; Gong M32 F32.1–F32.4), Streamable HTTP with JSON replies.

@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
-import { DEAL_CALLS, DEAL_LINES, loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
+import { DEAL_CALLS, DEAL_LINES, loadCallsByIds, loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
 import { writeDealBrief } from "@/lib/coach/remote/revenue/dealBriefRun";
 import { basisSessions } from "@/lib/coach/remote/revenue/dealBrief";
 import { callsBlock, type CallLines } from "@/lib/coach/remote/revenue/playbook";
@@ -54,9 +54,6 @@ export const MCP_TOOLS = [
   },
 ] as const;
 
-/** How many of an account's deals an ask reads (the most recently called), and the calls it answers from. */
-export const ACCOUNT_DEALS = 10;
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export class ToolError extends Error {}
 
@@ -102,35 +99,29 @@ async function accountInCompany(admin: SupabaseClient, companyId: string, accoun
 }
 
 /**
- * An account's calls for an AI read: its most recently called deals' calls, merged newest first, the newest DEAL_CALLS
- * kept, trimmed to the same line budget as one deal's, minus any call with an active hide.
+ * An account's calls for an AI read: the newest DEAL_CALLS calls across its deals, minus any with an active hide, with
+ * the same line budget as one deal's. Only those calls' transcripts are loaded.
  */
-export function mergeAccountCalls<C extends CallLines & { version: number }>(perDeal: C[][], maxCalls: number, maxLines: number): C[] {
-  const seen = new Set<string>();
-  const all = perDeal.flat().filter((c) => (seen.has(c.sessionId) ? false : (seen.add(c.sessionId), true)));
-  all.sort((a, b) => (a.startedAt < b.startedAt ? 1 : a.startedAt > b.startedAt ? -1 : 0));
-  const kept = all.slice(0, maxCalls);
-  const perCall = Math.max(60, Math.floor(maxLines / Math.max(1, kept.length)));
-  return kept.map((c) => ({ ...c, lines: c.lines.slice(0, perCall) }));
-}
-
 async function accountCallsForCompany(admin: SupabaseClient, companyId: string, accountId: string): Promise<CallLines[]> {
-  const { data: deals, error } = await admin.from("remote_prospects_current").select("id").eq("company_id", companyId).eq("account_id", accountId).order("last_call_at", { ascending: false, nullsFirst: false }).order("id").limit(ACCOUNT_DEALS);
+  const { data: deals, error } = await admin.from("remote_prospects_current").select("id").eq("company_id", companyId).eq("account_id", accountId).order("created_at", { ascending: false }).order("id").limit(ID_CAP);
   if (error) throw new Error(error.message);
   const hidden = await hiddenInCompanyFrom(admin, companyId, OUTSIDE_READER);
-  const perDeal = [];
-  for (const d of (deals ?? []) as Array<{ id: string }>) {
-    const dc = await loadDealCalls(admin, String(d.id));
-    if (dc === "failed") throw new Error("deal calls");
-    perDeal.push(dc.calls.filter((c) => !hidden.has(c.sessionId)));
-  }
-  return mergeAccountCalls(perDeal, DEAL_CALLS, DEAL_LINES);
+  const ids = (await callIdsOfDeals(admin, companyId, ((deals ?? []) as Array<{ id: string }>).map((d) => String(d.id)))).filter((id) => !hidden.has(id));
+  const calls = await loadCallsByIds(admin, ids, { maxCalls: DEAL_CALLS, maxLines: DEAL_LINES });
+  if (calls === "failed") throw new Error("account calls");
+  return calls;
 }
 
-/** The ids of the calls linked to these deals (company-pinned). */
+/**
+ * Id lists sent in one request stay at ID_CAP: 200 ids is about 7 KB of URL, well inside the gateway's limit (1,000
+ * would be about 37 KB and can be refused).
+ */
+const ID_CAP = 200;
+
+/** The ids of the calls most recently linked to these deals (company-pinned), at most ID_CAP. */
 async function callIdsOfDeals(admin: SupabaseClient, companyId: string, dealIds: string[]): Promise<string[]> {
   if (!dealIds.length) return [];
-  const { data, error } = await admin.from("remote_prospect_calls").select("session_id").eq("company_id", companyId).in("prospect_id", dealIds).order("id").limit(1000);
+  const { data, error } = await admin.from("remote_prospect_calls").select("session_id").eq("company_id", companyId).in("prospect_id", dealIds.slice(0, ID_CAP)).order("id", { ascending: false }).limit(ID_CAP);
   if (error) throw new Error(error.message);
   return [...new Set(((data ?? []) as Array<{ session_id: string }>).map((r) => String(r.session_id)))];
 }
@@ -225,7 +216,7 @@ export async function runTool(admin: SupabaseClient, companyId: string, name: st
       ids = await callIdsOfDeals(admin, companyId, [String(deal.id)]);
     } else if (typeof args.account_id === "string" && args.account_id) {
       const acc = await accountInCompany(admin, companyId, args.account_id);
-      const { data: deals, error } = await admin.from("remote_prospects_current").select("id").eq("company_id", companyId).eq("account_id", acc.id).limit(500);
+      const { data: deals, error } = await admin.from("remote_prospects_current").select("id").eq("company_id", companyId).eq("account_id", acc.id).order("created_at", { ascending: false }).order("id").limit(ID_CAP);
       if (error) throw new Error(error.message);
       ids = await callIdsOfDeals(admin, companyId, ((deals ?? []) as Array<{ id: string }>).map((d) => String(d.id)));
     }
@@ -233,12 +224,12 @@ export async function runTool(admin: SupabaseClient, companyId: string, name: st
     const hidden = await hiddenInCompanyFrom(admin, companyId, OUTSIDE_READER);
     // Read a few past the limit so leaving out hidden calls still fills it in the usual case.
     let q = admin.from("coaching_sessions").select("id, agent_id, context, session_kind, started_at, ended_at, outcome").eq("company_id", companyId).in("context", ["phone", "video"]).order("started_at", { ascending: false }).order("id", { ascending: false }).limit(Math.min(200, limit + hidden.size));
-    if (ids) q = q.in("id", ids.slice(0, 1000));
+    if (ids) q = q.in("id", ids);
     if (since) q = q.gte("started_at", `${since}T00:00:00Z`);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     const rows = ((data ?? []) as Array<{ id: string; agent_id: string; context: string; session_kind: string | null; started_at: string; ended_at: string | null; outcome: string | null }>).filter((c) => !hidden.has(String(c.id))).slice(0, limit);
-    const links = await admin.from("remote_prospect_calls").select("session_id, prospect_id").eq("company_id", companyId).in("session_id", rows.map((r) => r.id)).limit(1000);
+    const links = await admin.from("remote_prospect_calls").select("session_id, prospect_id").eq("company_id", companyId).in("session_id", rows.map((r) => r.id)).limit(ID_CAP);
     if (links.error) throw new Error(links.error.message);
     const dealOf = new Map(((links.data ?? []) as Array<{ session_id: string; prospect_id: string }>).map((l) => [String(l.session_id), String(l.prospect_id)]));
     return JSON.stringify({

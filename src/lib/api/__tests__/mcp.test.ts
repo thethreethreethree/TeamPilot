@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 const st = vi.hoisted(() => ({
   eqs: [] as Array<[string, string, unknown]>, deal: null as unknown, deals: [] as unknown[],
-  hidden: new Set<string>(), sessions: [] as unknown[], dealCalls: { calls: [] as unknown[], linked: 0 }, briefArgs: null as unknown,
+  hidden: new Set<string>(), sessions: [] as unknown[], loadedIds: null as string[] | null, account: null as unknown, links: [] as unknown[], dealCalls: { calls: [] as unknown[], linked: 0 }, briefArgs: null as unknown,
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/publicApi", () => ({
@@ -16,7 +16,7 @@ vi.mock("@/lib/api/publicApi", () => ({
   OUTSIDE_READER: "00000000-0000-0000-0000-000000000000",
 }));
 vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenInCompanyFrom: vi.fn(async () => st.hidden) }));
-vi.mock("@/lib/coach/remote/revenue/dealCalls", () => ({ DEAL_CALLS: 5, DEAL_LINES: 900, loadDealCalls: vi.fn(async () => st.dealCalls) }));
+vi.mock("@/lib/coach/remote/revenue/dealCalls", () => ({ DEAL_CALLS: 5, DEAL_LINES: 900, loadDealCalls: vi.fn(async () => st.dealCalls), loadCallsByIds: vi.fn(async (_d: unknown, ids: string[]) => ((st.loadedIds = ids), [])) }));
 vi.mock("@/lib/coach/remote/revenue/dealBriefRun", () => ({ writeDealBrief: vi.fn(async (_a: unknown, args: unknown) => ((st.briefArgs = args), { brief: { standing: "x", happened: [], risks: [], next: [] }, createdAt: "t", stored: false })) }));
 vi.mock("@/lib/claude", () => ({ mcpAskCoach: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({
@@ -25,14 +25,14 @@ vi.mock("@/lib/supabase/admin", () => ({
       const q: Record<string, unknown> = {};
       for (const m of ["select", "order", "limit", "ilike", "in", "neq", "gte"]) q[m] = () => q;
       q.eq = (c: string, v: unknown) => (st.eqs.push([table, c, v]), q);
-      q.maybeSingle = async () => ({ data: table === "remote_prospects_current" ? st.deal : null, error: null });
-      q.then = (r: (v: unknown) => unknown) => r({ data: table === "remote_prospects_current" ? st.deals : table === "coaching_sessions" ? st.sessions : [], error: null });
+      q.maybeSingle = async () => ({ data: table === "remote_prospects_current" ? st.deal : table === "accounts_current" ? st.account : null, error: null });
+      q.then = (r: (v: unknown) => unknown) => r({ data: table === "remote_prospects_current" ? st.deals : table === "coaching_sessions" ? st.sessions : table === "remote_prospect_calls" ? st.links : [], error: null });
       return q;
     },
   }),
 }));
 import { POST } from "@/app/api/mcp/route";
-import { mergeAccountCalls, resolveCallRefs } from "../mcpTools";
+import { resolveCallRefs } from "../mcpTools";
 const rpc = (method: string, params?: unknown, id = 1) => POST(new Request("http://x/api/mcp", { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id, method, params }) }));
 beforeEach(() => {
   st.eqs = [];
@@ -42,6 +42,9 @@ beforeEach(() => {
   st.sessions = [];
   st.dealCalls = { calls: [], linked: 0 };
   st.briefArgs = null;
+  st.loadedIds = null;
+  st.links = [];
+  st.account = null;
 });
 
 describe("MCP server", () => {
@@ -102,8 +105,13 @@ describe("ask_account, generate_brief, find_calls (E4, completed 2026-11-27)", (
     expect(j.result.isError).toBe(true);
     expect(st.briefArgs).toBeNull();
   });
-  it("an account's calls: merged across deals, newest first, once each, the newest five", () => {
-    const out = mergeAccountCalls([[call("a", "2026-11-01"), call("b", "2026-11-05")], [call("b", "2026-11-05"), call("c", "2026-11-09"), call("d", "2026-10-01"), call("e", "2026-10-02"), call("f", "2026-10-03")]], 5, 900);
-    expect(out.map((c) => c.sessionId)).toEqual(["c", "b", "a", "f", "e"]);
+  it("ask_account loads transcripts only for the account's calls with no hide", async () => {
+    st.deals = [{ id: "d1" }, { id: "d2" }];
+    st.links = [{ session_id: "s1" }, { session_id: "s2" }, { session_id: "s3" }];
+    st.hidden = new Set(["s2"]);
+    st.account = { id: D, name: "Acme" };
+    const j = await (await rpc("tools/call", { name: "ask_account", arguments: { account_id: D, question: "What matters to them?" } })).json();
+    expect(st.loadedIds).toEqual(["s1", "s3"]);
+    expect(JSON.parse(j.result.content[0].text).answer).toMatch(/no call transcripts/);
   });
 });
