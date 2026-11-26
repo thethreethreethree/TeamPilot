@@ -1,4 +1,3 @@
-import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { NextRequest, NextResponse } from "next/server";
 import { hiddenFrom, hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -14,7 +13,7 @@ import {
   type DimScores,
   type JudgedDimension,
 } from "@/lib/coach/gamification/calibration";
-import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
+import { treeAllowsRep, treeFilterRepsChecked } from "@/lib/api/treeAccess";
 
 /**
  * Gamification Phase 6 — the calibration tool (manager-only).
@@ -52,33 +51,10 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
   // 1) Sessions in the company that HAVE model scores (an after_pitch) — the calibration pool.
-  // Paged, newest first, and THEN filtered to this manager's tree and hides (2026-11-26): an unordered company-wide 500
-  // could leave a manager's own team out of their pool, and a failed read was taken as "no scored calls".
-  const { data: aps, error: apErr } = await fetchAllPagedResult<{ session_id: string; payload: unknown; id: string }>(
-    (from, to) =>
-      admin
-        .from("after_pitch_summaries")
-        .select("session_id, payload, id, created_at")
-        .eq("company_id", mgr.companyId)
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false })
-        .range(from, to),
-    { label: "calibration pool", maxRows: 5_000 },
-  );
-  if (apErr) {
-    console.error(`[calibration] pool read failed company=${mgr.companyId}: ${apErr.message}`);
-    return NextResponse.json({ error: "Couldn't load calibration." }, { status: 500 });
-  }
-  // Reporting tree (RSS Phase 0 step 8): the pool is read with the service role, so it keeps only sessions of
-  // reps this manager may see. Not on the tree yet → the whole company, as today.
-  const poolIds = [...new Set((aps ?? []).map((a) => String(a.session_id)))];
-  const { data: poolSessions } = poolIds.length
-    ? await admin.from("coaching_sessions").select("id, agent_id").eq("company_id", mgr.companyId).in("id", poolIds)
-    : { data: [] as Array<{ id: string; agent_id: string }> };
-  const agentBySession = new Map((poolSessions ?? []).map((s) => [String(s.id), String(s.agent_id)]));
-  const visibleAgents = new Set(await treeFilterReps(req, [...new Set(agentBySession.values())]));
-  // 0337: a call a company phrase hid from this manager never enters the pool — its transcript would be served as
-  // "next to score". The database's verdict; a failed check is a 500 (never a transcript it couldn't clear).
+  // Newest first, page by page, each page narrowed to this manager's tree and hides BEFORE it counts (2026-11-26): an
+  // unordered company-wide 500 could leave a manager's own team out. Stops at POOL_TARGET kept or SCAN_PAGES read (a
+  // large company is a bounded scan, not a 500), and every read's failure is a 500 — never an empty pool.
+  // 0337: a call a company phrase hid from this manager never enters the pool. The database's verdict.
   let hidden: Set<string>;
   try {
     hidden = await hiddenInCompanyFrom(admin, mgr.companyId, mgr.userId);
@@ -86,14 +62,48 @@ export async function GET(req: NextRequest) {
     console.error(`[calibration] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
     return NextResponse.json({ error: "Couldn't load calibration." }, { status: 500 });
   }
+  const POOL_TARGET = 500;
+  const SCAN_PAGE = 500;
+  const SCAN_PAGES = 10;
+  const failed = (what: string, msg: string) => {
+    console.error(`[calibration] ${what} failed company=${mgr.companyId}: ${msg}`);
+    return NextResponse.json({ error: "Couldn't load calibration." }, { status: 500 });
+  };
   const modelBySession = new Map<string, DimScores>();
-  for (const a of aps ?? []) {
-    const agent = agentBySession.get(String(a.session_id));
-    if (!agent || !visibleAgents.has(agent) || hidden.has(String(a.session_id))) continue;
-    const m = modelScores(a.payload);
-    if (Object.keys(m).length > 0 && !modelBySession.has(String(a.session_id))) {
-      modelBySession.set(String(a.session_id), m);
+  const agentBySession = new Map<string, string>();
+  const treeVerdict = new Map<string, boolean>();
+  for (let page = 0; page < SCAN_PAGES && modelBySession.size < POOL_TARGET; page += 1) {
+    const { data: aps, error: apErr } = await admin
+      .from("after_pitch_summaries")
+      .select("session_id, payload, id, created_at")
+      .eq("company_id", mgr.companyId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(page * SCAN_PAGE, page * SCAN_PAGE + SCAN_PAGE - 1);
+    if (apErr) return failed("pool read", apErr.message);
+    const rows = (aps ?? []) as Array<{ session_id: string; payload: unknown }>;
+    const ids = [...new Set(rows.map((a) => String(a.session_id)))].filter((id) => !agentBySession.has(id));
+    for (let i = 0; i < ids.length; i += 150) {
+      const { data: ss, error: sErr } = await admin.from("coaching_sessions").select("id, agent_id").eq("company_id", mgr.companyId).in("id", ids.slice(i, i + 150));
+      if (sErr) return failed("pool sessions", sErr.message);
+      for (const x of (ss ?? []) as Array<{ id: string; agent_id: string }>) agentBySession.set(String(x.id), String(x.agent_id));
     }
+    const unknown = [...new Set(ids.map((id) => agentBySession.get(id)).filter((x): x is string => !!x))].filter((a) => !treeVerdict.has(a));
+    if (unknown.length) {
+      const allowed = await treeFilterRepsChecked(req, unknown);
+      if (allowed === null) return failed("tree check", "rss_tree_filter");
+      const ok = new Set(allowed);
+      for (const a of unknown) treeVerdict.set(a, ok.has(a));
+    }
+    for (const a of rows) {
+      const sid = String(a.session_id);
+      const agent = agentBySession.get(sid);
+      if (!agent || !treeVerdict.get(agent) || hidden.has(sid) || modelBySession.has(sid)) continue;
+      const m = modelScores(a.payload);
+      if (Object.keys(m).length > 0) modelBySession.set(sid, m);
+      if (modelBySession.size >= POOL_TARGET) break;
+    }
+    if (rows.length < SCAN_PAGE) break;
   }
 
   // 2) This manager's blind scores so far.

@@ -57,3 +57,26 @@ export async function treeFilterReps(req: Request, repIds: readonly string[]): P
     return [];
   }
 }
+
+/**
+ * Like treeFilterReps, but null when the tree couldn't be asked (review 2026-11-26): a route that shows a TEAM must say
+ * "couldn't load" rather than show an empty team, which reads as "no data" (§3.4). A missing function (0273 not applied)
+ * is still "everyone", as treeFilterReps.
+ */
+export async function treeFilterRepsChecked(req: Request, repIds: readonly string[]): Promise<string[] | null> {
+  if (repIds.length === 0) return [];
+  try {
+    const db = await callerDb(req);
+    const { data, error } = await db.rpc("rss_tree_filter", { reps: [...repIds] });
+    if (error) {
+      if (MISSING_FUNCTION.has(String(error.code))) return [...repIds];
+      console.error(`[treeAccess] rss_tree_filter failed: ${error.message}`);
+      return null;
+    }
+    const allowed = new Set(((data ?? []) as string[]).map(String));
+    return repIds.filter((id) => allowed.has(id));
+  } catch (err) {
+    console.error("[treeAccess] rss_tree_filter threw:", err);
+    return null;
+  }
+}

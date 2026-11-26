@@ -12,6 +12,9 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+// 0273: the reporting tree — allowed unless a test says the member is outside the caller's chain.
+const tree = vi.hoisted(() => ({ allowed: true }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed) }));
 import { GET, POST } from "../route";
 
 const setCaller = (userId: string | null, profile: unknown) =>
@@ -75,6 +78,16 @@ describe("POST /team — role-grant gate", () => {
     expect(captured.patch).toEqual({ sales_coach_role: "admin" });
     expect(captured.eqs).toContainEqual({ col: "id", val: ID });
     expect(captured.eqs).toContainEqual({ col: "company_id", val: "co1" }); // tenant scope on the write
+  });
+
+  it("404 for a member outside the manager's reporting tree — nothing written (review 2026-11-26)", async () => {
+    setCaller("boss", MANAGER);
+    mockAdmin([{ id: ID }]);
+    tree.allowed = false;
+    const res = await POST(postReq({ id: ID, salesCoachRole: "staff" }));
+    tree.allowed = true;
+    expect(res.status).toBe(404);
+    expect(captured.patch).toBeFalsy(); // no role change reached the database
   });
 
   it("404 when the target isn't in the manager's company (0 rows — no phantom success)", async () => {

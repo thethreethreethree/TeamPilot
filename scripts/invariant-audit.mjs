@@ -2456,8 +2456,6 @@ const TREE_ROUTE_ALLOWLIST = new Map([
     "Opens the call through the caller's client (getSession — RLS applies the tree) before reading or writing its why-events."],
   ["src/app/api/coach/sales-session/team-analytics/route.ts",
     "Company aggregates only — anonymous totals and a count of active coaches, no per-rep row (A18); nothing names a rep."],
-  ["src/app/api/coach/sales-session/team/route.ts",
-    "The roster (names, roles, invitations) of the company — who is on the team, not their calls or coaching; managers assign and invite from it."],
   ["src/app/api/coach/sales-session/corpus/route.ts",
     "A company setting (the coaching corpus); the service role reads profiles only to check the caller's role. No rep data."],
   ["src/app/api/coach/sales-session/product/route.ts",
@@ -2477,7 +2475,7 @@ for (const f of FILES) {
   // and team activity, skills, ELO) decided "manager" with isSalesCoachManager / canManagerViewRepSkills and so were never
   // checked, and none asked the tree.
   if (!MANAGER_CHECK_RE.test(f.sql) || !/createAdminClient\(/.test(f.sql)) continue;
-  if (/treeAllowsRep\(|treeFilterReps\(/.test(f.sql)) continue;
+  if (/treeAllowsRep\(|treeFilterReps(Checked)?\(/.test(f.sql)) continue;
   if (TREE_ROUTE_ALLOWLIST.has(f.path)) continue;
   findings.push({
     rule: "Manager route uses the service role without asking the reporting tree",

@@ -10,6 +10,7 @@ vi.mock("@/lib/api/treeAccess", () => ({
   // RSS Phase 0 step 8: pass-through here (not on the tree); the tree refusal has its own cases.
   treeAllowsRep: vi.fn(async () => true),
   treeFilterReps: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
+  treeFilterRepsChecked: vi.fn(async (_req: unknown, ids: readonly string[]) => [...ids]),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 // 0337: no hidden calls unless a test says so; the verdict itself is tested in hidePhrases.test.ts.
@@ -209,8 +210,8 @@ describe("POST — another company's session", () => {
  */
 describe("reporting tree", () => {
   it("a session whose rep the manager may not see is left out of the pool", async () => {
-    const { treeFilterReps } = await import("@/lib/api/treeAccess");
-    (treeFilterReps as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
+    const { treeFilterRepsChecked } = await import("@/lib/api/treeAccess");
+    (treeFilterRepsChecked as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
     setAuth({ userId: "mgr", companyId: "c1", role: "CEO", isAdmin: true });
     setTables({
       after_pitch_summaries: { data: [{ session_id: "s1", payload: { scores: [{ key: "opener", score: 8 }] } }] },

@@ -7,7 +7,7 @@ import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { treeAllowsRep, treeFilterReps } from "@/lib/api/treeAccess";
+import { treeAllowsRep, treeFilterRepsChecked } from "@/lib/api/treeAccess";
 import { buildUsage, mergeSignIns, type UsageEvent } from "@/lib/coach/remote/usage";
 
 /**
@@ -42,7 +42,9 @@ export async function GET(req: NextRequest) {
     { label: "usage people", maxRows: 50_000 },
   );
   if (pErr) return fail("profiles", pErr.message);
-  const visible = new Set(await treeFilterReps(req, ((profs ?? []) as Array<{ id: string }>).map((p) => p.id)));
+  const treeIds = await treeFilterRepsChecked(req, ((profs ?? []) as Array<{ id: string }>).map((p) => p.id));
+  if (treeIds === null) return fail("tree check", "rss_tree_filter"); // not "only you" (review 2026-11-26)
+  const visible = new Set(treeIds);
   visible.add(mgr.userId);
   const members = ((profs ?? []) as Array<{ id: string; full_name: string | null }>)
     .filter((p) => visible.has(p.id) && inTeam(p.id))

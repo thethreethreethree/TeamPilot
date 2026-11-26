@@ -1,4 +1,4 @@
-import { treeFilterReps } from "@/lib/api/treeAccess";
+import { treeFilterRepsChecked } from "@/lib/api/treeAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -59,7 +59,9 @@ export async function GET(req: NextRequest) {
 
   // 0273 (2026-11-26): only reps in this manager's reporting tree — the database's rule (treeFilterReps), which RLS
   // applies everywhere else; this read uses the service role. Before, a manager saw every rep's activity company-wide.
-  const allowed = new Set(await treeFilterReps(req, [...new Set(rows.map((r) => r.agent_id).filter((x): x is string => !!x))]));
+  const treeIds = await treeFilterRepsChecked(req, [...new Set(rows.map((r) => r.agent_id).filter((x): x is string => !!x))]);
+  if (treeIds === null) return NextResponse.json({ error: "Couldn't load team activity." }, { status: 500 });
+  const allowed = new Set(treeIds);
   const byAgent: Record<string, { count: number; lastActiveAt: string; withAudio: number }> = {};
   for (const r of rows) {
     const id = r.agent_id;

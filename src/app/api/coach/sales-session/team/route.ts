@@ -1,3 +1,4 @@
+import { treeAllowsRep } from "@/lib/api/treeAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -126,6 +127,15 @@ export async function POST(req: NextRequest) {
       { error: "Only a Sales Coach admin (or a company admin) can manage the team." },
       { status: 403 }
     );
+  }
+
+  // 0273 (review 2026-11-26): a manager changes the role only of someone in their reporting tree — the database's rule
+  // (treeAllowsRep; company admins and companies not on the tree: everyone, as before). Same-company alone let a
+  // tree-limited manager make any member without a manager "staff", which switches the company OFF the tree (0287
+  // rss_tree_blockers) and with it every manager's narrowing. Members in the caller's chain have a manager, so changing
+  // them can't. Your own role is yours to change.
+  if (body.id !== ctx.userId && !(await treeAllowsRep(req, body.id))) {
+    return NextResponse.json({ error: "That member isn't in your team." }, { status: 404 });
   }
 
   // Service-role update, scoped to the manager's company so a manager

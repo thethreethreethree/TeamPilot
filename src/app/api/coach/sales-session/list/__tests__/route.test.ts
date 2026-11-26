@@ -20,8 +20,8 @@ vi.mock("@/lib/coach/remote/hidePhrases", () => ({
 }));
 
 // 0273: the reporting tree (treeFilterReps — the database's rule); reps in `tree.out` are outside this manager's chain.
-const tree = vi.hoisted(() => ({ out: new Set<string>() }));
-vi.mock("@/lib/api/treeAccess", () => ({ treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => ids.filter((i) => !tree.out.has(i))) }));
+const tree = vi.hoisted(() => ({ out: new Set<string>(), fail: false }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeFilterRepsChecked: vi.fn(async (_r: unknown, ids: string[]) => (tree.fail ? null : ids.filter((i) => !tree.out.has(i)))) }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -67,6 +67,7 @@ const MANAGER = { role: "admin", company_id: "co1", sales_coach_role: null };
 beforeEach(() => {
   vi.clearAllMocks();
   tree.out = new Set();
+  tree.fail = false;
   eqCalls = [];
   notCalls = [];
   mockAdmin();
@@ -287,6 +288,14 @@ describe("GET /list — paged badge + signal reads (truncation-class fix, R3)", 
     const body = await (await GET(req())).json();
     expect(body.sessions.map((x: { id: string }) => x.id)).toEqual(["s1"]);
     expect(body.truncated).toBe(false);
+  });
+  it("a tree check that can't be answered is degraded, never an empty list (review 2026-11-26)", async () => {
+    setCaller("boss", MANAGER);
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(richAdmin({ sessions: [session({ id: "s1", agent_id: "rep1" })] }));
+    tree.fail = true;
+    const body = await (await GET(req())).json();
+    tree.fail = false;
+    expect(body).toEqual({ degraded: true });
   });
   it("a rep's own list isn't hide-checked — the rep always sees their own calls (0337)", async () => {
     setCaller("rep1", REP);

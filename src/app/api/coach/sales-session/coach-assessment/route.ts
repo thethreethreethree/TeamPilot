@@ -1,4 +1,4 @@
-import { treeFilterReps } from "@/lib/api/treeAccess";
+import { treeFilterRepsChecked } from "@/lib/api/treeAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { nonSalesSubjects, subjectsNotIn } from "@/lib/coach/v5/nonSalesSubjects";
 import { createClient } from "@/lib/supabase/server";
@@ -108,7 +108,9 @@ export async function GET(req: NextRequest) {
   // applies everywhere else; this route reads with the service role, so a manager outside a rep's chain used to see
   // that rep's coaching here. Not on the tree (or a company admin) → everyone, as before.
   const allProfs = (profs ?? []) as { id: string; full_name: string | null; role: string | null }[];
-  const inTree = new Set(await treeFilterReps(req, allProfs.map((a) => a.id)));
+  const treeIds = await treeFilterRepsChecked(req, allProfs.map((a) => a.id));
+  if (treeIds === null) return NextResponse.json({ degraded: true }); // like every other failed read here (§3.4)
+  const inTree = new Set(treeIds);
   const agents = allProfs.filter((a) => inTree.has(a.id));
   const roleById = new Map(agents.map((a) => [a.id, a.role]));
 

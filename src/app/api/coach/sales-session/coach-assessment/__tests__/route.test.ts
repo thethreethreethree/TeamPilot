@@ -11,7 +11,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 // cookie caller it always was and the gate is measured on the SAME path it was written for.
 vi.mock("@/lib/api/callerScopedDb", () => ({ callerScopedDb: vi.fn(() => null) }));
 // 0273: the reporting tree — everyone allowed here; the rule itself is tested in treeAccess and pinned by invariant 36.
-vi.mock("@/lib/api/treeAccess", () => ({ treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => ids) }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeFilterRepsChecked: vi.fn(async (_r: unknown, ids: string[]) => ids) }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";

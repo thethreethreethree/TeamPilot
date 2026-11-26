@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
-import { treeFilterReps } from "@/lib/api/treeAccess";
+import { treeFilterRepsChecked } from "@/lib/api/treeAccess";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { readIssueFor } from "@/lib/coach/v5/readIssue";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
@@ -145,12 +145,16 @@ export async function GET(req: Request) {
     if (ctx.isManager) {
       const unknown = [...new Set(batch.map((r) => String(r.agent_id)))].filter((id) => !treeVerdict.has(id));
       if (unknown.length) {
-        const allowed = new Set(await treeFilterReps(req, unknown));
+        // A tree check that can't be answered is "degraded" (an honest unavailable), never an empty list (review 2026-11-26).
+        const checked = await treeFilterRepsChecked(req, unknown);
+        if (checked === null) return NextResponse.json({ degraded: true });
+        const allowed = new Set(checked);
         for (const id of unknown) treeVerdict.set(id, allowed.has(id));
       }
     }
     for (const r of batch) {
       if (hiddenSet.has(String(r.id))) continue;
+      if (sessions.some((x) => x.id === r.id)) continue; // a call that arrived mid-scan shifts OFFSET pages by one
       if (ctx.isManager && !treeVerdict.get(String(r.agent_id))) continue;
       if (sessions.length === SHOWN) {
         truncated = true;

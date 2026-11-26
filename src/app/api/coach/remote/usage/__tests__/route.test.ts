@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn() }));
-vi.mock("@/lib/api/treeAccess", () => ({ treeFilterReps: vi.fn() }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeFilterRepsChecked: vi.fn() }));
 type Res = { data: unknown; error: unknown };
 const st = vi.hoisted(() => ({ reads: {} as Record<string, Res>, filters: [] as Array<[string, string, unknown]>, rpcArgs: null as Record<string, unknown> | null }));
 vi.mock("@/lib/supabase/admin", () => ({
@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { treeFilterReps } from "@/lib/api/treeAccess";
+import { treeFilterRepsChecked } from "@/lib/api/treeAccess";
 import { GET } from "../route";
 
 const req = () => new Request("http://x/api") as never;
@@ -33,7 +33,7 @@ const recent = new Date(Date.now() - 86_400_000).toISOString();
 
 beforeEach(() => {
   vi.mocked(requireSalesCoachManager).mockResolvedValue({ userId: "m", companyId: "co1" });
-  vi.mocked(treeFilterReps).mockResolvedValue(["r1"]);
+  vi.mocked(treeFilterRepsChecked).mockResolvedValue(["r1"]);
   st.filters = [];
   st.reads = {
     profiles: { data: [{ id: "m", full_name: "Mia" }, { id: "r1", full_name: "Rob" }, { id: "r9", full_name: "Other team" }], error: null },
