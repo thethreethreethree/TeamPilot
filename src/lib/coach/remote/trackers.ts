@@ -6,14 +6,17 @@ export type Speaker = 'rep' | 'customer' | 'unknown';
 export interface Segment { speaker: Speaker; startMs: number | null; text: string; seq?: number }
 
 /** `within_first_seconds` (0335): count only lines said in the first N seconds of the call; null/absent = the whole call. */
-export interface KeywordTracker { id: string; name: string; phrases: string[]; side: 'rep' | 'customer' | 'any'; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null }
+export interface KeywordTracker { id: string; name: string; phrases: string[]; side: 'rep' | 'customer' | 'any'; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null; channels?: string[] | null }
 
 /**
  * Whether a tracker counts on a call that started at `callStartIso` (0344, F11.5): on or after its start date, and no
- * later than the end of its end date (UTC calendar days, as stored). No dates → always. A call with no known start can't
+ * later than the end of its end date (UTC calendar days, as stored); and (0361) of one of its call types, when it has
+ * any. No dates → always. A call with no known start can't
  * be placed, so a dated tracker leaves it out.
  */
-export function trackerAppliesTo(t: { starts_on?: string | null; ends_on?: string | null }, callStartIso: string | null | undefined): boolean {
+export function trackerAppliesTo(t: { starts_on?: string | null; ends_on?: string | null; channels?: string[] | null }, callStartIso: string | null | undefined, channel?: string | null): boolean {
+  // 0361 (F11.3): a tracker limited to call types counts only on those. A call of unknown type can't be placed.
+  if (t.channels && t.channels.length && (!channel || !t.channels.includes(channel))) return false;
   if (!t.starts_on && !t.ends_on) return true;
   const at = callStartIso ? Date.parse(callStartIso) : NaN;
   if (!Number.isFinite(at)) return false;

@@ -1,3 +1,4 @@
+import { trackerAppliesTo } from "./trackers";
 /**
  * Message adoption (2026-11-23; ledger F18.1/F18.2 "Initiative board / adoption calculation", graded LACK). A keyword
  * tracker names a message the team should be saying ("the new bundle", "ask about the decision date"). Adoption is the
@@ -9,7 +10,9 @@
  * transcript version (the newest stats version — re-analysed after a trim or correction) has a hit, so a mention a
  * correction removed no longer counts.
  */
-export type AdoptionCall = { sessionId: string; repId: string; startedAt: string; version: number };
+export type AdoptionCall = { sessionId: string; repId: string; startedAt: string; version: number; channel?: string | null };
+/** What a tracker listens to (0344 dates, 0361 call types): adoption counts only the calls it applies to. */
+export type TrackerScope = { starts_on?: string | null; ends_on?: string | null; channels?: string[] | null };
 export type AdoptionHit = { sessionId: string; version: number };
 export type RepAdoption = { repId: string; calls: number; said: number; rate: number | null };
 export type WeekAdoption = { weekStart: string; calls: number; said: number; rate: number | null };
@@ -23,9 +26,11 @@ export function weekOf(iso: string): string {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow)).toISOString().slice(0, 10);
 }
 
-export function computeAdoption(trackerCreatedAt: string, calls: AdoptionCall[], hits: AdoptionHit[]) {
+export function computeAdoption(trackerCreatedAt: string, calls: AdoptionCall[], hits: AdoptionHit[], scope: TrackerScope = {}) {
   const since = Date.parse(trackerCreatedAt);
-  const counted = calls.filter((c) => Date.parse(c.startedAt) >= since);
+  // Only calls the tracker listens to (2026-11-26): a call outside its dates or call types could never be a hit, so
+  // counting it as "didn't say it" lowered the rate — a tracker that ended kept sinking with every later call.
+  const counted = calls.filter((c) => Date.parse(c.startedAt) >= since && trackerAppliesTo(scope, c.startedAt, c.channel ?? null));
   const said = new Set(hits.map((h) => `${h.sessionId}|${h.version}`));
   const saidIt = (c: AdoptionCall) => said.has(`${c.sessionId}|${c.version}`);
 

@@ -23,7 +23,7 @@ export async function scanSmartTrackers(sessionId: string, client?: SupabaseClie
     const { data: s } = await admin.from("coaching_sessions").select("id, company_id, agent_id, context, session_kind, started_at, audio_started_at").eq("id", sessionId).maybeSingle();
     if (!s || !isRemoteContext(s.context) || !isSalesCall((s.session_kind as string | null) ?? "sales")) return 0;
     const companyId = String(s.company_id);
-    let tq = admin.from("keyword_trackers_live").select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on").eq("company_id", companyId).eq("kind", "smart"); // 0352: live only
+    let tq = admin.from("keyword_trackers_live").select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on, channels").eq("company_id", companyId).eq("kind", "smart"); // 0352: live only
     if (opts.onlyTrackerId) tq = tq.eq("id", opts.onlyTrackerId);
     // The route caps active smart trackers at MAX_SMART_TRACKERS; oldest first so an over-cap race drops the newest.
     const { data: tr, error: tErr } = await tq.order("created_at", { ascending: true }).limit(MAX_SMART_TRACKERS);
@@ -32,8 +32,8 @@ export async function scanSmartTrackers(sessionId: string, client?: SupabaseClie
       return null;
     }
     // A dated tracker (0344) counts only on calls inside its dates — filtered before any AI call is made.
-    const trackers: SmartTracker[] = ((tr ?? []) as Array<{ id: string; name: string; phrases: string[]; side: SmartTracker["side"]; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null }>)
-      .filter((t) => trackerAppliesTo(t, (s.started_at as string | null) ?? null))
+    const trackers: SmartTracker[] = ((tr ?? []) as Array<{ id: string; name: string; phrases: string[]; side: SmartTracker["side"]; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null; channels?: string[] | null }>)
+      .filter((t) => trackerAppliesTo(t, (s.started_at as string | null) ?? null, (s.context as string | null) ?? null))
       .map((t) => ({
       id: String(t.id),
       name: t.name,

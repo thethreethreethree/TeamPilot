@@ -34,7 +34,7 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
     const { data: trackerRows, error: tErr } = await admin
       // 0352: live trackers only — on, and not a draft (the view is the one definition of "live").
       .from("keyword_trackers_live")
-      .select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on")
+      .select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on, channels")
       .eq("company_id", companyId);
     if (tErr) {
       console.error(`[trackerScan] trackers read failed company=${companyId}: ${tErr.message}`);
@@ -43,7 +43,7 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
     // Smart trackers (0329) are matched by meaning in smartTrackerScan.ts, never as phrases here.
     // Smart trackers are matched elsewhere; a dated tracker (0344) counts only on calls inside its dates.
     const trackers = ((trackerRows ?? []) as Array<KeywordTracker & { kind?: string }>).filter(
-      (t) => (t.kind ?? "keyword") !== "smart" && trackerAppliesTo(t, (s.started_at as string | null) ?? null),
+      (t) => (t.kind ?? "keyword") !== "smart" && trackerAppliesTo(t, (s.started_at as string | null) ?? null, (s.context as string | null) ?? null),
     );
     if (trackers.length === 0) return 0;
 

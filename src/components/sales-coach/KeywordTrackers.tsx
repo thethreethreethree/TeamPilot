@@ -16,7 +16,11 @@ import { AdoptionBoard } from "./AdoptionBoard";
  * any words. Saving one reads the last calls for it in the background (the route), so there is no preview or scan.
  */
 type Kind = "keyword" | "smart";
-type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; draft?: boolean; kind?: Kind; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null };
+type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; draft?: boolean; kind?: Kind; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null; channels?: string[] | null };
+/** 0361 (F11.3): which call types a tracker listens to. "both" is stored as no limit. */
+type Channels = "both" | "phone" | "video";
+const channelsBody = (c: Channels) => (c === "both" ? null : [c]);
+const channelsLabel = (t: Tracker) => (t.channels?.length === 1 ? ` · ${t.channels[0] === "phone" ? "phone" : "video"} calls only` : "");
 /** 0344 (F11.5): "from 1 Dec" / "until 31 Dec" / "1–31 Dec"; future start = scheduled. */
 const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 function datesLabel(t: Tracker): string {
@@ -53,6 +57,7 @@ export function KeywordTrackers() {
   const [windowMin, setWindowMin] = useState("");
   const [startsOn, setStartsOn] = useState("");
   const [endsOn, setEndsOn] = useState("");
+  const [channels, setChannels] = useState<Channels>("both");
   const windowMinutes = (): number | null | "bad" => {
     if (!windowMin.trim()) return null;
     const n = Number(windowMin);
@@ -75,7 +80,7 @@ export function KeywordTrackers() {
       const r = await fetch("/api/coach/remote/trackers/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phrases: list, side, withinFirstMinutes: windowMinutes() === "bad" ? null : windowMinutes(), startsOn: startsOn || null, endsOn: endsOn || null }),
+        body: JSON.stringify({ phrases: list, side, withinFirstMinutes: windowMinutes() === "bad" ? null : windowMinutes(), startsOn: startsOn || null, endsOn: endsOn || null, channels: channelsBody(channels) }),
       });
       const j = (await r.json().catch(() => ({}))) as { preview?: Preview; error?: string };
       if (!r.ok || !j.preview) throw new Error(j.error ?? "Couldn't preview the tracker.");
@@ -124,7 +129,7 @@ export function KeywordTrackers() {
     setBusy(true);
     setMsg(null);
     try {
-      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind, withinFirstMinutes: w, startsOn: startsOn || null, endsOn: endsOn || null, ...(draft ? { draft: true } : {}) });
+      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind, withinFirstMinutes: w, startsOn: startsOn || null, endsOn: endsOn || null, channels: channelsBody(channels), ...(draft ? { draft: true } : {}) });
       if (!ok) return setMsg(j.error ?? "Couldn't save the tracker.");
       setName("");
       setPhrases("");
@@ -132,6 +137,7 @@ export function KeywordTrackers() {
       setWindowMin("");
       setStartsOn("");
       setEndsOn("");
+      setChannels("both");
       setPreview(null);
       setMsg(
         draft
@@ -185,6 +191,7 @@ export function KeywordTrackers() {
     setWindowMin(t.within_first_seconds ? String(Math.round((t.within_first_seconds / 60) * 10) / 10) : "");
     setStartsOn(t.starts_on ?? "");
     setEndsOn(t.ends_on ?? "");
+    setChannels(t.channels?.length === 1 ? (t.channels[0] as Channels) : "both");
     setPreview(null);
     setMsg(`Copied "${t.name}" into the form below — change it, preview it, then save it as a new draft or put it live. Switch the old draft off when you're done.`);
   };
@@ -236,7 +243,8 @@ export function KeywordTrackers() {
                   <span className="text-xs text-muted">
                     {t.active ? SIDE[t.side] : "Switched off"}
                     {t.within_first_seconds ? ` · first ${Math.round((t.within_first_seconds / 60) * 10) / 10} min` : ""}
-                    {datesLabel(t)} ·{" "}
+                    {datesLabel(t)}
+                    {channelsLabel(t)} ·{" "}
                     {t.kind === "smart" ? t.phrases.map((p) => `“${p}”`).join(" ") : t.phrases.join(", ")}
                   </span>
                   <button
@@ -346,6 +354,15 @@ export function KeywordTrackers() {
                   className="mt-1 w-full rounded-lg border border-default bg-base p-2 text-sm text-primary"
                 />
                 <span className="mt-0.5 block text-[11px]">e.g. 2 — for a disclosure that must come early. Lines with no time aren&apos;t counted.</span>
+              </label>
+              <label className="text-xs text-muted">
+                Call types
+                <select value={channels} onChange={(e) => setChannels(e.currentTarget.value as Channels)} aria-label="Call types" className="mt-1 w-full rounded-lg border border-default bg-base p-2 text-sm text-primary">
+                  <option value="both">Phone and video calls</option>
+                  <option value="phone">Phone calls only</option>
+                  <option value="video">Video calls only</option>
+                </select>
+                <span className="mt-0.5 block text-[11px]">e.g. &ldquo;share my screen&rdquo; belongs to video calls; a phone call that never says it isn&apos;t a miss.</span>
               </label>
               <label className="text-xs text-muted">
                 Start date (optional)

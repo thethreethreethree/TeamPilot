@@ -14,9 +14,9 @@ const CHUNK = 100;
 export type AdoptionInputs = { sessionsInWindow: number; calls: AdoptionCall[]; hitsByTracker: Map<string, AdoptionHit[]> };
 
 export async function readAdoptionInputs(db: SupabaseClient, trackerIds: string[], since: string): Promise<AdoptionInputs | null> {
-  const sessions = await fetchAllPagedResult<{ id: string; agent_id: string; started_at: string }>(
+  const sessions = await fetchAllPagedResult<{ id: string; agent_id: string; started_at: string; context: string | null }>(
     (from, to) =>
-      db.from("coaching_sessions").select("id, agent_id, started_at").in("context", [...REMOTE_CONTEXTS]).gte("started_at", since).order("started_at", { ascending: true }).order("id", { ascending: true }).range(from, to),
+      db.from("coaching_sessions").select("id, agent_id, started_at, context").in("context", [...REMOTE_CONTEXTS]).gte("started_at", since).order("started_at", { ascending: true }).order("id", { ascending: true }).range(from, to),
     { label: "adoption sessions" },
   );
   if (sessions.error) return null;
@@ -46,6 +46,6 @@ export async function readAdoptionInputs(db: SupabaseClient, trackerIds: string[
   }
   const calls = rows
     .filter((r) => versionOf.has(r.id))
-    .map((r) => ({ sessionId: r.id, repId: r.agent_id, startedAt: r.started_at, version: versionOf.get(r.id)! }));
+    .map((r) => ({ sessionId: r.id, repId: r.agent_id, startedAt: r.started_at, version: versionOf.get(r.id)!, channel: r.context ?? null }));
   return { sessionsInWindow: rows.length, calls, hitsByTracker };
 }

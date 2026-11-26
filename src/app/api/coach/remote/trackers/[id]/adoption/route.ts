@@ -30,7 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Couldn't work out adoption for this tracker." }, { status: 500 });
   };
 
-  const { data: tracker, error: tErr } = await db.from("keyword_trackers").select("id, name, created_at").eq("id", id).maybeSingle();
+  const { data: tracker, error: tErr } = await db.from("keyword_trackers").select("id, name, created_at, starts_on, ends_on, channels").eq("id", id).maybeSingle();
   if (tErr) return fail("tracker", tErr.message);
   if (!tracker) return NextResponse.json({ error: "Tracker not found." }, { status: 404 });
   const since = new Date(Math.max(Date.parse(String(tracker.created_at)), Date.now() - days * 86_400_000)).toISOString();
@@ -40,7 +40,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!inputs) return fail("reads");
   const calls = inputs.calls;
   const hits = inputs.hitsByTracker.get(id) ?? [];
-  const result = computeAdoption(String(tracker.created_at), calls, hits);
+  // Only the calls this tracker listens to (its dates and call types, 2026-11-26).
+  const scope = { starts_on: (tracker.starts_on as string | null) ?? null, ends_on: (tracker.ends_on as string | null) ?? null, channels: (tracker.channels as string[] | null) ?? null };
+  const result = computeAdoption(String(tracker.created_at), calls, hits, scope);
 
   // The goal (0318), if a manager set one. A missing table (0318 not applied) is no goal; any other failure is a 500.
   const { data: goalRows, error: gErr } = await db.from("tracker_goals").select("id, direction, target_pct").eq("tracker_id", id).order("id", { ascending: false }).limit(1);

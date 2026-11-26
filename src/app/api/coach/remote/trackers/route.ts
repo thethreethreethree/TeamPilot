@@ -49,6 +49,8 @@ const CreateBody = z.object({
   endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   // 0352 (F11.4): save without switching on.
   draft: z.boolean().optional(),
+  // 0361 (F11.3): listen only on these call types (absent/null = phone and video).
+  channels: z.array(z.enum(["phone", "video"])).min(1).max(2).nullable().optional(),
 }).refine((b) => !b.startsOn || !b.endsOn || b.endsOn >= b.startsOn, { message: "The end date can't be before the start date." });
 const ScanBody = z.object({ action: z.literal("scan") });
 const PatchBody = z.object({ id: z.string().uuid(), action: z.enum(["off", "publish"]).default("off") });
@@ -61,7 +63,7 @@ export async function GET(req: NextRequest) {
 
   const db = callerScopedDb(req) ?? (await createClient());
   const [{ data, error }, manager] = await Promise.all([
-    db.from("keyword_trackers").select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on, active, draft, created_at").order("active", { ascending: false }).order("name"),
+    db.from("keyword_trackers").select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on, channels, active, draft, created_at").order("active", { ascending: false }).order("name"),
     requireSalesCoachManager(req),
   ]);
   if (error) {
@@ -147,6 +149,8 @@ export async function POST(req: NextRequest) {
       within_first_seconds: body.withinFirstMinutes != null ? Math.round(body.withinFirstMinutes * 60) : null,
       starts_on: body.startsOn ?? null,
       ends_on: body.endsOn ?? null,
+      // Both types = no limit: stored as null, so "every call type" has one spelling.
+      channels: body.channels && new Set(body.channels).size === 1 ? [...new Set(body.channels)] : null,
       draft: body.draft === true,
       created_by: manager.userId,
     })
@@ -159,7 +163,7 @@ export async function POST(req: NextRequest) {
   }
   const id = String(data.id);
   if (!smart || body.draft) return NextResponse.json({ id, draft: body.draft === true }, { status: 201 });
-  const backfilling = await queueSmartBackfill(req, admin, manager.companyId, id, body.startsOn ?? null, body.endsOn ?? null);
+  const backfilling = await queueSmartBackfill(req, admin, manager.companyId, id, body.startsOn ?? null, body.endsOn ?? null, body.channels && new Set(body.channels).size === 1 ? [...new Set(body.channels)] : null);
   return NextResponse.json({ id, backfilling }, { status: 201 });
 }
 
@@ -174,6 +178,7 @@ async function queueSmartBackfill(
   id: string,
   startsOn: string | null,
   endsOn: string | null,
+  channels: string[] | null = null,
 ): Promise<number> {
   // Backfill: the manager's most recent finished sales calls (their reporting tree, like "scan"), read for this
   // tracker alone after the response — the list is chosen now, while the request's auth is in hand.
@@ -182,7 +187,7 @@ async function queueSmartBackfill(
     .from("coaching_sessions")
     .select("id, agent_id, session_kind")
     .eq("company_id", companyId)
-    .in("context", ["phone", "video"])
+    .in("context", channels?.length ? channels : ["phone", "video"]) // 0361: only its call types
     .neq("status", "active");
   if (startsOn) rq = rq.gte("started_at", `${startsOn}T00:00:00Z`);
   if (endsOn) rq = rq.lt("started_at", new Date(Date.parse(`${endsOn}T00:00:00Z`) + 86_400_000).toISOString());
@@ -236,7 +241,7 @@ export async function PATCH(req: NextRequest) {
       .eq("company_id", manager.companyId)
       .eq("draft", true)
       .eq("active", true)
-      .select("id, kind, starts_on, ends_on")
+      .select("id, kind, starts_on, ends_on, channels")
       .maybeSingle();
     if (pErr) {
       console.error(`[remote/trackers] publish failed: ${pErr.message}`);
@@ -244,7 +249,7 @@ export async function PATCH(req: NextRequest) {
     }
     if (!t) return NextResponse.json({ error: "That draft wasn't found (it may already be live or switched off)." }, { status: 404 });
     const backfilling =
-      t.kind === "smart" ? await queueSmartBackfill(req, admin, manager.companyId, body.id, (t.starts_on as string | null) ?? null, (t.ends_on as string | null) ?? null) : 0;
+      t.kind === "smart" ? await queueSmartBackfill(req, admin, manager.companyId, body.id, (t.starts_on as string | null) ?? null, (t.ends_on as string | null) ?? null, (t.channels as string[] | null) ?? null) : 0;
     return NextResponse.json({ id: body.id, draft: false, backfilling });
   }
   const { data, error } = await admin

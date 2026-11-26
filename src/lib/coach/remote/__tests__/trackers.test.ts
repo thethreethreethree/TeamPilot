@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchTracker, normalisePhrases, TrackerError } from '../trackers';
+import { matchTracker, normalisePhrases, trackerAppliesTo, TrackerError } from '../trackers';
 
 /** Ported from the RSS scaffold's tests/rules.test.ts (docs/rss/scaffold/tests), Phase 3 step 3. */
 
@@ -61,3 +61,14 @@ describe("trackerAppliesTo (0344, F11.5)", () => {
     expect(trackerAppliesTo({ ends_on: "2026-12-01" }, "not a date")).toBe(false);
   });
 });
+
+describe('trackerAppliesTo — call types (0361)', () => {
+  it('a tracker limited to a call type counts only on it; no limit counts on both; an unknown type is left out', () => {
+    expect(trackerAppliesTo({ channels: ['video'] }, '2026-11-20T00:00:00Z', 'video')).toBe(true);
+    expect(trackerAppliesTo({ channels: ['video'] }, '2026-11-20T00:00:00Z', 'phone')).toBe(false);
+    expect(trackerAppliesTo({ channels: ['video'] }, '2026-11-20T00:00:00Z', null)).toBe(false);
+    expect(trackerAppliesTo({ channels: null }, '2026-11-20T00:00:00Z', 'phone')).toBe(true);
+    expect(trackerAppliesTo({ channels: ['phone'], starts_on: '2026-12-01' }, '2026-11-20T00:00:00Z', 'phone')).toBe(false); // dates still apply
+  });
+});
+

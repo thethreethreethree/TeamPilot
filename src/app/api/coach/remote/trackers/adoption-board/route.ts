@@ -32,12 +32,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't build the adoption board." }, { status: 500 });
   };
 
-  const { data: trackers, error: tErr } = await db.from("keyword_trackers_live").select("id, name, created_at") /* 0352: live only */.order("name").limit(200);
+  const { data: trackers, error: tErr } = await db.from("keyword_trackers_live").select("id, name, created_at, starts_on, ends_on, channels") /* 0352: live only */.order("name").limit(200);
   if (tErr) {
     if (["PGRST205", "42P01"].includes(String(tErr.code))) return NextResponse.json({ days, rows: [] });
     return fail("trackers", tErr.message);
   }
-  const list = (trackers ?? []) as Array<{ id: string; name: string; created_at: string }>;
+  const list = (trackers ?? []) as Array<{ id: string; name: string; created_at: string; starts_on?: string | null; ends_on?: string | null; channels?: string[] | null }>;
   if (!list.length) return NextResponse.json({ days, rows: [] });
 
   const windowStart = Date.now() - days * 86_400_000;
@@ -75,11 +75,13 @@ export async function GET(req: NextRequest) {
 
   const rows = list.map((t) => {
     const hits = inputs.hitsByTracker.get(t.id) ?? [];
-    const r = computeAdoption(startOf(t), inputs.calls, hits);
+    // Only the calls each tracker listens to (its dates and call types, 2026-11-26).
+    const scope = { starts_on: t.starts_on ?? null, ends_on: t.ends_on ?? null, channels: t.channels ?? null };
+    const r = computeAdoption(startOf(t), inputs.calls, hits, scope);
     const goal = currentGoal(goalsBy.get(t.id) ?? []);
     // By team: the same rule over each team's calls only (calls this caller may see).
     const byTeam = teams?.map((tm) => {
-      const x = computeAdoption(startOf(t), inputs.calls.filter((c) => tm.members.has(String(c.repId))), hits);
+      const x = computeAdoption(startOf(t), inputs.calls.filter((c) => tm.members.has(String(c.repId))), hits, scope);
       return { teamId: tm.id, calls: x.calls, said: x.said, rate: x.rate };
     });
     return { id: t.id, name: t.name, since: startOf(t), calls: r.calls, said: r.said, rate: r.rate, goal, goalStatus: goalStatus(goal, r.rate), ...(byTeam ? { byTeam } : {}) };

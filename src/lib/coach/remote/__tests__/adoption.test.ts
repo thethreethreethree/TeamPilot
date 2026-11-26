@@ -52,3 +52,18 @@ describe("adoption goals", () => {
     expect(currentGoal([])).toBeNull();
   });
 });
+
+describe("adoption counts only the calls a tracker listens to (2026-11-26)", () => {
+  it("calls after a tracker's end date, or of another call type, are not 'didn't say it'", async () => {
+    const { computeAdoption } = await import("../adoption");
+    const calls = [
+      { sessionId: "a", repId: "r1", startedAt: "2026-11-10T10:00:00Z", version: 1, channel: "video" },
+      { sessionId: "b", repId: "r1", startedAt: "2026-11-11T10:00:00Z", version: 1, channel: "phone" }, // other call type
+      { sessionId: "c", repId: "r1", startedAt: "2026-11-25T10:00:00Z", version: 1, channel: "video" }, // after the end date
+    ];
+    const hits = [{ sessionId: "a", version: 1 }];
+    expect(computeAdoption("2026-11-01T00:00:00Z", calls, hits)).toMatchObject({ calls: 3, said: 1 }); // no scope: as before
+    expect(computeAdoption("2026-11-01T00:00:00Z", calls, hits, { ends_on: "2026-11-20", channels: ["video"] })).toMatchObject({ calls: 1, said: 1, rate: 1 });
+  });
+});
+

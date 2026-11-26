@@ -23,6 +23,8 @@ const Body = z.object({
   // 0344: preview only the calls the tracker would count (its dates), as the real scan does.
   startsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  // 0361: preview only the call types the tracker would listen to.
+  channels: z.array(z.enum(["phone", "video"])).min(1).max(2).nullable().optional(),
 });
 // Gong previews on 100 calls (ledger F11.4); the keyword matcher needs no AI, so 100 is cheap.
 const CALLS = 100;
@@ -41,7 +43,7 @@ export async function POST(req: NextRequest) {
     .from("coaching_sessions")
     .select("id, client_label, started_at, audio_started_at, session_kind")
     .eq("company_id", manager.companyId)
-    .in("context", [...REMOTE_CONTEXTS])
+    .in("context", body.channels?.length ? [...new Set(body.channels)] : [...REMOTE_CONTEXTS])
     .neq("status", "active");
   if (body.startsOn) sq = sq.gte("started_at", `${body.startsOn}T00:00:00Z`);
   if (body.endsOn) sq = sq.lt("started_at", new Date(Date.parse(`${body.endsOn}T00:00:00Z`) + 86_400_000).toISOString());
