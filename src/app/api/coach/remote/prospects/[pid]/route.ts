@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +9,7 @@ import { readBody } from "@/lib/api/validate";
 import { isTaskClosed } from "@/lib/tasks/statusLabels";
 import { eventValue } from "@/lib/coach/remote/macroMode";
 import { AccountReadError, contactsOfDeal, DEAL_ROLES } from "@/lib/coach/remote/revenue/accounts";
+import { runAgentsForStage } from "@/lib/coach/remote/engage/agents";
 
 /**
  * /api/coach/remote/prospects/:pid — one prospect in the Remote Sales pipeline (Macro Mode, 0303).
@@ -126,6 +127,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
     if (error) {
       console.error(`[prospect] event failed id=${pid}: ${error.message}`);
       return NextResponse.json({ error: "Couldn't save that change." }, { status: 500 });
+    }
+    // Engage plan E5 (0379): a stage change runs the company's agents whose trigger it fires, after the reply.
+    if (body.kind === "stage") {
+      const v = value as { status?: string; label?: string };
+      after(() => runAgentsForStage(createAdminClient(), { companyId: String(p.company_id), prospectId: pid, status: String(v.status ?? "open"), label: v.label ?? null }));
     }
     return NextResponse.json({ ok: true });
   }

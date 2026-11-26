@@ -20,6 +20,7 @@ vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => (
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/coach/remote/revenue/dealCalls", () => ({ loadDealCalls: vi.fn(async () => st.dealCalls) }));
 vi.mock("@/lib/claude", () => ({ dealBriefCoach: vi.fn(async () => (st.aiCalls++, st.ai)) }));
+vi.mock("@/lib/care/toolPrompts", () => ({ CONVERSATION_IS_DATA: "" }));
 const q = (table: string) => {
   const b: Record<string, unknown> = {};
   for (const m of ["select", "eq", "order", "limit"]) b[m] = () => b;

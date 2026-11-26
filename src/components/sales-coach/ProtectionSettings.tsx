@@ -613,6 +613,7 @@ const EVENT_WORDS: Record<string, string> = {
   "session.closed": "A call ends",
   "deal.closed": "A deal is marked sold",
   "call.to_crm": "A call is sent to your CRM (from Highlights)",
+  "agent.ran": "An agent acted on a deal (Engage → Agents)",
 };
 
 function WebhooksPanel() {

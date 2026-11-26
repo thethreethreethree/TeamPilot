@@ -4,12 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
-import { dealBriefCoach } from "@/lib/claude";
-import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
-import { numberedTranscript } from "@/lib/coach/remote/followThrough";
 import { loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
-import { callsBlock } from "@/lib/coach/remote/revenue/playbook";
-import { basisKey, DEAL_BRIEF_SYSTEM, parseDealBrief, type DealBriefBody } from "@/lib/coach/remote/revenue/dealBrief";
+import { basisKey, type DealBriefBody } from "@/lib/coach/remote/revenue/dealBrief";
+import { writeDealBrief } from "@/lib/coach/remote/revenue/dealBriefRun";
 
 export const maxDuration = 90;
 
@@ -62,25 +59,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
   if (dc === "failed") return NextResponse.json({ error: "Couldn't read this deal's calls." }, { status: 500 });
   if (!dc.linked) return NextResponse.json({ error: "Link calls to this deal first — the brief is read from its calls." }, { status: 409 });
   if (!dc.calls.length) return NextResponse.json({ error: "This deal's calls have no transcripts yet." }, { status: 409 });
-  const basis = basisKey(dc.calls);
-  const admin = createAdminClient();
-  const stored = async () => {
-    const { data, error } = await admin.from("deal_briefs").select("brief, created_at").eq("company_id", deal.company_id).eq("prospect_id", pid).eq("basis", basis).maybeSingle();
-    return error ? null : data ? { brief: data.brief as DealBriefBody, createdAt: String(data.created_at) } : undefined;
-  };
-  const had = await stored();
-  if (had === null) return NextResponse.json({ error: "Couldn't read this deal's brief." }, { status: 500 });
-  if (had) return NextResponse.json({ ...had, stale: false });
-  const ai = await dealBriefCoach({ companyId: ctx.companyId, systemPrompt: DEAL_BRIEF_SYSTEM + CONVERSATION_IS_DATA, userMessage: `Calls:\n${callsBlock(dc.calls, numberedTranscript)}`, sessionId: dc.calls[0]!.sessionId });
-  if (ai.suppressed) return NextResponse.json({ error: "The coach isn't answering on this account right now." }, { status: 409 });
-  const brief = ai.text.trim() ? parseDealBrief(ai.text, dc.calls) : null;
-  if (!brief) return NextResponse.json({ error: "The brief didn't come back usable — try again." }, { status: 502 });
-  // A plain insert (the table's update rule refuses ON CONFLICT); a concurrent run's row is read back.
-  const { error } = await admin.from("deal_briefs").insert({ company_id: deal.company_id, prospect_id: pid, basis, brief, created_by: ctx.userId });
-  if (error && error.code !== "23505") {
-    console.error(`[deal-brief] store failed deal=${pid}: ${error.message}`);
-    return NextResponse.json({ error: "The brief was written but couldn't be saved — try again." }, { status: 500 });
-  }
-  const back = await stored();
-  return back ? NextResponse.json({ ...back, stale: false }) : NextResponse.json({ error: "Couldn't read the saved brief." }, { status: 500 });
+  const r = await writeDealBrief(createAdminClient(), { companyId: deal.company_id, prospectId: pid, actorId: ctx.userId, aiCompanyId: ctx.companyId, calls: dc.calls });
+  if (r === "suppressed") return NextResponse.json({ error: "The coach isn't answering on this account right now." }, { status: 409 });
+  if (r === "unusable") return NextResponse.json({ error: "The brief didn't come back usable — try again." }, { status: 502 });
+  if (r === "failed") return NextResponse.json({ error: "The brief couldn't be saved — try again." }, { status: 500 });
+  return NextResponse.json({ brief: r.brief, createdAt: r.createdAt, stale: false });
 }

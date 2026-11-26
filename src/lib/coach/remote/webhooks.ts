@@ -16,7 +16,7 @@ import { request as httpsRequest } from "node:https";
  * nothing stored in the database, and the admin can see their own endpoint's secret again at any time.
  */
 // call.to_crm (0330): a call sent to the company's CRM from Highlights ("Send to CRM").
-export const WEBHOOK_EVENTS = ["session.scored", "session.closed", "deal.closed", "call.to_crm"] as const;
+export const WEBHOOK_EVENTS = ["session.scored", "session.closed", "deal.closed", "call.to_crm", "agent.ran"] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 export const MAX_SKEW_SECONDS = 300;
 export const MAX_ATTEMPTS = 6;

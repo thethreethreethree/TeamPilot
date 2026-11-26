@@ -54,10 +54,14 @@ type Notif = {
     | "score_disputed"
     | "dispute_answered"
     | "call_scored"
-    | "call_access_granted";
+    | "call_access_granted"
+    | "agent_ran";
   pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
+    /** 0379 agent_ran: the deal the agent acted on. */
+    deal_id?: string;
+    deal_name?: string | null;
     total?: number;
     band?: string;
     deal_value?: number | null;
@@ -157,6 +161,12 @@ function text(n: Notif): string {
     const who = typeof n.payload.grantee_name === "string" && n.payload.grantee_name ? n.payload.grantee_name : "a teammate";
     return `An admin gave ${who} access to your call${label}`;
   }
+  // Engage plan E5 (0379): an agent acted on a deal (it wrote the brief, added a to-do, ...).
+  if (n.type === "agent_ran") {
+    const agent = typeof n.payload.agent_name === "string" ? n.payload.agent_name : "An agent";
+    const deal = typeof n.payload.deal_name === "string" && n.payload.deal_name ? n.payload.deal_name : "a deal";
+    return `${agent} acted on ${deal} — open it to see what changed`;
+  }
   // F15.13 (0332): the AI's score for the rep's own phone/video call has landed.
   if (n.type === "call_scored") {
     const label = typeof n.payload.client_label === "string" && n.payload.client_label ? ` with ${n.payload.client_label}` : "";
@@ -239,6 +249,8 @@ function destination(n: Notif): string | null {
       ? "/dashboard/remote-sales/coaching"
       : `/dashboard/sales-coach/coach-assessment${n.payload.pitch_id ? `#dispute-${n.payload.pitch_id}` : ""}`;
   }
+  // An agent's notice lands on the deal it acted on (0379).
+  if (n.type === "agent_ran") return typeof n.payload.deal_id === "string" ? `/dashboard/remote-sales/pipeline?p=${n.payload.deal_id}` : null;
   // A dispute answer on a pitch with no call (a door-log pitch): its report card shows the answer.
   if (n.type === "dispute_answered" && !n.session_id) {
     return n.payload.pitch_id ? `/dashboard/sales-coach/doors/report-card/${n.payload.pitch_id}` : null;

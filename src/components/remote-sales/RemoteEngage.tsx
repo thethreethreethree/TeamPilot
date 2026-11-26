@@ -23,20 +23,21 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefin
 const field = "rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary";
 
 export function RemoteEngage() {
-  const [tab, setTab] = useState<"today" | "flows" | "analytics">("today");
+  const isLead = useIsSalesCoachManager();
+  const [tab, setTab] = useState<"today" | "flows" | "analytics" | "agents">("today");
   return (
     <section aria-label="Engage" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-primary"><ListChecks className="h-4 w-4 text-brand" aria-hidden /> Engage</h2>
         <div role="tablist" aria-label="Engage" className="inline-flex overflow-hidden rounded-lg border border-default">
-          {(["today", "flows", "analytics"] as const).map((t) => (
+          {(isLead ? (["today", "flows", "analytics", "agents"] as const) : (["today", "flows", "analytics"] as const)).map((t) => (
             <button key={t} role="tab" type="button" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-2.5 py-1 text-xs ${tab === t ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>
-              {t === "today" ? "Today" : t === "flows" ? "Flows" : "Analytics"}
+              {t === "today" ? "Today" : t === "flows" ? "Flows" : t === "agents" ? "Agents" : "Analytics"}
             </button>
           ))}
         </div>
       </div>
-      {tab === "today" ? <Today /> : tab === "flows" ? <Flows /> : <Analytics />}
+      {tab === "today" ? <Today /> : tab === "flows" ? <Flows /> : tab === "agents" ? <Agents /> : <Analytics />}
     </section>
   );
 }
@@ -353,6 +354,149 @@ function Analytics() {
           <p className="text-[11px] text-muted">Steps, calls and outcomes in the last {days} days; people counts everyone ever enrolled. Connect rate counts calls with an outcome.</p>
         </>
       )}
+    </div>
+  );
+}
+
+type AgentAction = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
+type AgentRow = { id: string; name: string; trigger: { status?: string; label?: string }; actions: AgentAction[]; enabled: boolean };
+type RunRow = { id: number; agent_id: string; prospect_id: string | null; test: boolean; ok: boolean; skipped: string | null; results: Array<{ kind: string; ok: boolean; detail: string }>; created_at: string };
+const ACTION_WORD = (a: AgentAction) => (a.kind === "brief" ? "write the deal brief" : a.kind === "notify" ? (a.to === "rep" ? "notify the deal's rep" : "notify me") : a.kind === "todo" ? `add the to-do “${a.title}”${a.due_days ? ` due in ${a.due_days} days` : ""}` : "send an agent.ran webhook");
+
+/**
+ * Engage → Agents (plan E5, 0379; Gong M27): when a deal reaches a stage (or is won or lost), do these things in order.
+ * An agent acts only on deals its owner can see. Each run is listed with what every action did; a test run on a chosen
+ * deal says what would happen and changes nothing.
+ */
+function Agents() {
+  const [data, setData] = useState<{ agents: AgentRow[]; runs: RunRow[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [deals, setDeals] = useState<Array<{ id: string; name: string | null }>>([]);
+  const [editing, setEditing] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    setFailed(false);
+    try {
+      const r = await fetch("/api/coach/remote/agents", { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      setData(await r.json());
+    } catch {
+      setFailed(true);
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+    fetch("/api/coach/remote/prospects?repId=team", { cache: "no-store" })
+      .then(async (r) => { if (!r.ok) throw new Error(String(r.status)); const j = (await r.json()) as { prospects: Array<{ id: string; name: string | null }> }; setDeals(j.prospects.slice(0, 200)); })
+      .catch(() => setMsg("Couldn't load deals to test on."));
+  }, [load]);
+  const post = async (body: Record<string, unknown>) => {
+    setMsg(null);
+    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = (await r.json().catch(() => ({}))) as { error?: string; ok?: boolean; skipped?: string | null; results?: Array<{ detail: string }> };
+    if (!r.ok) return setMsg(j.error ?? "Couldn't save that.");
+    if ("test" in body) setMsg(j.skipped ? `Test: ${j.skipped}` : `Test: ${(j.results ?? []).map((x) => x.detail).join(" ")}`);
+    void load();
+  };
+  if (failed) return <p className="text-xs text-secondary">Couldn&apos;t load agents. Refresh to try again.</p>;
+  if (!data) return <p className="flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading…</p>;
+  return (
+    <div className="space-y-3 text-xs">
+      {editing ? <AgentEditor onSaved={() => { setEditing(false); void load(); }} onCancel={() => setEditing(false)} /> : (
+        <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 font-semibold text-black"><Plus className="h-3.5 w-3.5" aria-hidden /> New agent</button>
+      )}
+      {msg && <p className="text-secondary">{msg}</p>}
+      {data.agents.length === 0 ? <p className="text-secondary">No agents yet. An agent does things for you when a deal reaches a stage — for example, writes the brief and adds a to-do when a deal reaches “Proposal”.</p> : (
+        <ul className="space-y-2">
+          {data.agents.map((a) => (
+            <li key={a.id} className="rounded-xl border border-default bg-surface p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold text-primary">{a.name}{!a.enabled && <span className="ml-1 font-normal text-muted">(off)</span>}</span>
+                <span className="flex flex-wrap items-center gap-2">
+                  <select defaultValue="" aria-label={`Test ${a.name} on a deal`} onChange={(e) => { if (e.currentTarget.value) void post({ test: a.id, prospectId: e.currentTarget.value }); e.currentTarget.value = ""; }} className={field}>
+                    <option value="">Test on a deal…</option>
+                    {deals.map((d) => <option key={d.id} value={d.id}>{d.name ?? "Unnamed deal"}</option>)}
+                  </select>
+                  <button type="button" onClick={() => void post({ id: a.id, enabled: !a.enabled })} className="text-secondary hover:text-primary">{a.enabled ? "Turn off" : "Turn on"}</button>
+                  <button type="button" onClick={() => void post({ retire: a.id })} className="text-muted hover:text-primary">Retire</button>
+                </span>
+              </div>
+              <p className="mt-1 text-secondary">
+                When a deal {a.trigger.label ? `reaches “${a.trigger.label}”` : ""}{a.trigger.label && a.trigger.status ? " and " : ""}{a.trigger.status ? (a.trigger.status === "won" ? "is won" : a.trigger.status === "lost" ? "is lost" : "is open") : ""}: {a.actions.map(ACTION_WORD).join(", then ")}.
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {data.runs.filter((r) => r.agent_id === a.id).slice(0, 5).map((r) => (
+                  <li key={r.id} className={r.ok ? "text-muted" : "text-amber-700 dark:text-amber-300"}>
+                    {new Date(r.created_at).toLocaleString()} · {r.test ? "test · " : ""}{r.skipped ?? r.results.map((x) => x.detail).join(" ")}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState("");
+  const [label, setLabel] = useState("");
+  const [brief, setBrief] = useState(true);
+  const [notify, setNotify] = useState<"" | "rep" | "owner">("rep");
+  const [todo, setTodo] = useState("");
+  const [days, setDays] = useState(2);
+  const [webhook, setWebhook] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const actions: AgentAction[] = [
+    ...(brief ? [{ kind: "brief" } as const] : []),
+    ...(notify ? [{ kind: "notify", to: notify } as const] : []),
+    ...(todo.trim() ? [{ kind: "todo", title: todo.trim(), due_days: days } as const] : []),
+    ...(webhook ? [{ kind: "webhook" } as const] : []),
+  ];
+  const save = async () => {
+    setErr(null);
+    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
+    const j = (await r.json().catch(() => ({}))) as { error?: string };
+    if (!r.ok) return setErr(j.error ?? "Couldn't save the agent.");
+    onSaved();
+  };
+  return (
+    <div className="space-y-2 rounded-xl border border-default bg-surface p-3">
+      <input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={80} placeholder="Agent name, e.g. Proposal prep" aria-label="Agent name" className={`${field} w-full`} />
+      <div className="flex flex-wrap items-center gap-2 text-secondary">
+        When a deal
+        <input value={label} onChange={(e) => setLabel(e.currentTarget.value)} list="stage-names-in-use" maxLength={60} placeholder="reaches this stage (optional)" aria-label="Stage" className={`${field} w-48`} />
+        <select value={status} onChange={(e) => setStatus(e.currentTarget.value)} aria-label="Status" className={field}>
+          <option value="">(any status)</option>
+          <option value="won">is won</option>
+          <option value="lost">is lost</option>
+          <option value="open">is open</option>
+        </select>
+      </div>
+      <div className="space-y-1 text-secondary">
+        <label className="flex items-center gap-1"><input type="checkbox" checked={brief} onChange={(e) => setBrief(e.currentTarget.checked)} /> Write the deal brief</label>
+        <label className="flex items-center gap-1">
+          Notify
+          <select value={notify} onChange={(e) => setNotify(e.currentTarget.value as "" | "rep" | "owner")} aria-label="Who to notify" className={field}>
+            <option value="rep">the deal&apos;s rep</option>
+            <option value="owner">me</option>
+            <option value="">no one</option>
+          </select>
+        </label>
+        <div className="flex flex-wrap items-center gap-1">
+          Add the to-do
+          <input value={todo} onChange={(e) => setTodo(e.currentTarget.value)} maxLength={200} placeholder="e.g. Send the proposal (optional)" aria-label="To-do" className={`${field} min-w-0 flex-1`} />
+          due in <input type="number" min={0} max={365} value={days} onChange={(e) => setDays(Math.max(0, Math.min(365, Math.round(Number(e.currentTarget.value) || 0))))} aria-label="Due in days" className={`${field} w-14`} /> days
+        </div>
+        <label className="flex items-center gap-1"><input type="checkbox" checked={webhook} onChange={(e) => setWebhook(e.currentTarget.checked)} /> Send an agent.ran webhook (to webhooks listening for it, on Protection)</label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={!name.trim() || (!status && !label.trim()) || actions.length === 0} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Save agent</button>
+        <button type="button" onClick={onCancel} className="px-2 text-muted hover:text-primary">Cancel</button>
+      </div>
+      {err && <p className="text-amber-700 dark:text-amber-300">{err}</p>}
     </div>
   );
 }
