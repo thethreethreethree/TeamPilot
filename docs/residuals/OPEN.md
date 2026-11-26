@@ -594,3 +594,25 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 - [x] 2026-11-27 · erasure-recording-comments · comments typed on a call's recording (recording_comments.body and its revisions) can quote the customer and aren't blanked by legal erasure (independent review of 7c81ab49..9a7428b6)
       DECIDED 2026-11-27 (founder picker): "Leave them" — erasure keeps 0285's rule for comments: transcripts, AI reads and score notes are erased; comments a person typed stay as typed.
+
+## Filed by the revenue stack and Engage builds (2026-11-27)
+
+The Gong-competitive build (docs/ELOSTATE-REVENUE-BUILD-PLAN, docs/ELOSTATE-ENGAGE-PLATFORM-BUILD-PLAN). Each item below is
+a capability that is built as far as this server allows and waits on a setting only the founder can add (§1.5.3). The
+product says so where it matters, never silently.
+
+- [ ] 2026-11-27 · engage-e1 · Flow email steps are sent by the rep from their own mail app; EloState sends no email.
+      why-unresolved: `POSTMARK_SERVER_TOKEN` and `CARE_EMAIL_HOST_DOMAIN` are unset in production (`emailConfigured()`), and an opt-out footer needs legal wording not drafted here.
+      next-action: set both in Vercel, supply the opt-out wording, then build automatic email steps behind `emailConfigured()`.
+- [ ] 2026-11-27 · engage-e1 · Call steps dial from the rep's phone (`tel:`); there's no in-app dialer or recording of those calls.
+      why-unresolved: needs a Twilio account, numbers and per-region recording consent (plan E4).
+      next-action: founder decides on Twilio; then numbers, the dialer and per-region recording rules.
+- [ ] 2026-11-27 · engage-e4 · MCP and API keys are company-wide; there are no keys that act as one person.
+      why-unresolved: acting as a person needs a JWT secret (`SUPABASE_JWT_SECRET`) this server doesn't have (plan E8).
+      next-action: add the secret in Vercel; then personal MCP keys that sign a short-lived user token so RLS applies.
+- [ ] 2026-11-27 · revenue-p3a / p4 / engage-e5 · Warnings are live only (no 30/90-day drivers history), and agents have no date triggers (close date approaching).
+      why-unresolved: both need a scheduled job, and `CRON_SECRET` is unset in Vercel.
+      next-action: set `CRON_SECRET`; add a daily warnings snapshot and a date-trigger sweep.
+- [ ] 2026-11-27 · revenue-r2 · No CRM sync (Salesforce / HubSpot / Dynamics).
+      why-unresolved: no client CRM is on record to sync with (plan R2).
+      next-action: when a paying client names their CRM, build its connector first.

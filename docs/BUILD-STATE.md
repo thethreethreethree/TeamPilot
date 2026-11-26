@@ -126,6 +126,15 @@ and "What you represent" (ai_product_context).
 
 ## ▶ RECENTLY CLOSED (rolling, newest first)
 
+- `2026-11-27 revenue stack + Engage` — CLOSED 2026-11-27. Founder: "BUILD A SYSTEM COMPETITIVE TO GONG". Plans:
+  docs/ELOSTATE-REVENUE-BUILD-PLAN (Phases 1–6) and docs/ELOSTATE-ENGAGE-PLATFORM-BUILD-PLAN (E1–E5). Shipped with
+  migrations 0370–0380, each probed on production in a rolled-back transaction, `npm run check` exit 0 before every commit:
+  accounts and contacts · deal board, stages, saved views · Gong's deal warnings in dealRisk · playbooks + AI Deal Reviewer
+  · deal briefs · win/loss by contacts/power/time, drivers, account activity · ask about a deal or account · forecast
+  board · Engage flows, today's steps, call outcomes, analytics · public read API with company keys · MCP server · agents
+  (stage and tracker triggers). Waiting on the founder's outside settings (docs/residuals/OPEN.md, 2026-11-27): Postmark,
+  Twilio, SUPABASE_JWT_SECRET, CRON_SECRET, a client CRM.
+
 - `2026-07-30-x2-care-jeff-guidance-upload` — CLOSED 2026-07-30 — new Jeff customer-assistance guidance
   field (wired into his replies) + multi-format upload on 3 C.A.R.E surfaces. Migration 0202 (not applied,
   A34-guarded). check exit 0 (1654 tests).
