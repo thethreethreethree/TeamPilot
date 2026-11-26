@@ -4,9 +4,10 @@ import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { treeFilterRepsChecked } from "@/lib/api/treeAccess";
 import { courseProgress, currentSteps, type StepRow } from "@/lib/coach/remote/courses";
 import { assignPractice, practiceStates } from "@/lib/coach/remote/coursePractice";
+import { currentDue } from "@/lib/coach/remote/training";
+import { treeAllowsRepChecked, treeFilterRepsChecked } from "@/lib/api/treeAccess";
 
 /**
  * /api/coach/remote/course-assignments — courses given to reps (2026-11-26, Gong F17.1; migration 0355).
@@ -14,6 +15,7 @@ import { assignPractice, practiceStates } from "@/lib/coach/remote/coursePractic
  *   GET ?team=1        (managers) → every assignment for reps the reporting tree lets you see, with progress.
  *   POST { courseId, repIds[], dueAt }   (managers) → assigns; a rep who already has it is skipped.
  *   PUT  { assignmentId, stepUid }       (the rep) → marks one lesson of the CURRENT version done.
+ *   PATCH { assignmentId, dueAt }        (managers) → a new due date, as a row (0358); current = the latest.
  * Progress is derived by courseProgress (§2.2). Company-pinned (INV29); manager reach asked of the tree (INV36), and a
  * tree check that can't be answered is a 503, never an empty team. Courses hold no call or customer data.
  */
@@ -82,6 +84,16 @@ export async function GET(req: NextRequest) {
   }
   const doneBy = new Map<string, Set<string>>();
   const ids = rows.map((r) => r.id);
+  // The current due date: the latest training_course_due_changes row, else the assignment's own (0358).
+  const dueChanges = new Map<string, Array<{ due_at: string }>>();
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data: ch, error: chErr } = await fetchAllPagedResult<{ assignment_id: string; due_at: string; id: number }>(
+      (from, to) => admin.from("training_course_due_changes").select("assignment_id, due_at, id").eq("company_id", ctx.companyId).in("assignment_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      { label: "course due changes", maxRows: 200_000 },
+    );
+    if (chErr) return fail("due changes", chErr.message);
+    for (const c of ch ?? []) dueChanges.set(String(c.assignment_id), [...(dueChanges.get(String(c.assignment_id)) ?? []), c]);
+  }
   for (let i = 0; i < ids.length; i += 150) {
     const { data: done, error: dErr } = await fetchAllPagedResult<{ assignment_id: string; step_uid: string; id: number }>(
       (from, to) => admin.from("training_step_completions").select("assignment_id, step_uid, id").eq("company_id", ctx.companyId).in("assignment_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
@@ -119,6 +131,7 @@ export async function GET(req: NextRequest) {
       // A lesson is done when the rep marked it; a practice when its practice counts as done. Never the other way.
       const marked = doneBy.get(r.id) ?? new Set<string>();
       const pOf = (scenarioId: string | null) => (scenarioId ? practice.get(`${r.rep_id}|${scenarioId}`) : undefined);
+      const dueAt = currentDue(r.due_at, dueChanges.get(r.id) ?? []);
       const done = new Set(list.filter((x) => (x.kind === "practice" ? pOf(x.scenarioId)?.done : marked.has(x.uid))).map((x) => x.uid));
       return {
         id: r.id,
@@ -129,12 +142,12 @@ export async function GET(req: NextRequest) {
         repId: r.rep_id,
         repName: nameOf.get(String(r.rep_id)) ?? null,
         assignedByName: nameOf.get(String(r.assigned_by)) ?? null,
-        dueAt: r.due_at,
+        dueAt,
         // The rep sees the lessons; the manager's table needs only the progress.
         steps: team
           ? undefined
           : list.map((s) => ({ ...s, done: done.has(s.uid), practiceAssignmentId: pOf(s.scenarioId)?.assignmentId ?? null, practiceState: pOf(s.scenarioId)?.state ?? null })),
-        ...courseProgress({ steps: list, doneUids: done, dueAt: r.due_at }),
+        ...courseProgress({ steps: list, doneUids: done, dueAt }),
       };
     }),
   });
@@ -230,4 +243,31 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't save that." }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(req: NextRequest) {
+  const limited = rateLimit(req, { id: "remote-course-assignments-write", windowMs: 60_000, max: 20 });
+  if (limited) return limited;
+  const mgr = await requireSalesCoachManager(req);
+  if (!mgr) return NextResponse.json({ error: "Managers only." }, { status: 403 });
+  let b: { assignmentId?: unknown; dueAt?: unknown };
+  try {
+    b = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+  }
+  const dueAt = parseDue(b.dueAt);
+  if (typeof b.assignmentId !== "string" || !dueAt) return NextResponse.json({ error: "Which course, and a due date within the next year." }, { status: 400 });
+  const admin = createAdminClient();
+  const { data: a } = await admin.from("training_course_assignments").select("id, rep_id").eq("company_id", mgr.companyId).eq("id", b.assignmentId).maybeSingle();
+  if (!a) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+  const allowed = await treeAllowsRepChecked(req, String(a.rep_id));
+  if (allowed === null) return NextResponse.json({ error: "Couldn't check your reporting tree — try again." }, { status: 503 });
+  if (!allowed) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+  const { error } = await admin.from("training_course_due_changes").insert({ company_id: mgr.companyId, assignment_id: a.id, due_at: dueAt, changed_by: mgr.userId });
+  if (error) {
+    console.error(`[course-assignments] due change failed: ${error.message}`);
+    return NextResponse.json({ error: "Couldn't change the due date." }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, dueAt });
 }

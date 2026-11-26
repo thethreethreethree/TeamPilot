@@ -158,6 +158,9 @@ const ALLOWLIST = new Map([
   ["pitch_score_events.update", "0252 a rep who could update could erase the evidence behind a violation; corrections go through score_overrides."],
   ["pitch_score_events.delete", "0252 same as update — a deletable violation is an unenforced one."],
   // 0282 RSS Phase 7: training scenarios, assignments, due changes, attempts.
+  ["training_course_due_changes.insert", "0358 written by /api/coach/remote/course-assignments PATCH (managers, tree-checked); a rep never moves their own due date."],
+  ["training_course_due_changes.update", "0358 §3.1 (DB rule too): a due change is a fact; the next one is a new row."],
+  ["training_course_due_changes.delete", "0358 §3.1 (DB rule too): the history of due dates stays."],
   ["training_courses.insert", "0355 written by /api/coach/remote/courses after requireSalesCoachManager; company and created_by stamped from auth."],
   ["training_courses.update", "0355 only the route stamps retired_at once; a trigger forbids any other change (a rep's progress keeps its meaning)."],
   ["training_courses.delete", "0355 retire, never delete (DB rule too): assignments reference the course."],

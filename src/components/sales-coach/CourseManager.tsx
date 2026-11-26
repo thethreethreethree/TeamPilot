@@ -245,16 +245,20 @@ export function CourseManager() {
         {progress && progress.length === 0 && <p className="text-xs text-muted">No courses assigned yet.</p>}
         {progress && progress.length > 0 && (
           <table className="w-full text-xs">
-            <thead><tr className="text-left text-muted"><th className="py-1">Rep</th><th>Course</th><th>Steps</th><th>Status</th></tr></thead>
+            <thead><tr className="text-left text-muted"><th className="py-1">Rep</th><th>Course</th><th>Steps</th><th>Due</th><th>Status</th></tr></thead>
             <tbody>
               {progress.map((p) => (
                 <tr key={p.id} className="border-t border-default">
                   <td className="py-1 text-primary">{p.repName ?? "Unnamed"}</td>
                   <td className="text-secondary">{p.title}</td>
                   <td className="text-secondary">{p.done} of {p.total}</td>
-                  <td className={p.state === "overdue" ? "font-semibold text-primary" : "text-secondary"}>
-                    {STATE[p.state] ?? p.state}{p.state !== "done" ? ` · due ${new Date(p.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""}
+                  <td>
+                    {/* Moving a due date is a new row (0358); the rep sees it at once. */}
+                    <input type="date" key={p.dueAt} defaultValue={p.dueAt.slice(0, 10)} aria-label={`Due date for ${p.repName ?? "rep"}, ${p.title}`}
+                      onBlur={(e) => { if (e.target.value && e.target.value !== p.dueAt.slice(0, 10)) void send("PATCH", "/api/coach/remote/course-assignments", { assignmentId: p.id, dueAt: `${e.target.value}T23:59:00` }, "Due date changed."); }}
+                      className="rounded border border-default bg-base px-1 text-xs text-primary" />
                   </td>
+                  <td className={p.state === "overdue" ? "font-semibold text-primary" : "text-secondary"}>{STATE[p.state] ?? p.state}</td>
                 </tr>
               ))}
             </tbody>

@@ -35,7 +35,15 @@ export async function assignPractice(
   companyId: string,
   args: { scenarioIds: string[]; reps: Array<{ repId: string; dueAt: string; by: string }> },
 ): Promise<"ok" | "conflict" | "failed"> {
-  const scenarioIds = [...new Set(args.scenarioIds)];
+  // A retired scenario gets no NEW assignments (0282) — not through a course either; reps who have it keep it.
+  const live = new Set<string>();
+  const asked = [...new Set(args.scenarioIds)];
+  for (let i = 0; i < asked.length; i += CHUNK) {
+    const { data, error } = await admin.from("training_scenarios").select("id, retired_at").eq("company_id", companyId).in("id", asked.slice(i, i + CHUNK));
+    if (error) return "failed";
+    for (const s of (data ?? []) as Array<{ id: string; retired_at: string | null }>) if (!s.retired_at) live.add(String(s.id));
+  }
+  const scenarioIds = asked.filter((id) => live.has(id));
   if (!scenarioIds.length || !args.reps.length) return "ok";
   const repIds = [...new Set(args.reps.map((r) => r.repId))];
   const had = new Set<string>();

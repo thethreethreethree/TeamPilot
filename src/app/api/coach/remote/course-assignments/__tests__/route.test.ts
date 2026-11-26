@@ -15,7 +15,10 @@ const st = vi.hoisted(() => ({
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => st.who) }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn(async () => (st.manager ? st.who : null)) }));
-vi.mock("@/lib/api/treeAccess", () => ({ treeFilterRepsChecked: vi.fn(async (_r: unknown, ids: string[]) => (st.tree === null ? null : ids.filter((i) => st.tree!.includes(i)))) }));
+vi.mock("@/lib/api/treeAccess", () => ({
+  treeFilterRepsChecked: vi.fn(async (_r: unknown, ids: string[]) => (st.tree === null ? null : ids.filter((i) => st.tree!.includes(i)))),
+  treeAllowsRepChecked: vi.fn(async (_r: unknown, id: string) => (st.tree === null ? null : st.tree.includes(id))),
+}));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (t: string) => {
@@ -38,7 +41,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-import { GET, PUT } from "../route";
+import { GET, PATCH, PUT } from "../route";
 const S = (v: number, p: number, uid: string) => ({ company_id: "co1", course_id: "k1", version: v, position: p, step_uid: uid, title: uid, body: "b", id: v * 10 + p });
 const put = (body: unknown) => PUT(new Request("http://t/x", { method: "PUT", body: JSON.stringify(body) }) as never);
 
@@ -96,5 +99,19 @@ describe("course assignments", () => {
     expect(a).toMatchObject({ done: 2, total: 2, state: "done" });
     expect((await put({ assignmentId: "a1", stepUid: "p1" })).status).toBe(400);
     expect(st.inserts).toEqual([]);
+  });
+  it("a manager moves a course's due date as a new row (0358); the rep sees the latest; outside the tree is a 404", async () => {
+    st.who = { userId: "mgr1", companyId: "co1" };
+    st.manager = true;
+    const patch = (body: unknown) => PATCH(new Request("http://t/x", { method: "PATCH", body: JSON.stringify(body) }) as never);
+    const soon = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    expect((await patch({ assignmentId: "a1", dueAt: `${soon}T23:59:00` })).status).toBe(200);
+    expect(st.inserts[0]![0]).toBe("training_course_due_changes");
+    expect((await patch({ assignmentId: "a2", dueAt: `${soon}T23:59:00` })).status).toBe(404); // rep9: not in the tree
+    st.who = { userId: "rep1", companyId: "co1" };
+    st.manager = false;
+    st.tables.training_course_due_changes = [{ id: 1, company_id: "co1", assignment_id: "a1", due_at: "2026-01-01T00:00:00Z" }, { id: 2, company_id: "co1", assignment_id: "a1", due_at: "2026-02-01T00:00:00Z" }];
+    const a = (await (await GET(new Request("http://t/x") as never)).json()).assignments[0];
+    expect(a).toMatchObject({ dueAt: "2026-02-01T00:00:00Z", state: "overdue" });
   });
 });
