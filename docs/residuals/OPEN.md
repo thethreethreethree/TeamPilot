@@ -617,6 +617,9 @@ product says so where it matters, never silently.
       needs) relies on the caller's RLS in about ten reads (tasks, accounts, deal contacts, rss_deal_signals, the stage
       list, the playbook). It must first take a company and pin every one of those reads to it; otherwise a sweep would
       read across companies. Build that pinned reader together with the job, and verify both once the secret is set.
+      update 2026-11-27 (181e4ee3): the pinned reader is built and tested — `listProspects(admin, undefined, { companyId })`
+      pins every table read. What remains is the job itself (snapshot table, close-date trigger, cron route), once
+      `CRON_SECRET` is set so it can be verified end to end.
 - [ ] 2026-11-27 · revenue-r2 · No CRM sync (Salesforce / HubSpot / Dynamics).
       why-unresolved: no client CRM is on record to sync with (plan R2).
       next-action: when a paying client names their CRM, build its connector first.
