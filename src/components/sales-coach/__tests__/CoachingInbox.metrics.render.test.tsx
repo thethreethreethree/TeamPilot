@@ -236,5 +236,23 @@ describe("CoachingInbox — change against the 30 days before (F16.8)", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "2" })[0]!);
     expect(screen.getByText("Couldn't load interaction alerts.")).toBeTruthy();
   });
+  it("F16.6: every rep's uncoached calls with an alert in one list, newest first; hidden when none", async () => {
+    const rep = (id: string, name: string, calls: Array<{ id: string; label: string; startedAt: string }>) => ({ repId: id, name, feedback30: 0, lastFeedbackAt: null, overdue: false, openRequests: 0, calls30: calls.length, callsWithoutFeedback30: calls.length, uncoached: calls });
+    metrics = {
+      decided: true, since: "x", sessions: 3, feedbackGiven: {}, callsListened: {},
+      byRep: [rep("bo", "Bo", [{ id: "c1", label: "Acme", startedAt: "2026-11-20T10:00:00Z" }, { id: "c2", label: "Calm", startedAt: "2026-11-21T10:00:00Z" }]), rep("ana", "Ana", [{ id: "c3", label: "Zed", startedAt: "2026-11-24T10:00:00Z" }])],
+      alerts: { baselineCalls: 40, needed: 0, byCall: { c1: ["long_monologue"], c3: ["talked_most"] } },
+    };
+    render(<CoachingInbox />);
+    fireEvent.click(await screen.findByRole("button", { name: "2 uncoached calls with an interaction alert" }));
+    const list = screen.getByLabelText("Uncoached calls with an interaction alert");
+    expect([...list.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual(["/dashboard/remote-sales/calls/c3", "/dashboard/remote-sales/calls/c1"]);
+    expect(list.textContent).toContain("Ana · Zed");
+    cleanup();
+    metrics = { ...(metrics as object), alerts: { baselineCalls: 40, needed: 0, byCall: {} } };
+    render(<CoachingInbox />);
+    await screen.findByLabelText("Coaching by rep");
+    expect(screen.queryByRole("button", { name: /with an interaction alert/ })).toBeNull();
+  });
 });
 

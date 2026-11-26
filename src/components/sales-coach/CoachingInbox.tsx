@@ -99,6 +99,9 @@ const hoursText = (h: number) => (h < 24 ? `${h} h` : `${Math.round((h / 24) * 1
 const responseDelta = (now: number, before: number, days: number) =>
   now < 24 ? <Delta now={now} before={before} days={days} unit=" h" /> : <Delta now={Math.round((now / 24) * 10) / 10} before={Math.round((before / 24) * 10) / 10} days={days} unit=" d" />;
 
+/** openRep's value for the team-wide alerts list (a rep id is a uuid, so it can't collide). */
+const ALERTS = "__alerts__";
+
 export function CoachingInbox({ team }: { team?: string } = {}) {
   // F16.6: which rep's uncoached calls are listed (one at a time).
   const [openRep, setOpenRep] = useState<string | null>(null);
@@ -369,7 +372,42 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
       {/* By rep (F16.5): who needs coaching — overdue first. Same rule and same 30 days as the table above. */}
       {metrics?.decided && metrics.byRep && metrics.byRep.length > 0 && (
         <div className="rounded-xl border border-default bg-base/40 p-3" aria-label="Coaching by rep">
-          <p className="text-xs font-semibold text-primary">Your reps, last 30 days</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-primary">Your reps, last 30 days</p>
+            {/* F16.6 (2026-11-26): every rep's uncoached calls with an interaction alert, in one list. */}
+            {metrics.alerts && metrics.alerts.needed === 0 && (() => {
+              const n = metrics.byRep.reduce((k, r) => k + r.uncoached.filter((c) => (metrics.alerts?.byCall[c.id] ?? []).length > 0).length, 0);
+              return n > 0 ? (
+                <button type="button" aria-pressed={openRep === ALERTS} onClick={() => setOpenRep(openRep === ALERTS ? null : ALERTS)} className="text-[11px] font-semibold text-brand hover:underline">
+                  {n} uncoached call{n === 1 ? "" : "s"} with an interaction alert
+                </button>
+              ) : null;
+            })()}
+          </div>
+          {openRep === ALERTS && metrics.alerts && (
+            <div className="mt-2 rounded-lg border border-default bg-surface p-2" aria-label="Uncoached calls with an interaction alert">
+              <ul className="space-y-1">
+                {metrics.byRep
+                  .flatMap((r) => r.uncoached.filter((c) => (metrics.alerts?.byCall[c.id] ?? []).length > 0).map((c) => ({ ...c, rep: r.name })))
+                  .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+                  .map((c) => (
+                    <li key={c.id}>
+                      <Link href={`/dashboard/remote-sales/calls/${c.id}`} className="block rounded px-1 py-0.5 text-xs hover:bg-base">
+                        <span className="flex justify-between gap-2">
+                          <span className="text-primary">{c.rep} · {c.label ?? "Untitled call"}</span>
+                          <span className="text-muted">{new Date(c.startedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Go to call</span>
+                        </span>
+                        <span className="mt-0.5 flex flex-wrap gap-1">
+                          {(metrics.alerts?.byCall[c.id] ?? []).map((a) => (
+                            <span key={a} className="rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-700 dark:text-amber-300">{ALERT_WORDS[a]}</span>
+                          ))}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="mt-2 w-full text-left text-xs">
               <thead className="text-[11px] text-muted">
