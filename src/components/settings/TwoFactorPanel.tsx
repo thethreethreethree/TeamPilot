@@ -103,8 +103,9 @@ export function TwoFactorPanel() {
       </div>
       <p className="text-xs text-muted">
         Add an authenticator app (Google Authenticator, 1Password, Microsoft Authenticator…). Signing in then asks for the
-        6-digit code it shows, so a stolen password alone can&apos;t open your account. The ELOSTATE mobile app and Chrome
-        extension can&apos;t ask for codes yet: while this is on, they&apos;ll ask you to sign in on the web instead.
+        6-digit code it shows, so a stolen password alone can&apos;t open your account. The Chrome extension connects through
+        the web sign-in, so it asks for the code there. The ELOSTATE mobile app can&apos;t ask for codes yet: while this is
+        on, it will ask you to sign in on the web instead.
       </p>
 
       {failed ? (

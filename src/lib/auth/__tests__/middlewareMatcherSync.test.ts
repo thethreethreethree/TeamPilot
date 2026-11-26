@@ -50,3 +50,13 @@ describe("middleware config.matcher covers routeGuard's gated paths", () => {
     );
   });
 });
+
+describe("the extension's connect page waits for the sign-in code (2026-11-27)", () => {
+  it("the matcher runs middleware there, so its MFA hold applies before the session is handed to the extension", () => {
+    expect(matcherBlock).toContain("/extension/:path*");
+  });
+  it("routeGuard doesn't send a signed-out visitor away from it (the page itself says 'Sign in')", () => {
+    expect(decideAuthRedirect({ hasUser: false, path: "/extension/connect" })).toBeNull();
+  });
+});
+

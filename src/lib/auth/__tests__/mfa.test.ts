@@ -43,3 +43,11 @@ describe("unverifiedClaims", () => {
     expect(unverifiedClaims("a.@@@.b")).toBeNull();
   });
 });
+
+describe("the extension's connect page (2026-11-27)", () => {
+  it("is held for the code like any page, keeping the extension's id to return to", () => {
+    expect(isMfaExempt("/extension/connect")).toBe(false);
+    expect(mfaHold("/extension/connect", "?ext=abc")).toEqual({ kind: "redirect", to: `/login/verify?next=${encodeURIComponent("/extension/connect?ext=abc")}` });
+  });
+});
+

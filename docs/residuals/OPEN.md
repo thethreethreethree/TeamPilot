@@ -288,6 +288,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: each must be read to see whether it reads or writes customer data
       next-action: add `if not public.rss_mfa_ok() then raise exception` to the data-bearing ones; a live invariant over the list
 - [ ] 2026-11-23 · mfa · the mobile app and Chrome extension have no code step, so they refuse an account with codes on
+      2026-11-27 (extension half): the extension takes its session from /extension/connect, which now waits for the code (middleware matcher), so it gets a session that has passed it. To verify once TOTP is on: connect, enter the code, use it past an hour. The mobile app half stays open (not in this repo).
       why-unresolved: each client needs its own MFA screen
       next-action: add the code step to each client's sign-in (challengeAndVerify), then drop the Settings warning
 - [ ] 2026-11-23 · mfa · company-wide "require sign-in codes" setting (admins)
