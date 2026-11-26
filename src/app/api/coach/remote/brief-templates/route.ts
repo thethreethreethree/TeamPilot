@@ -4,10 +4,14 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { NAME_MAX, parseSections, type Section } from "@/lib/coach/remote/briefTemplates";
+import { callerScopedDb } from "@/lib/api/callerScopedDb";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * /api/coach/remote/brief-templates — a company's brief templates (2026-11-26, Gong F13.2; migration 0364).
  *   GET                         (anyone in the company) → the live templates, newest first.
+ *   GET ?sessionId=             … plus retired templates that already answered THAT call (retired: true), found through
+ *                               the caller's own client (custom_briefs' RLS), so their answers stay viewable (review).
  *   POST  { name, sections[] }  (managers) → a new template.
  *   PATCH { id, retire: true }  (managers) → retired: no new runs; answers already stored keep it.
  * A template changes by being retired and written again (the table's guard). Company-pinned (INV29). A template holds
@@ -34,11 +38,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load brief templates." }, { status: 500 });
   }
   const canManage = (await requireSalesCoachManager(req)) !== null;
-  return NextResponse.json({
-    available: true,
-    canManage,
-    templates: ((data ?? []) as Array<{ id: string; name: string; sections: Section[]; created_at: string }>).map((t) => ({ id: t.id, name: t.name, sections: t.sections, createdAt: t.created_at })),
-  });
+  const live = ((data ?? []) as Array<{ id: string; name: string; sections: Section[]; created_at: string }>).map((t) => ({ id: t.id, name: t.name, sections: t.sections, createdAt: t.created_at, retired: false }));
+  const sessionId = new URL(req.url).searchParams.get("sessionId") ?? "";
+  let past: typeof live = [];
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId)) {
+    // Which templates answered this call — only rows the caller may read (the call's own access rule).
+    const db = callerScopedDb(req) ?? (await createClient());
+    const { data: runs, error: rErr } = await db.from("custom_briefs").select("template_id").eq("session_id", sessionId).limit(500);
+    if (rErr) {
+      console.error(`[brief-templates] past runs read failed: ${rErr.message}`);
+      return NextResponse.json({ error: "Couldn't load brief templates." }, { status: 500 });
+    }
+    const liveIds = new Set(live.map((t) => t.id));
+    const ids = [...new Set(((runs ?? []) as Array<{ template_id: string }>).map((r) => String(r.template_id)))].filter((id) => !liveIds.has(id)).slice(0, 100);
+    if (ids.length) {
+      const { data: old, error: oErr } = await createAdminClient().from("brief_templates").select("id, name, sections, created_at").eq("company_id", ctx.companyId).in("id", ids);
+      if (oErr) {
+        console.error(`[brief-templates] retired read failed: ${oErr.message}`);
+        return NextResponse.json({ error: "Couldn't load brief templates." }, { status: 500 });
+      }
+      past = ((old ?? []) as Array<{ id: string; name: string; sections: Section[]; created_at: string }>).map((t) => ({ id: t.id, name: t.name, sections: t.sections, createdAt: t.created_at, retired: true }));
+    }
+  }
+  return NextResponse.json({ available: true, canManage, templates: [...live, ...past] });
 }
 
 export async function POST(req: NextRequest) {

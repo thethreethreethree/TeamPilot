@@ -9,7 +9,7 @@ import { ListChecks } from "lucide-react";
  * didn't discuss it. A stored run is shown as it is; running again on the same transcript returns the same answers.
  * Renders nothing when the company has no templates (or before 0364).
  */
-type Template = { id: string; name: string; sections: Array<{ question: string }> };
+type Template = { id: string; name: string; sections: Array<{ question: string }>; retired?: boolean };
 type Answer = { question: string; answer: string; seqs: number[]; atMs?: Array<number | null> };
 const NOT_DISCUSSED = "Not discussed on this call.";
 const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
@@ -28,15 +28,16 @@ export function CustomBriefs({ sessionId, onSeek }: { sessionId: string; onSeek?
   const runSeq = useRef(0);
 
   useEffect(() => {
-    fetch("/api/coach/remote/brief-templates")
+    fetch(`/api/coach/remote/brief-templates?sessionId=${sessionId}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { available?: boolean; templates?: Template[] }) => {
         const list = j.available ? (j.templates ?? []) : [];
         setTemplates(list);
-        if (list[0]) setPicked(list[0].id);
+        const first = list.find((t) => !t.retired) ?? list[0];
+        if (first) setPicked(first.id);
       })
       .catch(() => setFailed(true));
-  }, []);
+  }, [sessionId]);
 
   // The stored run for the picked template, if any.
   useEffect(() => {
@@ -83,10 +84,10 @@ export function CustomBriefs({ sessionId, onSeek }: { sessionId: string; onSeek?
         </p>
         <select value={picked} onChange={(e) => setPicked(e.currentTarget.value)} aria-label="Brief template" className="rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary">
           {templates.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
+            <option key={t.id} value={t.id}>{t.retired ? `${t.name} (retired)` : t.name}</option>
           ))}
         </select>
-        {!answers && (
+        {!answers && !templates.find((t) => t.id === picked)?.retired && (
           <button type="button" disabled={busy || !picked} onClick={() => void run()} className="rounded-lg bg-ember-400 px-3 py-1 text-xs font-semibold text-ink-950 disabled:opacity-60">
             {busy ? "Reading the call…" : "Answer from this call"}
           </button>

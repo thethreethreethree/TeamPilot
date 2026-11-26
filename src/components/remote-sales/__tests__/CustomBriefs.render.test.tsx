@@ -17,7 +17,7 @@ describe("CustomBriefs", () => {
   it("runs a template; a cited answer plays from its moment; an uncited one says not discussed", async () => {
     const seek = vi.fn();
     vi.stubGlobal("fetch", vi.fn((u: string, init?: { method?: string }) => {
-      if (u === "/api/coach/remote/brief-templates") return ok({ available: true, templates: [T] });
+      if (u.startsWith("/api/coach/remote/brief-templates")) return ok({ available: true, templates: [T] });
       if (init?.method === "POST")
         return ok({ brief: { answers: [{ question: "Budget?", answer: "About ten thousand.", seqs: [3], atMs: [65_000] }, { question: "Start date?", answer: "Not discussed on this call.", seqs: [] }] } });
       return ok({ available: true, brief: null });
@@ -40,7 +40,7 @@ describe("CustomBriefs — a late stored-answers read", () => {
   it("doesn't overwrite a run's answers (review 2026-11-26)", async () => {
     let releaseGet: (v: unknown) => void = () => {};
     vi.stubGlobal("fetch", vi.fn((u: string, init?: { method?: string }) => {
-      if (u === "/api/coach/remote/brief-templates") return ok({ available: true, templates: [T] });
+      if (u.startsWith("/api/coach/remote/brief-templates")) return ok({ available: true, templates: [T] });
       if (init?.method === "POST") return ok({ brief: { answers: [{ question: "Budget?", answer: "About ten thousand.", seqs: [3], atMs: [65_000] }] } });
       return new Promise((res) => (releaseGet = () => res({ ok: true, status: 200, json: () => Promise.resolve({ available: true, brief: null }) })));
     }));
@@ -57,7 +57,7 @@ describe("CustomBriefs — a read that starts after the run", () => {
   it("still can't overwrite the run's answers", async () => {
     const releases: Array<() => void> = [];
     vi.stubGlobal("fetch", vi.fn((u: string, init?: { method?: string }) => {
-      if (u === "/api/coach/remote/brief-templates") return ok({ available: true, templates: [T] });
+      if (u.startsWith("/api/coach/remote/brief-templates")) return ok({ available: true, templates: [T] });
       if (init?.method === "POST") return new Promise((res) => releases.push(() => res({ ok: true, status: 200, json: () => Promise.resolve({ brief: { answers: [{ question: "Budget?", answer: "Ten.", seqs: [1] }] } }) })));
       return new Promise((res) => releases.push(() => res({ ok: true, status: 200, json: () => Promise.resolve({ available: true, brief: null }) })));
     }));
@@ -69,6 +69,19 @@ describe("CustomBriefs — a read that starts after the run", () => {
     releases[0]!(); // … then the older read lands
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.getByText("Ten.")).toBeTruthy();
+  });
+});
+
+describe("CustomBriefs — a retired template's answers", () => {
+  it("stay viewable on the call, marked retired, with no run button", async () => {
+    vi.stubGlobal("fetch", vi.fn((u: string) => {
+      if (u.startsWith("/api/coach/remote/brief-templates")) return ok({ available: true, templates: [{ ...T, retired: true }] });
+      return ok({ available: true, brief: { answers: [{ question: "Budget?", answer: "Ten.", seqs: [1] }] } });
+    }));
+    render(<CustomBriefs sessionId="s1" />);
+    expect(await screen.findByText("Ten.")).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Discovery (retired)" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Answer from this call" })).toBeNull();
   });
 });
 
