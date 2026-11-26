@@ -36,6 +36,23 @@ describe("CustomBriefs", () => {
   });
 });
 
+describe("CustomBriefs — a late stored-answers read", () => {
+  it("doesn't overwrite a run's answers (review 2026-11-26)", async () => {
+    let releaseGet: (v: unknown) => void = () => {};
+    vi.stubGlobal("fetch", vi.fn((u: string, init?: { method?: string }) => {
+      if (u === "/api/coach/remote/brief-templates") return ok({ available: true, templates: [T] });
+      if (init?.method === "POST") return ok({ brief: { answers: [{ question: "Budget?", answer: "About ten thousand.", seqs: [3], atMs: [65_000] }] } });
+      return new Promise((res) => (releaseGet = () => res({ ok: true, status: 200, json: () => Promise.resolve({ available: true, brief: null }) })));
+    }));
+    render(<CustomBriefs sessionId="s1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Answer from this call" }));
+    expect(await screen.findByText("About ten thousand.")).toBeTruthy();
+    releaseGet(null);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByText("About ten thousand.")).toBeTruthy();
+  });
+});
+
 describe("BriefTemplatesManager", () => {
   it("a manager writes a template; a rep sees nothing", async () => {
     const posts: unknown[] = [];

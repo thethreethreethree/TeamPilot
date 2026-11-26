@@ -421,37 +421,23 @@ export async function POST(req: NextRequest) {
     }
     let parent: string | null = null;
     for (const name of parts) {
-      // By CURRENT parent (0360): after a move, "Objections / Pricing" means where Pricing is now. Names match without
-      // regard to case or edge spaces (review 2026-11-26), as the move guard compares them — "pricing" finds "Pricing"
-      // instead of making a second one beside it. The siblings are read and compared here, so no name reaches a filter.
-      let lookup = admin
-        .from("library_folders_current")
-        .select("id, name, created_at")
-        .eq("company_id", ctx.companyId)
-        .eq("is_company", scope === "company");
-      lookup = parent ? lookup.eq("current_parent_id", parent) : lookup.is("current_parent_id", null);
-      if (scope === "mine") lookup = lookup.eq("owner_id", ctx.userId);
-      const { data: siblings, error } = await lookup.order("created_at", { ascending: true }).limit(500);
-      const existing = ((siblings ?? []) as Array<{ id: string; name: string }>).filter((f) => f.name.trim().toLowerCase() === name.trim().toLowerCase()).slice(0, 1);
-      if (error) {
-        if (MISSING.has(String(error.code))) return NextResponse.json({ error: NOT_READY }, { status: 503 });
-        console.error(`[library] folder lookup failed: ${error.message}`);
+      // One level, found or made in ONE database statement under the library's lock (0365): by CURRENT parent (0360),
+      // names matched without case or edge spaces — so two people saving into the same new path make it once.
+      const { data: id, error }: { data: string | null; error: { message: string } | null } = await admin.rpc("rss_library_folder_find_or_create", {
+        p_company: ctx.companyId,
+        p_owner: ctx.userId,
+        p_is_company: scope === "company",
+        p_parent: parent,
+        p_name: name,
+      });
+      if (error || !id) {
+        if (error && /PGRST202|42883|does not exist/.test(error.message)) return NextResponse.json({ error: NOT_READY }, { status: 503 });
+        const said = error ? /RSS: (.+)/.exec(error.message)?.[1] : undefined;
+        if (said) return NextResponse.json({ error: `${said[0]!.toUpperCase()}${said.slice(1)}.` }, { status: 400 });
+        console.error(`[library] folder find-or-create failed: ${error?.message ?? "no id"}`);
         return NextResponse.json({ error: "Couldn't add it." }, { status: 500 });
       }
-      if (existing && existing.length > 0) parent = String((existing[0] as { id: string }).id);
-      else {
-        const parentId: string | null = parent;
-        const { data: created, error: cErr }: { data: { id: string } | null; error: { message: string } | null } = await admin
-          .from("library_folders")
-          .insert({ company_id: ctx.companyId, owner_id: ctx.userId, is_company: scope === "company", name, parent_id: parentId })
-          .select("id")
-          .maybeSingle();
-        if (cErr || !created) {
-          console.error(`[library] folder create failed: ${cErr?.message ?? "no row"}`);
-          return NextResponse.json({ error: "Couldn't add it." }, { status: 500 });
-        }
-        parent = String(created.id);
-      }
+      parent = String(id);
       pathIds.push(parent);
     }
     folderId = parent;

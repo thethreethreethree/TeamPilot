@@ -23,7 +23,15 @@ const st = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
-    rpc: async () => ({ data: false, error: null }), // 0337: no call is hidden in these tests
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      if (fn !== "rss_library_folder_find_or_create") return { data: false, error: null }; // 0337: no call is hidden in these tests
+      // 0365: one level found (by name, any case) or made — recorded like the old insert so the expectations read the same.
+      st.lookups.push(["is_company", args.p_is_company], ["owner_id", args.p_owner], ["current_parent_id", args.p_parent]);
+      const hit = (st.existing as Array<{ id: string; name?: string }>).find((f) => (f.name ?? "").trim().toLowerCase() === String(args.p_name).trim().toLowerCase());
+      if (hit) return { data: hit.id, error: null };
+      st.inserts.push({ t: "library_folders", row: { company_id: args.p_company, owner_id: args.p_owner, is_company: args.p_is_company, name: args.p_name, parent_id: args.p_parent } });
+      return { data: "f-new", error: null };
+    },
     from: (name: string) => {
       // 0360: the route reads folders through library_folders_current (the current parent); same rows here.
       const t = name === "library_folders_current" ? "library_folders" : name;

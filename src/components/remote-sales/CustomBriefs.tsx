@@ -24,6 +24,8 @@ export function CustomBriefs({ sessionId, onSeek }: { sessionId: string; onSeek?
   // The template on screen now: a run that comes back after a switch is not shown under the other template (review).
   const pickedRef = useRef("");
   pickedRef.current = picked;
+  // Bumped when a run starts: a stored-answers read that started earlier must not overwrite the run's answers.
+  const runSeq = useRef(0);
 
   useEffect(() => {
     fetch("/api/coach/remote/brief-templates")
@@ -40,12 +42,13 @@ export function CustomBriefs({ sessionId, onSeek }: { sessionId: string; onSeek?
   useEffect(() => {
     if (!picked) return;
     let live = true;
+    const seq = runSeq.current;
     setAnswers(null);
     setMsg(null);
     fetch(`/api/coach/remote/${sessionId}/custom-brief?templateId=${picked}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j: { brief?: { answers: Answer[] } | null }) => live && setAnswers(j.brief?.answers ?? null))
-      .catch(() => live && setMsg("Couldn't read this call's brief."));
+      .then((j: { brief?: { answers: Answer[] } | null }) => live && runSeq.current === seq && setAnswers(j.brief?.answers ?? null))
+      .catch(() => live && runSeq.current === seq && setMsg("Couldn't read this call's brief."));
     return () => {
       live = false;
     };
@@ -55,6 +58,7 @@ export function CustomBriefs({ sessionId, onSeek }: { sessionId: string; onSeek?
   if (!templates || templates.length === 0) return null;
   const run = async () => {
     const asked = picked;
+    runSeq.current += 1;
     setBusy(true);
     setMsg(null);
     try {
