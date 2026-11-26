@@ -47,8 +47,16 @@ type Metrics =
       responseHours?: Record<string, { medianHours: number; answered: number }>;
       /** F16.5 (2026-11-25): one row per rep — RepCoaching from feedback.ts, already sorted overdue-first. */
       byRep?: RepCoaching[];
-      /** F16.8 (2026-11-26): the same three counts for the 30 days before. Absent from an older server. */
-      previous?: { feedbackGiven: Record<string, number>; callsWithFeedback: Record<string, number>; callsWithComments: Record<string, number> };
+      /** F16.8 (2026-11-26): the same counts for the same length of time just before. Absent from an older server. */
+      previous?: {
+        feedbackGiven: Record<string, number>;
+        callsWithFeedback: Record<string, number>;
+        callsWithComments: Record<string, number>;
+        callsListened?: Record<string, number>;
+        responseHours?: Record<string, { medianHours: number; answered: number }>;
+      };
+      /** The period the numbers cover (7, 30 or 90 days). Absent from an older server, which always counted 30. */
+      days?: number;
     };
 
 const CHANNEL: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
@@ -66,18 +74,23 @@ const daysAgo = (iso: string) => {
 };
 
 
-/** The change against the 30 days before (F16.8): "▲3" / "▼2"; nothing when unchanged or unknown. Neutral colour —
- *  the team's own trend, not a grade. */
-function Delta({ now, before }: { now: number; before: number | undefined }) {
-  if (before === undefined || now === before) return null;
-  const d = now - before;
+/** The change against the same length of time just before (F16.8): "▲3" / "▼2"; nothing when unchanged or unknown.
+ *  Neutral colour — the team's own trend, not a grade (a slower response is shown the same way as a faster one). */
+function Delta({ now, before, days, unit = "" }: { now: number | undefined; before: number | undefined; days: number; unit?: string }) {
+  if (now === undefined || before === undefined || now === before) return null;
+  const d = Math.round((now - before) * 10) / 10;
+  if (d === 0) return null;
   return (
-    <span className="ml-1 text-[10px] text-muted" title={`${before} in the 30 days before`}>
+    <span className="ml-1 text-[10px] text-muted" title={`${before}${unit} in the ${days} days before`}>
       {d > 0 ? "▲" : "▼"}
       {Math.abs(d)}
+      {unit}
     </span>
   );
 }
+
+const PERIODS = [7, 30, 90] as const;
+const hoursText = (h: number) => (h < 24 ? `${h} h` : `${Math.round((h / 24) * 10) / 10} d`);
 
 export function CoachingInbox({ team }: { team?: string } = {}) {
   // F16.6: which rep's uncoached calls are listed (one at a time).
@@ -88,13 +101,14 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
   const [openOnly, setOpenOnly] = useState(true);
   const [toYouOnly, setToYouOnly] = useState(false);
   const [names, setNames] = useState<Record<string, string>>({});
+  // F16.8 (2026-11-26): the period the manager table covers — the same choices as Team call stats.
+  const [days, setDays] = useState<(typeof PERIODS)[number]>(30);
 
   useEffect(() => {
     let live = true;
     // A new team: clear the last one's numbers first, so a failed or refused load never leaves them on screen
     // under the new team's name (review 2026-11-26).
     setWire(null);
-    setMetrics(null);
     setFailed(false);
     setOpenRep(null);
     fetch(withTeam("/api/coach/remote/coaching-inbox", team))
@@ -111,14 +125,24 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
         if (live && d?.members) setNames(Object.fromEntries(d.members.map((m) => [m.id, m.full_name ?? "Unnamed teammate"])));
       })
       .catch(() => {});
-    fetch(withTeam("/api/coach/remote/coaching-metrics", team))
+    return () => {
+      live = false;
+    };
+  }, [team]);
+
+  // The metrics follow the team AND the period. Cleared first, so a slow or failed load never shows the last team's
+  // or period's numbers under the new heading; `live` drops an answer that arrives after a newer choice.
+  useEffect(() => {
+    let live = true;
+    setMetrics(null);
+    fetch(withTeam(`/api/coach/remote/coaching-metrics?days=${days}`, team))
       .then(async (r) => (r.status === 409 || r.ok ? ((await r.json()) as Metrics) : null))
       .then((m) => live && m && setMetrics(m))
       .catch(() => {});
     return () => {
       live = false;
     };
-  }, [team]);
+  }, [team, days]);
 
   const items = useMemo(
     () => (wire && wire.available ? wire.items.filter((i) => (!openOnly || i.open) && (!toYouOnly || i.toYou)) : []),
@@ -208,13 +232,29 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
       {metrics?.decided && (
         <div className="rounded-xl border border-default bg-base/40 p-3" aria-label="Coaching metrics">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-semibold text-primary">Coaching in the last 30 days</p>
-            {/* Coaching export (2026-11-23, F16.11): the same numbers as a CSV; the download is audit-logged. */}
-            <a href="/api/coach/remote/coaching-metrics?format=csv" className="text-[11px] text-brand hover:underline">Download CSV</a>
+            <p className="text-xs font-semibold text-primary">Coaching in the last {metrics.days ?? 30} days</p>
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1" role="group" aria-label="Period">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-pressed={days === p}
+                    onClick={() => setDays(p)}
+                    className={`rounded px-1.5 py-0.5 text-[11px] ${days === p ? "bg-surface-raised font-semibold text-primary" : "text-muted hover:text-primary"}`}
+                  >
+                    {p} days
+                  </button>
+                ))}
+              </div>
+              {/* Coaching export (2026-11-23, F16.11): the same numbers as a CSV — same team and period as on screen
+                  (2026-11-26: the link used to ignore the team picker); the download is audit-logged. */}
+              <a href={withTeam(`/api/coach/remote/coaching-metrics?format=csv&days=${days}`, team)} className="text-[11px] text-brand hover:underline">Download CSV</a>
+            </div>
           </div>
           {(() => {
-            // A manager who coached in the 30 days before but not now still gets a row — their ▼ is the point (F16.8).
-            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {}), ...Object.keys(metrics.previous?.feedbackGiven ?? {})])].sort(
+            // A manager who coached in the period before but not now still gets a row — their ▼ is the point (F16.8).
+            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {}), ...Object.keys(metrics.previous?.feedbackGiven ?? {}), ...Object.keys(metrics.previous?.callsListened ?? {})])].sort(
               (a, b) => (metrics.feedbackGiven[b] ?? 0) - (metrics.feedbackGiven[a] ?? 0),
             );
             if (ids.length === 0) {
@@ -242,21 +282,26 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
                       <td className="py-1.5 text-primary">{names[id] ?? "A teammate"}</td>
                       <td className="py-1.5 tabular-nums text-primary">
                         {metrics.feedbackGiven[id] ?? 0}
-                        {metrics.previous && <Delta now={metrics.feedbackGiven[id] ?? 0} before={metrics.previous.feedbackGiven[id] ?? 0} />}
+                        {metrics.previous && <Delta now={metrics.feedbackGiven[id] ?? 0} before={metrics.previous.feedbackGiven[id] ?? 0} days={metrics.days ?? 30} />}
                       </td>
                       <td className="py-1.5 tabular-nums text-primary">
                         {metrics.callsWithFeedback?.[id] ?? 0}
-                        {metrics.previous && <Delta now={metrics.callsWithFeedback?.[id] ?? 0} before={metrics.previous.callsWithFeedback[id] ?? 0} />}
+                        {metrics.previous && <Delta now={metrics.callsWithFeedback?.[id] ?? 0} before={metrics.previous.callsWithFeedback[id] ?? 0} days={metrics.days ?? 30} />}
                       </td>
                       <td className="py-1.5 tabular-nums text-primary">
                         {metrics.callsWithComments?.[id] ?? 0}
-                        {metrics.previous && <Delta now={metrics.callsWithComments?.[id] ?? 0} before={metrics.previous.callsWithComments[id] ?? 0} />}
+                        {metrics.previous && <Delta now={metrics.callsWithComments?.[id] ?? 0} before={metrics.previous.callsWithComments[id] ?? 0} days={metrics.days ?? 30} />}
                       </td>
-                      <td className="py-1.5 tabular-nums text-primary">{metrics.callsListened[id] ?? 0}</td>
+                      <td className="py-1.5 tabular-nums text-primary">
+                        {metrics.callsListened[id] ?? 0}
+                        {metrics.previous?.callsListened && <Delta now={metrics.callsListened[id] ?? 0} before={metrics.previous.callsListened[id] ?? 0} days={metrics.days ?? 30} />}
+                      </td>
                       <td className="py-1.5 tabular-nums text-secondary">
-                        {metrics.responseHours?.[id]
-                          ? `${metrics.responseHours[id]!.medianHours < 24 ? `${metrics.responseHours[id]!.medianHours} h` : `${Math.round((metrics.responseHours[id]!.medianHours / 24) * 10) / 10} d`} (${metrics.responseHours[id]!.answered})`
-                          : "—"}
+                        {metrics.responseHours?.[id] ? `${hoursText(metrics.responseHours[id]!.medianHours)} (${metrics.responseHours[id]!.answered})` : "—"}
+                        {/* Only when both periods have answers: "no answers" is not zero hours. */}
+                        {metrics.responseHours?.[id] && metrics.previous?.responseHours?.[id] && (
+                          <Delta now={metrics.responseHours[id]!.medianHours} before={metrics.previous.responseHours[id]!.medianHours} days={metrics.days ?? 30} unit=" h" />
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -267,7 +312,7 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
           <p className="mt-1 text-[11px] text-muted">
             Feedback counts a comment sent to the rep, a score correction, a dispute answer or a pattern marked coached. A call
             counts as listened once at least half of it was played. Typical response: the middle time from a rep&apos;s request
-            to that manager&apos;s answer (how many answers in brackets).
+            to that manager&apos;s answer (how many answers in brackets). ▲/▼ compare with the {metrics.days ?? 30} days just before.
           </p>
         </div>
       )}

@@ -13,7 +13,8 @@ import { FEEDBACK_POLICY, LISTENED_THRESHOLD } from "@/lib/coach/remote/decision
 import { counted, loadCoachingEvents, coachingByRep, responseHoursByManager, feedbackTotals } from "@/lib/coach/remote/feedback";
 
 /**
- * GET /api/coach/remote/coaching-metrics — per-manager coaching activity, last 30 days (RSS Phase 4, Gong F16.2).
+ * GET /api/coach/remote/coaching-metrics?days=7|30|90 — per-manager coaching activity over that period (default 30;
+ * RSS Phase 4, Gong F16.2 / F16.8), with every count also given for the same length of time just before it.
  *
  * D8 GATE. What counts as "feedback given" and as "listened" is NOT DECIDED (decisions.ts). Until both are, this
  * answers 409 with the decision's name, and the panel shows that line — never a number computed under a guessed
@@ -22,6 +23,8 @@ import { counted, loadCoachingEvents, coachingByRep, responseHoursByManager, fee
  *   callsListened — sessions whose merged listen ranges pass counted(), by listener.
  */
 const DAY = 86_400_000;
+// F16.8 (2026-11-26): the same three periods as Team call stats, so the two panels can be read side by side.
+const PERIODS = new Set([7, 30, 90]);
 
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "remote-coaching-metrics", windowMs: 60_000, max: 30 });
@@ -32,6 +35,8 @@ export async function GET(req: NextRequest) {
   const scope = await teamFromRequest(req, createAdminClient, mgr.companyId, (id) => (id === mgr.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
   if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: scope.status });
   const inTeam = (id: string) => !scope.members || scope.members.has(id);
+  const days = Number(new URL(req.url).searchParams.get("days") ?? 30);
+  if (!PERIODS.has(days)) return NextResponse.json({ error: "Period must be 7, 30 or 90 days." }, { status: 400 });
 
   if (FEEDBACK_POLICY === "NOT DECIDED" || LISTENED_THRESHOLD === "NOT DECIDED") {
     return NextResponse.json(
@@ -47,9 +52,13 @@ export async function GET(req: NextRequest) {
   const admin = createAdminClient();
   // Gong F16.9: coaching is counted by WHEN IT HAPPENED (the last 30 days), not by when the call started — a manager
   // who reviews a six-week-old call today is coaching today. Calls are looked up over a bounded 180 days.
-  const since = new Date(Date.now() - 30 * DAY).toISOString();
-  // 210, not 180 (review 2026-11-26): the "30 days before" comparison must reach the same call ages as this month's.
-  const callsSince = new Date(Date.now() - 210 * DAY).toISOString();
+  const since = new Date(Date.now() - days * DAY).toISOString();
+  // The comparison period: the same number of days just before (F16.8).
+  const prevSince = new Date(Date.now() - 2 * days * DAY).toISOString();
+  // 180 + the period, not 180 (review 2026-11-26): the period before must reach the same call ages as this one.
+  const callsSince = new Date(Date.now() - (180 + days) * DAY).toISOString();
+  // The by-rep rows keep their own 30 days (overdue is defined on 30), so requests are read from whichever is earlier.
+  const requestsSince = new Date(Date.now() - Math.max(2 * days, 30) * DAY).toISOString();
   type S = { id: string; agent_id: string; started_at: string; ended_at: string | null; audio_duration_seconds: number | null; client_label: string | null };
   // Every session in the window: PostgREST caps a read at 1000, and a capped read would undercount silently.
   const { data: sessions, error } = await fetchAllPagedResult<S>(
@@ -100,7 +109,8 @@ export async function GET(req: NextRequest) {
   Object.assign(feedbackGiven, current.feedbackGiven);
   const callsWithFeedback = current.callsWithFeedback;
   const callsWithComments = current.callsWithComments;
-  const previous = feedbackTotals(events, new Date(Date.now() - 60 * DAY).toISOString(), since);
+  const previous: ReturnType<typeof feedbackTotals> & { callsListened?: Record<string, number>; responseHours?: ReturnType<typeof responseHoursByManager> } =
+    feedbackTotals(events, prevSince, since);
 
   const lengthMs = new Map(
     mine.map((s) => [
@@ -109,32 +119,49 @@ export async function GET(req: NextRequest) {
       (conversationDurationSeconds(s.audio_duration_seconds, s.started_at, s.ended_at) ?? 0) * 1000,
     ]),
   );
-  const listens: Array<{ session_id: string; listener_id: string; rep_id: string; from_ms: number; to_ms: number }> = [];
+  const listens: Array<{ session_id: string; listener_id: string; rep_id: string; from_ms: number; to_ms: number; created_at: string }> = [];
   for (let i = 0; i < ids.length; i += CHUNK) {
-    const { data, error: lErr } = await admin
-      .from("listen_events")
-      .select("session_id, listener_id, rep_id, from_ms, to_ms")
-      .eq("company_id", mgr.companyId)
-      .in("session_id", ids.slice(i, i + CHUNK))
-      .gte("created_at", since);
+    // Paged (2026-11-26): a chunk of calls can hold more than PostgREST's 1000 plays, and a capped read would
+    // undercount silently — more so now that two periods are read. Ordered by the unique id, so pages neither repeat nor skip.
+    const { data, error: lErr } = await fetchAllPagedResult<(typeof listens)[number]>(
+      (from, to) =>
+        admin
+          .from("listen_events")
+          .select("session_id, listener_id, rep_id, from_ms, to_ms, created_at")
+          .eq("company_id", mgr.companyId)
+          .in("session_id", ids.slice(i, i + CHUNK))
+          .gte("created_at", prevSince)
+          .order("id", { ascending: true })
+          .range(from, to),
+      { label: "coaching-metrics listens", maxRows: 50_000 },
+    );
     if (lErr) {
       console.error(`[coaching-metrics] listen read failed company=${mgr.companyId}: ${lErr.message}`);
       return NextResponse.json({ error: "Couldn't load coaching metrics." }, { status: 500 });
     }
     listens.push(...((data ?? []) as typeof listens));
   }
-  const ranges = new Map<string, [number, number][]>();
-  for (const l of listens) {
-    if (l.listener_id === l.rep_id) continue; // a rep replaying their own call is not a manager listening
-    const k = `${l.listener_id}|${l.session_id}`;
-    ranges.set(k, [...(ranges.get(k) ?? []), [Number(l.from_ms), Number(l.to_ms)]]);
-  }
-  const callsListened: Record<string, number> = {};
-  for (const [k, r] of ranges) {
-    const [listener, session] = k.split("|");
-    if (!listener || !session) continue;
-    if (counted(r, lengthMs.get(session) ?? 0)) callsListened[listener] = (callsListened[listener] ?? 0) + 1;
-  }
+  // Calls listened to in a period: each listener's plays of a call IN that period, merged, judged by counted() (D8). The
+  // period before uses the same rule on its own plays, so a change is the manager's, not the method's (F16.8).
+  const listenedIn = (fromIso: string, toIso: string) => {
+    const ranges = new Map<string, [number, number][]>();
+    for (const l of listens) {
+      if (l.listener_id === l.rep_id) continue; // a rep replaying their own call is not a manager listening
+      const at = Date.parse(l.created_at); // parsed, not compared as text: the database's format isn't toISOString's
+      if (at < Date.parse(fromIso) || at >= Date.parse(toIso)) continue;
+      const k = `${l.listener_id}|${l.session_id}`;
+      ranges.set(k, [...(ranges.get(k) ?? []), [Number(l.from_ms), Number(l.to_ms)]]);
+    }
+    const out: Record<string, number> = {};
+    for (const [k, r] of ranges) {
+      const [listener, session] = k.split("|");
+      if (!listener || !session) continue;
+      if (counted(r, lengthMs.get(session) ?? 0)) out[listener] = (out[listener] ?? 0) + 1;
+    }
+    return out;
+  };
+  const callsListened = listenedIn(since, nowIso);
+  previous.callsListened = listenedIn(prevSince, since);
   // Coaching by rep (2026-11-25, ledger F16.5): one row per rep this manager may see — from the SAME calls and events
   // as the numbers above, plus their open feedback requests and names. The manager's own calls are not a rep's row.
   const repIds = [...allowed].filter((id) => id !== mgr.userId && inTeam(id));
@@ -143,9 +170,15 @@ export async function GET(req: NextRequest) {
   // events as the by-rep rows, same answer rule (requestAnswer).
   let responseHours: ReturnType<typeof responseHoursByManager> = {};
   if (repIds.length) {
+    type Req = { session_id: string; requester_id: string; recipient_id: string | null; created_at: string };
     const [{ data: profs, error: nErr }, { data: reqs, error: rErr }] = await Promise.all([
       admin.from("profiles").select("id, full_name").eq("company_id", mgr.companyId).in("id", repIds),
-      admin.from("feedback_requests").select("session_id, requester_id, recipient_id, created_at").eq("company_id", mgr.companyId).in("requester_id", repIds).gte("created_at", since),
+      // Paged, ordered by the unique id: up to 180 days of requests can pass 1000 (2026-11-26).
+      fetchAllPagedResult<Req>(
+        (from, to) =>
+          admin.from("feedback_requests").select("session_id, requester_id, recipient_id, created_at").eq("company_id", mgr.companyId).in("requester_id", repIds).gte("created_at", requestsSince).order("id", { ascending: true }).range(from, to),
+        { label: "coaching-metrics requests", maxRows: 50_000 },
+      ),
     ]);
     if (nErr || rErr) {
       console.error(`[coaching-metrics] by-rep read failed company=${mgr.companyId}: ${(nErr ?? rErr)!.message}`);
@@ -155,7 +188,7 @@ export async function GET(req: NextRequest) {
     // A recent request can be about a call older than the 180 days read above; load that call's coaching too, or its
     // answer is never seen and the request counts as open forever (review 2026-11-25).
     // 0337: requests about a call hidden from this manager are left out too, like the call itself.
-    const shownReqs = ((reqs ?? []) as Array<{ session_id: string; requester_id: string; recipient_id: string | null; created_at: string }>).filter((r) => !hidden.has(String(r.session_id)));
+    const shownReqs = ((reqs ?? []) as Req[]).filter((r) => !hidden.has(String(r.session_id)));
     const inView = new Set(ids);
     const extra = [...new Set(shownReqs.map((r) => String(r.session_id)))].filter((id) => !inView.has(id));
     const requestEvents = [...events];
@@ -172,6 +205,12 @@ export async function GET(req: NextRequest) {
       createdAt: new Date(r.created_at),
     }));
     responseHours = responseHoursByManager(requestRows, requestEvents, Date.parse(since));
+    // The period before: its own requests only (from prevSince up to since), same answer rule.
+    previous.responseHours = responseHoursByManager(
+      requestRows.filter((r) => r.createdAt.getTime() < Date.parse(since)),
+      requestEvents,
+      Date.parse(prevSince),
+    );
     byRep = coachingByRep({
       reps: repIds.map((id) => ({ id, name: names.get(id) ?? "Unnamed teammate" })),
       calls: mine.map((s) => ({ id: String(s.id), repId: String(s.agent_id), startedAt: s.started_at, label: s.client_label ?? null })),
@@ -207,5 +246,5 @@ export async function GET(req: NextRequest) {
       },
     });
   }
-  return NextResponse.json({ decided: true, since, sessions: ids.length, feedbackGiven, callsWithFeedback, callsWithComments, callsListened, responseHours, byRep, previous });
+  return NextResponse.json({ decided: true, days, since, sessions: ids.length, feedbackGiven, callsWithFeedback, callsWithComments, callsListened, responseHours, byRep, previous });
 }

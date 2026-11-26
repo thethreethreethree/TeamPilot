@@ -68,7 +68,19 @@ describe("coaching metrics count when coaching happened (F16.9)", () => {
     const asked = vi.mocked(loadCoachingEvents).mock.calls.map((c) => [...c[2]]);
     expect(asked).toContainEqual(["ancient"]); // loaded for the request, though outside the calls read
     // F16.8 (26 Nov): the 30 days before, by the same rule — m2's comment 40 days ago is there.
-    expect(body.previous).toEqual({ feedbackGiven: { m2: 1 }, callsWithFeedback: { m2: 1 }, callsWithComments: { m2: 1 } });
+    // Also (26 Nov) calls listened to and response time for the 30 days before: m2 played the call 35 days ago.
+    expect(body.previous).toEqual({ feedbackGiven: { m2: 1 }, callsWithFeedback: { m2: 1 }, callsWithComments: { m2: 1 }, callsListened: { m2: 1 }, responseHours: {} });
 
+  });
+
+  it("a chosen period (F16.8): 7 days counts this week's listen, and the week before is the comparison", async () => {
+    const body = await (await GET(new Request("http://t/x?days=7") as never)).json();
+    expect(body.days).toBe(7);
+    expect(body.callsListened).toEqual({ m1: 1 }); // played 2 days ago
+    expect(body.previous.callsListened).toEqual({}); // m2's play 35 days ago is in neither week
+  });
+
+  it("refuses a period that isn't 7, 30 or 90 days", async () => {
+    expect((await GET(new Request("http://t/x?days=12") as never)).status).toBe(400);
   });
 });

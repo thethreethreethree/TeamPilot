@@ -16,7 +16,7 @@ beforeEach(() => {
   fetchMock.mockImplementation((url: string) => {
     if (url === "/api/coach/remote/coaching-inbox") return json({ available: true, items: [] });
     if (url === "/api/team") return json({ members: [{ id: "m1", full_name: "Max Manager" }, { id: "m2", full_name: "Rae Lead" }] });
-    if (url === "/api/coach/remote/coaching-metrics") return json(metrics);
+    if (url.startsWith("/api/coach/remote/coaching-metrics")) return json(typeof metrics === "function" ? (metrics as (u: string) => unknown)(url) : metrics);
     return json({}, false);
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -103,5 +103,49 @@ describe("CoachingInbox — change against the 30 days before (F16.8)", () => {
     expect(mia.textContent).toContain("2▲1"); // comments 2, was 1; calls-with-feedback 4 = 4 shows no arrow
     const zed = screen.getByText("Zed").closest("tr")!; // coached before, not now — still a row
     expect(zed.textContent).toContain("0▼3");
+  });
+
+  it("a period (F16.8): 7 / 30 / 90 days refetch with ?days=, the heading follows the answer, and the CSV link carries the period", async () => {
+    metrics = (u: string) => {
+      const d = Number(new URL(u, "http://t").searchParams.get("days"));
+      return { decided: true, days: d, since: "x", sessions: 3, feedbackGiven: { m1: d === 7 ? 1 : 4 }, callsListened: {} };
+    };
+    render(<CoachingInbox />);
+    expect(await screen.findByText("Coaching in the last 30 days")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Download CSV" }).getAttribute("href")).toBe("/api/coach/remote/coaching-metrics?format=csv&days=30");
+    fireEvent.click(screen.getByRole("button", { name: "7 days" }));
+    expect(await screen.findByText("Coaching in the last 7 days")).toBeTruthy();
+    expect(fetchMock.mock.calls.map((c) => c[0])).toContain("/api/coach/remote/coaching-metrics?days=7");
+    expect(screen.getByRole("button", { name: "7 days" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("link", { name: "Download CSV" }).getAttribute("href")).toBe("/api/coach/remote/coaching-metrics?format=csv&days=7");
+  });
+
+  it("the CSV link follows the team picker (it used to download the whole company)", async () => {
+    metrics = { decided: true, days: 30, since: "x", sessions: 1, feedbackGiven: { m1: 1 }, callsListened: {} };
+    fetchMock.mockImplementation((url: string) => {
+      if (url.startsWith("/api/coach/remote/coaching-inbox")) return json({ available: true, items: [] });
+      if (url === "/api/team") return json({ members: [{ id: "m1", full_name: "Max Manager" }] });
+      if (url.startsWith("/api/coach/remote/coaching-metrics")) return json(metrics);
+      return json({}, false);
+    });
+    render(<CoachingInbox team="m9" />);
+    expect(await screen.findByText("Coaching in the last 30 days")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Download CSV" }).getAttribute("href")).toBe("/api/coach/remote/coaching-metrics?format=csv&days=30&team=m9");
+  });
+
+  it("calls listened to and response time show their change too; no arrow when the period before had no answer", async () => {
+    metrics = {
+      decided: true, days: 30, since: "x", sessions: 9,
+      feedbackGiven: { m1: 2, m2: 1 }, callsListened: { m1: 5, m2: 1 },
+      responseHours: { m1: { medianHours: 4, answered: 3 }, m2: { medianHours: 10, answered: 1 } },
+      previous: { feedbackGiven: { m1: 2, m2: 1 }, callsWithFeedback: {}, callsWithComments: {}, callsListened: { m1: 2, m2: 1 }, responseHours: { m1: { medianHours: 6.5, answered: 2 } } },
+    };
+    render(<CoachingInbox />);
+    await screen.findByText("Coaching in the last 30 days");
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]!.textContent).toContain("5▲3"); // listened 5, was 2
+    expect(rows[0]!.textContent).toContain("4 h (3)▼2.5 h"); // median 4 h, was 6.5 h
+    expect(rows[1]!.textContent).not.toMatch(/10 h \(1\)[▲▼]/); // m2 had no answer before: no arrow
+    expect(screen.getByTitle("2 in the 30 days before")).toBeTruthy();
   });
 });
