@@ -136,7 +136,7 @@ export function normaliseCorrections(input: Correction[], allTerms: string[] = i
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-type Compiled = { re: RegExp; termFor: Map<string, string> } | null;
+type Compiled = { re: RegExp; termFor: Map<string, string>; isTerm: Set<string> } | null;
 const compiledFor = new WeakMap<Correction[], Compiled>();
 const keyOf = (s: string) => s.toLowerCase().replace(/\s+/g, " ");
 
@@ -146,8 +146,17 @@ function compile(corrections: Correction[]): Compiled {
   if (hit !== undefined) return hit;
   const termFor = new Map<string, string>();
   for (const c of corrections) for (const h of c.heard) termFor.set(keyOf(h), c.term);
+  // Each term itself is in the pattern too, mapped to itself (review 2026-11-26): text that already says the term is
+  // matched as the term and left as it is, so applying the list twice — a past call re-applied, a line corrected
+  // again — never grows it ("Comcast Business" never becomes "Comcast Business Business"). normaliseCorrections also
+  // refuses a mis-hearing inside its term; this keeps the matcher safe without relying on that.
+  const isTerm = new Set<string>();
+  for (const c of corrections) {
+    isTerm.add(keyOf(c.term));
+    if (!termFor.has(keyOf(c.term))) termFor.set(keyOf(c.term), c.term);
+  }
   const alts = [...termFor.keys()].sort((a, b) => b.length - a.length).map((h) => h.split(" ").map(escapeRe).join("\\s+"));
-  const out: Compiled = alts.length ? { re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${alts.join("|")})(?![\\p{L}\\p{N}])`, "giu"), termFor } : null;
+  const out: Compiled = alts.length ? { re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${alts.join("|")})(?![\\p{L}\\p{N}])`, "giu"), termFor, isTerm } : null;
   compiledFor.set(corrections, out);
   return out;
 }
@@ -161,7 +170,8 @@ export function applyCorrections(text: string, corrections: Correction[]): strin
   if (!text || corrections.length === 0) return text;
   const c = compile(corrections);
   if (!c) return text;
-  return text.replace(c.re, (m) => c.termFor.get(keyOf(m)) ?? m);
+  // A match that IS a term stays exactly as written (its own capitalisation too): nothing was mis-heard.
+  return text.replace(c.re, (m) => (c.isTerm.has(keyOf(m)) ? m : c.termFor.get(keyOf(m)) ?? m));
 }
 
 /**

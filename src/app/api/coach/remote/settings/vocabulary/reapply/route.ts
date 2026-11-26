@@ -16,7 +16,7 @@ export const maxDuration = 300;
  * calls (2026-11-26, F8.9; founder picker 2026-11-26: "On request, with a count"). Company admins only.
  *   apply false (default) → the count: how many of the last 180 days' finished phone/video calls (newest 500) would
  *     change, and how many lines — nothing is written. Each changed call's AI reads would be redone (one AI pass each).
- *   apply true → up to APPLY_BATCH of those calls get a new transcript version with the corrected lines (0368: the old
+ *   apply true → up to APPLY_BATCH (5) of those calls get a new transcript version with the corrected lines (0368: the old
  *     version stays as history; refused when the call changed since it was read), then their AI reads are redone after
  *     the response, as a trim does. The rest wait for the next click. Audited.
  * Service role, every statement pinned to the admin's company. Reads and returns counts only, never transcript text.
@@ -97,16 +97,18 @@ export async function POST(req: NextRequest) {
   });
   // The AI reads of each fixed call are redone on its new version (one AI pass each), after the response.
   after(async () => {
-    for (const id of done) {
-      try {
-        const session = await getSession(id, admin);
-        if (!session) continue;
-        const segments = await getSessionTranscript(id, admin);
-        await generateSessionArtifacts({ companyId: ctx.companyId, actorId: ctx.userId, sessionId: id, session, segments });
-      } catch (err) {
-        console.error(`[vocabulary-reapply] reprocess failed session=${id}:`, err);
-      }
-    }
+    await Promise.all(
+      done.map(async (id) => {
+        try {
+          const session = await getSession(id, admin);
+          if (!session) return;
+          const segments = await getSessionTranscript(id, admin);
+          await generateSessionArtifacts({ companyId: ctx.companyId, actorId: ctx.userId, sessionId: id, session, segments });
+        } catch (err) {
+          console.error(`[vocabulary-reapply] reprocess failed session=${id}:`, err);
+        }
+      }),
+    );
   });
   return NextResponse.json({ ...counts, fixed: done.length, skipped, remaining: Math.max(0, plan.length - done.length) });
 }

@@ -36,7 +36,7 @@ function fakeDb(tables: Record<string, unknown[]>) {
   const db = {
     from: (t: string) => {
       const b: Record<string, unknown> = {};
-      for (const m of ["select", "textSearch", "order", "limit", "not", "in", "eq", "gte", "lte"]) {
+      for (const m of ["select", "textSearch", "order", "limit", "not", "in", "eq", "gte", "lte", "range"]) {
         b[m] = (...a: unknown[]) => {
           calls.push([t, m, a]);
           return b;

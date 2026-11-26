@@ -5,7 +5,12 @@ import { applyCorrections, type Correction } from "./vocabulary";
  * count"). Pure: given each call's CURRENT lines, which lines would change — by the same applyCorrections rule new lines
  * go through, so a past call ends up exactly as if it had been heard today.
  */
-export const APPLY_BATCH = 50;
+/**
+ * Calls fixed per click. Each fixed call's AI reads are redone after the response, inside the route's 300 s budget
+ * (review 2026-11-26): 50 one after another could run out of time and leave calls corrected but without new notes —
+ * and a corrected call no longer shows as "would change", so it would never be retried. 5 at a time, in parallel.
+ */
+export const APPLY_BATCH = 5;
 
 export type Line = { session_id: string; seq: number; text: string };
 export type CallChange = { sessionId: string; texts: Record<string, string> };

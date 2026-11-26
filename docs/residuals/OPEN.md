@@ -592,3 +592,5 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [x] 2026-11-26 · brief-templates-auto · should brief templates also run automatically after every call (a paid AI pass per call per template)?
       DECIDED 2026-11-26 (founder picker): "On click only". Nothing to build; the current behavior stands.
 
+- [x] 2026-11-27 · erasure-recording-comments · comments typed on a call's recording (recording_comments.body and its revisions) can quote the customer and aren't blanked by legal erasure (independent review of 7c81ab49..9a7428b6)
+      DECIDED 2026-11-27 (founder picker): "Leave them" — erasure keeps 0285's rule for comments: transcripts, AI reads and score notes are erased; comments a person typed stay as typed.

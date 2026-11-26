@@ -2562,6 +2562,8 @@ const ERASURE_EXTENSIONS = new Map([
     "Legal erasure reaches pipeline prospects never linked to an erased call: a match function and 0316's exact prospect step (name/organization removed, renamed '(erased on request)', its to-do Tasks blanked), called only by the same erasure route for the same request, before rss_erase_sessions."],
   ["0322_erasure_day_plans.sql",
     "Legal erasure reaches reps' day plans (remote_day_plans), which name customers but are tied to no call: a match function and a replace-the-identifier function, called only by the same erasure route for the same request, before rss_erase_sessions; remote_day_plans' rules made erasure-aware with 0285's exact pattern. §3.1.1(2): that customer's data and nothing else."],
+  ["0369_erasure_takes_transcript_lock.sql",
+    "Erasure takes each erased call's transcript advisory lock (the one 0284/0368 take) before deleting, so a concurrent new transcript version can't outlive it. rss_erase_sessions is 0366's exact body plus that one statement. Same function, same single caller."],
   ["0366_erasure_blanks_score_notes.sql",
     "Founder picker 2026-11-26 (\"Blank the text\"): erasure blanks the typed text of score disputes, answers (events by pitch subject, rss_scrub_keys) and correction reasons for the erased calls' scores, keeping that they happened, who and when. rss_erase_sessions is 0364's exact body plus those two statements. Same function, same single caller."],
   ["0364_brief_templates.sql",

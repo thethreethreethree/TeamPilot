@@ -87,3 +87,12 @@ describe("mis-hearings that would rewrite a correct line are refused or harmless
   });
 });
 
+describe("applyCorrections is idempotent (review 2026-11-26)", () => {
+  it("text that already says the term is left exactly as written, so applying twice changes nothing", () => {
+    const c = [{ term: "Comcast Business", heard: ["comcast biz"] }];
+    const once = applyCorrections("They use comcast biz; Comcast Business is fine; comcast business too", c);
+    expect(once).toBe("They use Comcast Business; Comcast Business is fine; comcast business too");
+    expect(applyCorrections(once, c)).toBe(once);
+  });
+});
+

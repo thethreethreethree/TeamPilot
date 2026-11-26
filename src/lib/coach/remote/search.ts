@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { currentCategories } from "./callCategories";
+import { categoriesOf } from "./callCategoriesRead";
 import { NON_SALES_KINDS } from "@/lib/coach/v5/nonSalesSubjects";
 import { toCsv } from "@/lib/export/toCsv";
 import { REMOTE_CONTEXTS, SALES_CONTEXTS, isRemoteContext } from "@/lib/coach/sessionContext";
@@ -229,17 +229,10 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
     }
     if ((inIt ?? []).length >= READ_CAP) narrower = true;
     const candidates = [...new Set(((inIt ?? []) as Array<{ session_id: string }>).map((r) => String(r.session_id)))];
-    const picks: Array<{ id: number; session_id: string; category_id: string | null }> = [];
-    for (let i = 0; i < candidates.length; i += 150) {
-      const { data: all, error: aErr } = await db.from("call_category_picks").select("id, session_id, category_id").in("session_id", candidates.slice(i, i + 150)).limit(READ_CAP);
-      if (aErr) {
-        console.error(`[callSearch] category picks read failed: ${aErr.message}`);
-        return { ok: false, status: 500, error: "The category filter failed." };
-      }
-      if ((all ?? []).length >= READ_CAP) narrower = true;
-      picks.push(...((all ?? []) as typeof picks));
-    }
-    const now = currentCategories(picks);
+    // Every pick on those calls, through the one paged reader (review 2026-11-26: a capped, unordered read could drop a
+    // call's latest pick and put it in the wrong category).
+    const now = await categoriesOf(db, candidates);
+    if (!now) return { ok: false, status: 500, error: "The category filter failed." };
     restrictTo = narrow(restrictTo, new Set([...now].filter(([, c]) => c === f.categoryId).map(([s]) => s)));
     if (restrictTo.size === 0) return { ok: true, rows: [], truncated: false };
   }
