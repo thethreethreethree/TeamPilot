@@ -24,7 +24,9 @@ const st = vi.hoisted(() => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     rpc: async () => ({ data: false, error: null }), // 0337: no call is hidden in these tests
-    from: (t: string) => {
+    from: (name: string) => {
+      // 0360: the route reads folders through library_folders_current (the current parent); same rows here.
+      const t = name === "library_folders_current" ? "library_folders" : name;
       const b: Record<string, unknown> = {};
       for (const m of ["select", "in", "order", "limit", "is"]) b[m] = () => b;
       b.eq = (k: string, v: unknown) => (t === "library_folders" && st.lookups.push([k, v]), b);
@@ -104,7 +106,7 @@ describe("nested folders (0353, F12.6)", () => {
       expect.objectContaining({ name: "Objections", parent_id: null }),
       expect.objectContaining({ name: "Pricing", parent_id: "f-new" }),
     ]);
-    expect(st.lookups).toEqual(expect.arrayContaining([["name", "Objections"], ["name", "Pricing"], ["parent_id", "f-new"]]));
+    expect(st.lookups).toEqual(expect.arrayContaining([["name", "Objections"], ["name", "Pricing"], ["current_parent_id", "f-new"]]));
     expect(st.inserts.find((i) => i.t === "library_items")!.row).toMatchObject({ folder_id: "f-new" });
   });
   it("more than three levels is refused with the reason", async () => {
@@ -125,12 +127,24 @@ describe("nested folders (0353, F12.6)", () => {
     const { requireSalesCoachManager } = await import("@/lib/api/requireSalesCoachManager");
     vi.mocked(requireSalesCoachManager).mockResolvedValue({ userId: "u1", companyId: "co1" } as never);
     // the target "Pricing" (f-child), then its parent row lookups: f-child → parent f-top → no parent
-    st.queue = [{ id: "f-child" }, { parent_id: "f-top" }, { parent_id: null }];
+    st.queue = [{ id: "f-child" }, { current_parent_id: "f-top" }, { current_parent_id: null }];
     st.events = [{ id: 7, folder_id: "f-top", kind: "archive" }];
     const r = await add({ scope: "company", folderId: "f-child" });
     vi.mocked(requireSalesCoachManager).mockResolvedValue(null);
     expect((await r.json()).restored).toBe(true);
     expect(st.inserts.find((i) => i.t === "library_folder_events")!.row).toMatchObject({ folder_id: "f-top", kind: "restore" });
+  });
+  it("0360: moving a folder is an event naming the new parent; a company folder needs a manager", async () => {
+    const move = (body: Record<string, unknown>) => POST(new Request("http://t/x", { method: "POST", body: JSON.stringify({ action: "move", ...body }) }) as never);
+    st.folder = { id: "f1", owner_id: "u1", is_company: false };
+    expect((await move({ folderId: "f1", toFolderId: "f2" })).status).toBe(200);
+    expect(st.inserts).toEqual([{ t: "library_folder_events", row: { company_id: "co1", folder_id: "f1", kind: "move", to_parent: "f2", actor_id: "u1" } }]);
+    expect((await move({ folderId: "f1", toFolderId: "" })).status).toBe(200);
+    expect(st.inserts[1]!.row).toMatchObject({ to_parent: null }); // to the top level
+    const { requireSalesCoachManager } = await import("@/lib/api/requireSalesCoachManager");
+    vi.mocked(requireSalesCoachManager).mockResolvedValue(null);
+    st.folder = { id: "f1", owner_id: "other", is_company: true };
+    expect((await move({ folderId: "f1", toFolderId: null })).status).toBe(403);
   });
 });
 

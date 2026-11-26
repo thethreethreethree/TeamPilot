@@ -178,6 +178,19 @@ export default function LibraryPage() {
     else setNote("Couldn't remove it.");
   };
   // 0346 (F12.6): archive a folder (its calls stay in Search) or bring it back.
+  // 0360 (F12.6): move a folder — the server (and the database) refuse a loop or a fourth level, with a sentence.
+  const moveFolder = async (folderId: string, toFolderId: string | null) => {
+    const r = await fetch("/api/coach/remote/library", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "move", folderId, toFolderId }),
+    }).catch(() => null);
+    const j = r ? ((await r.json().catch(() => ({}))) as { error?: string }) : {};
+    if (r?.ok) {
+      setNote("Folder moved.");
+      void load(scope);
+    } else setNote(j.error ?? "Couldn't move the folder.");
+  };
   const setArchived = async (folderId: string, archive: boolean) => {
     const r = await fetch("/api/coach/remote/library", {
       method: "POST",
@@ -208,6 +221,21 @@ export default function LibraryPage() {
     groups.set(key, g);
   }
   const folderInfo = new Map((wire && wire.available ? wire.folders ?? [] : []).map((f) => [f.id, f]));
+  // Where a folder can go: any live folder of this library except itself, anything inside it, and its current parent.
+  const movableTargets = (id: string) => {
+    const all = wire && wire.available ? wire.folders ?? [] : [];
+    const inside = (f: Folder): boolean => {
+      let p = f.parentId ? folderInfo.get(f.parentId) : undefined;
+      for (let i = 0; p && i < 5; i += 1) {
+        if (p.id === id) return true;
+        p = p.parentId ? folderInfo.get(p.parentId) : undefined;
+      }
+      return false;
+    };
+    return all
+      .filter((f) => f.id !== id && !f.archived && !f.insideArchived && !inside(f) && f.id !== folderInfo.get(id)?.parentId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
   const archivedFolders = wire && wire.available ? (wire.folders ?? []).filter((f) => f.archived) : [];
   // Folders with nothing you can see in them still need an Archive button (review 2026-11-26).
   const emptyFolders = wire && wire.available ? (wire.folders ?? []).filter((f) => !f.archived && !f.insideArchived && f.canArchive && !groups.has(f.id)) : [];
@@ -263,7 +291,24 @@ export default function LibraryPage() {
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">{folder}</h2>
               {folderInfo.get(folderKey)?.canArchive && (
-                <button type="button" onClick={() => void setArchived(folderKey, true)} aria-label={`Archive folder ${folder}`} className="ml-auto inline-flex items-center gap-1 text-xs text-muted hover:text-primary">
+                <select
+                  aria-label={`Move folder ${folder}`}
+                  value=""
+                  onChange={(e) => {
+                    const v = e.currentTarget.value;
+                    if (v) void moveFolder(folderKey, v === "__top__" ? null : v);
+                  }}
+                  className="ml-auto rounded border border-default bg-base px-1 py-0.5 text-[11px] text-secondary"
+                >
+                  <option value="">Move…</option>
+                  {folderInfo.get(folderKey)?.parentId && <option value="__top__">To the top level</option>}
+                  {movableTargets(folderKey).map((t) => (
+                    <option key={t.id} value={t.id}>Into {t.name}</option>
+                  ))}
+                </select>
+              )}
+              {folderInfo.get(folderKey)?.canArchive && (
+                <button type="button" onClick={() => void setArchived(folderKey, true)} aria-label={`Archive folder ${folder}`} className="inline-flex items-center gap-1 text-xs text-muted hover:text-primary">
                   <Archive className="h-3.5 w-3.5" aria-hidden /> Archive folder
                 </button>
               )}

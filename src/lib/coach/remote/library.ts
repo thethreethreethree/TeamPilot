@@ -70,6 +70,8 @@ export async function shareBySession(
 export function archivedFolderIds(events: Array<{ id: number; folder_id: string; kind: string }>): Set<string> {
   const latest = new Map<string, { id: number; kind: string }>();
   for (const e of events) {
+    // 0360: a folder's events include moves; only archive/restore decide whether it is archived.
+    if (e.kind !== "archive" && e.kind !== "restore") continue;
     const had = latest.get(String(e.folder_id));
     if (!had || e.id > had.id) latest.set(String(e.folder_id), { id: e.id, kind: e.kind });
   }
@@ -78,7 +80,8 @@ export function archivedFolderIds(events: Array<{ id: number; folder_id: string;
 
 /**
  * Nested folders (0353, Gong ledger F12.6). A folder is named as a path — "Objections / Pricing" — and each level is a
- * folder whose parent is fixed when it's created (folders are never updated, 0280). At most MAX_FOLDER_DEPTH levels.
+ * folder; its parent is set when it's created and changed only by a move EVENT (0360; folders are never updated, 0280),
+ * read through library_folders_current. At most MAX_FOLDER_DEPTH levels.
  */
 export const MAX_FOLDER_DEPTH = 3;
 export class FolderPathError extends Error {}

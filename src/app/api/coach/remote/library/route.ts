@@ -75,7 +75,8 @@ export async function GET(req: NextRequest) {
   const admin = createAdminClient();
   const isManager = (await requireSalesCoachManager(req)) !== null;
 
-  let folderQuery = admin.from("library_folders").select("id, owner_id, is_company, name, parent_id").eq("company_id", ctx.companyId);
+  // 0360: folders can move, so a folder's parent is its CURRENT one (library_folders_current), never the made-with one.
+  let folderQuery = admin.from("library_folders_current").select("id, owner_id, is_company, name, current_parent_id").eq("company_id", ctx.companyId);
   folderQuery = scope === "company" ? folderQuery.eq("is_company", true) : folderQuery.eq("is_company", false).eq("owner_id", ctx.userId);
   const { data: folderRows, error: fErr } = await folderQuery.order("created_at", { ascending: true });
   if (fErr) {
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
     console.error(`[library] folder read failed: ${fErr.message}`);
     return NextResponse.json({ error: "Couldn't load the library." }, { status: 500 });
   }
-  const allFolders = (folderRows ?? []) as Folder[];
+  const allFolders = ((folderRows ?? []) as Array<Omit<Folder, "parent_id"> & { current_parent_id: string | null }>).map((f) => ({ ...f, parent_id: f.current_parent_id ?? null })) as Folder[];
   if (allFolders.length === 0) return NextResponse.json({ available: true, scope, isManager, folders: [], items: [] });
   // 0346 (F12.6): archived folders leave the list with their items (the calls stay in Search); they are listed apart so
   // they can be restored. A failed read is an error, never "nothing archived".
@@ -328,6 +329,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, folderId, archived: body.action === "archive" });
   }
 
+  // 0360 (F12.6): move a folder — same people as archive. The database refuses a loop or a fourth level; that refusal
+  // comes back as the sentence it carries.
+  if (body.action === "move") {
+    const folderId = typeof body.folderId === "string" ? body.folderId : "";
+    const toFolderId = typeof body.toFolderId === "string" && body.toFolderId ? body.toFolderId : null;
+    if (!folderId) return NextResponse.json({ error: "Which folder?" }, { status: 400 });
+    const { data: folder, error: fErr } = await admin.from("library_folders").select("id, owner_id, is_company").eq("company_id", ctx.companyId).eq("id", folderId).maybeSingle();
+    if (fErr) {
+      console.error(`[library] folder read failed: ${fErr.message}`);
+      return NextResponse.json({ error: "Couldn't move the folder." }, { status: 500 });
+    }
+    if (!folder || (!folder.is_company && String(folder.owner_id) !== ctx.userId)) return NextResponse.json({ error: "Folder not found." }, { status: 404 });
+    if (folder.is_company && (await requireSalesCoachManager(req)) === null) return NextResponse.json({ error: "Only a manager can move a company folder." }, { status: 403 });
+    const { error } = await admin.from("library_folder_events").insert({ company_id: ctx.companyId, folder_id: folderId, kind: "move", to_parent: toFolderId, actor_id: ctx.userId });
+    if (error) {
+      const said = /RSS: (.+)/.exec(error.message)?.[1];
+      if (said) return NextResponse.json({ error: `${said[0]!.toUpperCase()}${said.slice(1)}.` }, { status: 400 });
+      console.error(`[library] folder move failed folder=${folderId}: ${error.message}`);
+      return NextResponse.json({ error: "Couldn't move the folder." }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, folderId, toFolderId });
+  }
+
   if (body.action !== "add") return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   const scope = body.scope === "company" ? "company" : "mine";
   const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
@@ -379,8 +403,8 @@ export async function POST(req: NextRequest) {
     // Its ancestors too (review 2026-11-26): saving by id into a folder inside an archived one must bring that one back.
     let up: string | null = folderId;
     for (let i = 0; up && i < 3; i += 1) {
-      const { data: row }: { data: { parent_id: string | null } | null } = await admin.from("library_folders").select("parent_id").eq("company_id", ctx.companyId).eq("id", up).maybeSingle();
-      up = row?.parent_id ?? null;
+      const { data: row }: { data: { current_parent_id: string | null } | null } = await admin.from("library_folders_current").select("current_parent_id").eq("company_id", ctx.companyId).eq("id", up).maybeSingle();
+      up = row?.current_parent_id ?? null;
       if (up) pathIds.push(up);
     }
   } else {
@@ -395,13 +419,14 @@ export async function POST(req: NextRequest) {
     }
     let parent: string | null = null;
     for (const name of parts) {
+      // By CURRENT parent (0360): after a move, "Objections / Pricing" means where Pricing is now.
       let lookup = admin
-        .from("library_folders")
+        .from("library_folders_current")
         .select("id")
         .eq("company_id", ctx.companyId)
         .eq("is_company", scope === "company")
         .eq("name", name);
-      lookup = parent ? lookup.eq("parent_id", parent) : lookup.is("parent_id", null);
+      lookup = parent ? lookup.eq("current_parent_id", parent) : lookup.is("current_parent_id", null);
       if (scope === "mine") lookup = lookup.eq("owner_id", ctx.userId);
       const { data: existing, error } = await lookup.order("created_at", { ascending: true }).limit(1);
       if (error) {

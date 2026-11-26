@@ -44,8 +44,10 @@ vi.mock("@/lib/supabase/admin", () => ({
       const b: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "order", "limit", "insert", "is"]) b[m] = () => b;
       b.maybeSingle = async () => ({ data: null, error: null });
-      b.then = (res: (v: unknown) => unknown) => res({ data: DATA[t] ?? [], error: null });
-      b.range = async (f: number) => ({ data: f > 0 ? [] : DATA[t] ?? [], error: null }); // paged reads (0346 events)
+      // 0360: folders are read through library_folders_current (current parent = parent here).
+      const rows = () => (t === "library_folders_current" ? ((DATA.library_folders ?? []) as Array<Record<string, unknown>>).map((f) => ({ ...f, current_parent_id: f.parent_id ?? null })) : DATA[t] ?? []);
+      b.then = (res: (v: unknown) => unknown) => res({ data: rows(), error: null });
+      b.range = async (f: number) => ({ data: f > 0 ? [] : rows(), error: null }); // paged reads (0346 events)
       return b;
     },
   }),

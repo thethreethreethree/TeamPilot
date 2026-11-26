@@ -62,6 +62,13 @@ describe("archivedFolderIds (0346)", () => {
       { id: 4, folder_id: "c", kind: "restore" },
     ])]).toEqual(["b"]);
   });
+  it("a move (0360) is neither archive nor restore: an archived folder that moves stays archived", async () => {
+    const { archivedFolderIds } = await import("../library");
+    expect([...archivedFolderIds([
+      { id: 1, folder_id: "a", kind: "archive" },
+      { id: 2, folder_id: "a", kind: "move" },
+    ])]).toEqual(["a"]);
+  });
 });
 
 import { folderPathParts, FolderPathError, folderPaths, underArchived } from "../library";
