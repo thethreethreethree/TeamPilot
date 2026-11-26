@@ -63,3 +63,28 @@ describe("archivedFolderIds (0346)", () => {
     ])]).toEqual(["b"]);
   });
 });
+
+import { folderPathParts, FolderPathError, folderPaths, underArchived } from "../library";
+
+describe("nested folders (0353, F12.6)", () => {
+  const F = [
+    { id: "a", parent_id: null, name: "Objections" },
+    { id: "b", parent_id: "a", name: "Pricing" },
+    { id: "c", parent_id: "b", name: "Spectrum" },
+    { id: "d", parent_id: null, name: "Openers" },
+  ];
+  it("parses a path: trimmed, spaces collapsed, empty levels dropped; at most 3 levels, 60 characters each", () => {
+    expect(folderPathParts("  Objections /  Pricing  //")).toEqual(["Objections", "Pricing"]);
+    expect(() => folderPathParts("a/b/c/d")).toThrow(FolderPathError);
+    expect(() => folderPathParts(" / ")).toThrow(FolderPathError);
+    expect(() => folderPathParts("x".repeat(61))).toThrow(FolderPathError);
+  });
+  it("names each folder by its full path", () => {
+    expect(Object.fromEntries(folderPaths(F))).toEqual({ a: "Objections", b: "Objections / Pricing", c: "Objections / Pricing / Spectrum", d: "Openers" });
+  });
+  it("archiving a folder hides everything inside it, not its siblings", () => {
+    expect([...underArchived(F, new Set(["a"]))].sort()).toEqual(["b", "c"]);
+    expect([...underArchived(F, new Set(["b"]))]).toEqual(["c"]);
+    expect([...underArchived(F, new Set(["d"]))]).toEqual([]);
+  });
+});

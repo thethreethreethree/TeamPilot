@@ -9,7 +9,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { treeFilterReps } from "@/lib/api/treeAccess";
 import { getSession } from "@/lib/data/salesCoach";
-import { archivedFolderIds, canPlay, shareBySession, SnippetError, validateSnippet } from "@/lib/coach/remote/library";
+import { archivedFolderIds, canPlay, folderPathParts, FolderPathError, folderPaths, shareBySession, SnippetError, underArchived, validateSnippet } from "@/lib/coach/remote/library";
 import { conversationDurationSeconds } from "@/lib/coach/conversationDuration";
 import { assetUrlToStoragePath, signAssetUrl } from "@/lib/storage/assets";
 
@@ -37,7 +37,7 @@ import { assetUrlToStoragePath, signAssetUrl } from "@/lib/storage/assets";
 const MISSING = new Set(["PGRST205", "42P01"]);
 const NOT_READY = "The library is waiting on database migration 0280.";
 
-type Folder = { id: string; owner_id: string; is_company: boolean; name: string };
+type Folder = { id: string; owner_id: string; is_company: boolean; name: string; parent_id: string | null };
 type Item = { id: string; folder_id: string; session_id: string; snippet_id: string | null; rep_id: string; note: string | null; added_by: string; created_at: string };
 
 /** Archived folders among `folderIds` (0346), from the append-only events; chunked; throws on a failed read. */
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
   const admin = createAdminClient();
   const isManager = (await requireSalesCoachManager(req)) !== null;
 
-  let folderQuery = admin.from("library_folders").select("id, owner_id, is_company, name").eq("company_id", ctx.companyId);
+  let folderQuery = admin.from("library_folders").select("id, owner_id, is_company, name, parent_id").eq("company_id", ctx.companyId);
   folderQuery = scope === "company" ? folderQuery.eq("is_company", true) : folderQuery.eq("is_company", false).eq("owner_id", ctx.userId);
   const { data: folderRows, error: fErr } = await folderQuery.order("created_at", { ascending: true });
   if (fErr) {
@@ -92,9 +92,23 @@ export async function GET(req: NextRequest) {
     console.error(`[library] folder archive read failed: ${e instanceof Error ? e.message : String(e)}`);
     return NextResponse.json({ error: "Couldn't load the library." }, { status: 500 });
   }
-  const folders = allFolders.filter((f) => !archived.has(String(f.id)));
+  // 0353 (F12.6): folders nest. Each is shown by its full path; archiving a folder hides everything inside it too
+  // (underArchived), and restoring it brings them back — the inner folders keep their own archive state.
+  const paths = folderPaths(allFolders);
+  const insideArchived = underArchived(allFolders, archived);
+  const folders = allFolders.filter((f) => !archived.has(String(f.id)) && !insideArchived.has(String(f.id)));
   const canArchive = scope === "company" ? isManager : true;
-  const folderList = allFolders.map((f) => ({ id: f.id, name: f.name, archived: archived.has(String(f.id)), canArchive }));
+  const folderList = allFolders
+    .map((f) => ({
+      id: f.id,
+      name: paths.get(String(f.id)) ?? f.name,
+      parentId: f.parent_id ?? null,
+      archived: archived.has(String(f.id)),
+      // Hidden because a folder above it is archived: not a place to save, and restored with that folder.
+      insideArchived: insideArchived.has(String(f.id)),
+      canArchive,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   if (folders.length === 0) return NextResponse.json({ available: true, scope, isManager, folders: folderList, items: [] });
 
   const { data: itemRows, error: iErr } = await admin
@@ -160,7 +174,7 @@ export async function GET(req: NextRequest) {
     out.push({
       id: i.id,
       folderId: i.folder_id,
-      folderName: folder?.name ?? "",
+      folderName: folder ? paths.get(String(folder.id)) ?? folder.name : "",
       sessionId: i.session_id,
       callLabel: s?.client_label ?? null,
       channel: s?.context ?? null,
@@ -281,6 +295,8 @@ export async function POST(req: NextRequest) {
 
   // Folder: a named company folder (existing id, or created by name), or the caller's own "Mine".
   let folderId: string | null = null;
+  // Every folder on the path to the target (0353), so saving into a folder inside an archived one brings both back.
+  const pathIds: string[] = [];
   if (scope === "company" && typeof body.folderId === "string") {
     const { data: f, error } = await admin
       .from("library_folders")
@@ -292,42 +308,59 @@ export async function POST(req: NextRequest) {
     if (error && MISSING.has(String(error.code))) return NextResponse.json({ error: NOT_READY }, { status: 503 });
     if (!f) return NextResponse.json({ error: "Folder not found." }, { status: 404 });
     folderId = String(f.id);
+    pathIds.push(folderId);
   } else {
-    const named = typeof body.folderName === "string" && body.folderName.trim() ? body.folderName.trim().replace(/\s+/g, " ").slice(0, 60) : null;
-    const name = named ?? (scope === "company" ? "Team examples" : "Mine");
-    let lookup = admin
-      .from("library_folders")
-      .select("id")
-      .eq("company_id", ctx.companyId)
-      .eq("is_company", scope === "company")
-      .eq("name", name);
-    if (scope === "mine") lookup = lookup.eq("owner_id", ctx.userId);
-    const { data: existing, error } = await lookup.limit(1);
-    if (error) {
-      if (MISSING.has(String(error.code))) return NextResponse.json({ error: NOT_READY }, { status: 503 });
-      console.error(`[library] folder lookup failed: ${error.message}`);
-      return NextResponse.json({ error: "Couldn't add it." }, { status: 500 });
+    // 0353 (F12.6): a name may be a path — "Objections / Pricing" — and each level is found or created inside the one
+    // before it. No name: the library's default folder.
+    let parts: string[];
+    try {
+      parts = typeof body.folderName === "string" && body.folderName.trim() ? folderPathParts(body.folderName) : [scope === "company" ? "Team examples" : "Mine"];
+    } catch (e) {
+      if (e instanceof FolderPathError) return NextResponse.json({ error: e.message }, { status: 400 });
+      throw e;
     }
-    if (existing && existing.length > 0) folderId = String((existing[0] as { id: string }).id);
-    else {
-      const { data: created, error: cErr } = await admin
+    let parent: string | null = null;
+    for (const name of parts) {
+      let lookup = admin
         .from("library_folders")
-        .insert({ company_id: ctx.companyId, owner_id: ctx.userId, is_company: scope === "company", name })
         .select("id")
-        .maybeSingle();
-      if (cErr || !created) {
-        console.error(`[library] folder create failed: ${cErr?.message ?? "no row"}`);
+        .eq("company_id", ctx.companyId)
+        .eq("is_company", scope === "company")
+        .eq("name", name);
+      lookup = parent ? lookup.eq("parent_id", parent) : lookup.is("parent_id", null);
+      if (scope === "mine") lookup = lookup.eq("owner_id", ctx.userId);
+      const { data: existing, error } = await lookup.order("created_at", { ascending: true }).limit(1);
+      if (error) {
+        if (MISSING.has(String(error.code))) return NextResponse.json({ error: NOT_READY }, { status: 503 });
+        console.error(`[library] folder lookup failed: ${error.message}`);
         return NextResponse.json({ error: "Couldn't add it." }, { status: 500 });
       }
-      folderId = String(created.id);
+      if (existing && existing.length > 0) parent = String((existing[0] as { id: string }).id);
+      else {
+        const parentId: string | null = parent;
+        const { data: created, error: cErr }: { data: { id: string } | null; error: { message: string } | null } = await admin
+          .from("library_folders")
+          .insert({ company_id: ctx.companyId, owner_id: ctx.userId, is_company: scope === "company", name, parent_id: parentId })
+          .select("id")
+          .maybeSingle();
+        if (cErr || !created) {
+          console.error(`[library] folder create failed: ${cErr?.message ?? "no row"}`);
+          return NextResponse.json({ error: "Couldn't add it." }, { status: 500 });
+        }
+        parent = String(created.id);
+      }
+      pathIds.push(parent);
     }
+    folderId = parent;
   }
 
-  // 0346: adding to an archived folder brings it back (it was found by name or id), rather than a hidden duplicate.
+  // 0346: adding to an archived folder brings it back (it was found by name or id), rather than a hidden duplicate —
+  // and (0353) any archived folder above it on the path, or the call would land somewhere still hidden.
   let restored = false;
   try {
-    if ((await archivedFor(admin, ctx.companyId, [folderId!])).has(folderId!)) {
-      const { error } = await admin.from("library_folder_events").insert({ company_id: ctx.companyId, folder_id: folderId, kind: "restore", actor_id: ctx.userId });
+    const archivedOnPath = await archivedFor(admin, ctx.companyId, pathIds);
+    for (const id of [...new Set(pathIds)].filter((x) => archivedOnPath.has(x))) {
+      const { error } = await admin.from("library_folder_events").insert({ company_id: ctx.companyId, folder_id: id, kind: "restore", actor_id: ctx.userId });
       if (error) throw new Error(error.message);
       restored = true;
     }

@@ -30,7 +30,8 @@ type Item = {
   canRemove: boolean;
   audioUrl: string | null;
 };
-type Folder = { id: string; name: string; archived?: boolean; canArchive?: boolean };
+// name is the folder's full path ("Objections / Pricing", 0353); insideArchived = a folder above it is archived.
+type Folder = { id: string; name: string; parentId?: string | null; archived?: boolean; insideArchived?: boolean; canArchive?: boolean };
 type Wire = { available: false; reason: string } | { available: true; isManager: boolean; items: Item[]; folders?: Folder[] };
 
 const mmss = (ms: number) => {
@@ -138,7 +139,9 @@ export default function LibraryPage() {
   const folderInfo = new Map((wire && wire.available ? wire.folders ?? [] : []).map((f) => [f.id, f]));
   const archivedFolders = wire && wire.available ? (wire.folders ?? []).filter((f) => f.archived) : [];
   // Folders with nothing you can see in them still need an Archive button (review 2026-11-26).
-  const emptyFolders = wire && wire.available ? (wire.folders ?? []).filter((f) => !f.archived && f.canArchive && !groups.has(f.id)) : [];
+  const emptyFolders = wire && wire.available ? (wire.folders ?? []).filter((f) => !f.archived && !f.insideArchived && f.canArchive && !groups.has(f.id)) : [];
+  // 0353: by path, so a folder's subfolders follow it ("Objections", then "Objections / Pricing").
+  const sortedGroups = [...groups].sort(([, a], [, b]) => a.name.localeCompare(b.name));
 
   return (
     <>
@@ -168,7 +171,7 @@ export default function LibraryPage() {
           </p>
         )}
 
-        {[...groups].map(([folderKey, { name: folder, items }]) => (
+        {sortedGroups.map(([folderKey, { name: folder, items }]) => (
           <section key={folderKey} className="space-y-2" aria-label={folder}>
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">{folder}</h2>
@@ -253,7 +256,7 @@ export default function LibraryPage() {
                 </li>
               ))}
             </ul>
-            <p className="mt-1 text-muted">An archived folder&apos;s calls are still in Search.</p>
+            <p className="mt-1 text-muted">An archived folder&apos;s calls are still in Search. Archiving a folder also hides the folders inside it; restoring it brings them back.</p>
           </details>
         )}
       </div>

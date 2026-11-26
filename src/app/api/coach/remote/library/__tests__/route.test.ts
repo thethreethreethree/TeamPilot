@@ -42,7 +42,7 @@ vi.mock("@/lib/supabase/admin", () => ({
     rpc: async () => ({ data: false, error: null }), // 0337: no call is hidden in these tests
     from: (t: string) => {
       const b: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "in", "order", "limit", "insert"]) b[m] = () => b;
+      for (const m of ["select", "eq", "in", "order", "limit", "insert", "is"]) b[m] = () => b;
       b.maybeSingle = async () => ({ data: null, error: null });
       b.then = (res: (v: unknown) => unknown) => res({ data: DATA[t] ?? [], error: null });
       b.range = async (f: number) => ({ data: f > 0 ? [] : DATA[t] ?? [], error: null }); // paged reads (0346 events)
@@ -102,6 +102,6 @@ describe("GET — an archived folder (0346, F12.6)", () => {
     const body = await get();
     delete DATA.library_folder_events;
     expect(body.items).toEqual([]);
-    expect(body.folders).toEqual([{ id: "f1", name: "Team examples", archived: true, canArchive: true }]);
+    expect(body.folders).toEqual([{ id: "f1", name: "Team examples", parentId: null, archived: true, insideArchived: false, canArchive: true }]);
   });
 });

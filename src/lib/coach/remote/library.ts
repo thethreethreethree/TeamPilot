@@ -75,3 +75,55 @@ export function archivedFolderIds(events: Array<{ id: number; folder_id: string;
   }
   return new Set([...latest].filter(([, v]) => v.kind === "archive").map(([k]) => k));
 }
+
+/**
+ * Nested folders (0353, Gong ledger F12.6). A folder is named as a path — "Objections / Pricing" — and each level is a
+ * folder whose parent is fixed when it's created (folders are never updated, 0280). At most MAX_FOLDER_DEPTH levels.
+ */
+export const MAX_FOLDER_DEPTH = 3;
+export class FolderPathError extends Error {}
+
+/** "Objections / Pricing" → ["Objections", "Pricing"]: trimmed, spaces collapsed, empty levels dropped. Throws FolderPathError. */
+export function folderPathParts(raw: string): string[] {
+  const parts = raw.split("/").map((p) => p.trim().replace(/\s+/g, " ")).filter(Boolean);
+  if (parts.length === 0) throw new FolderPathError("Give the folder a name.");
+  if (parts.length > MAX_FOLDER_DEPTH) throw new FolderPathError(`Folders go at most ${MAX_FOLDER_DEPTH} levels deep (e.g. Objections / Pricing / Spectrum).`);
+  if (parts.some((p) => p.length > 60)) throw new FolderPathError("Each folder name is up to 60 characters.");
+  return parts;
+}
+
+export type FolderNode = { id: string; parent_id: string | null; name: string };
+
+/** Each folder's full path ("Objections / Pricing"). A parent outside the list shows the folder by its own name. Pure. */
+export function folderPaths(folders: FolderNode[]): Map<string, string> {
+  const byId = new Map(folders.map((f) => [String(f.id), f]));
+  const out = new Map<string, string>();
+  for (const f of folders) {
+    const names = [f.name];
+    let p = f.parent_id ? byId.get(String(f.parent_id)) : undefined;
+    // The database caps depth at MAX_FOLDER_DEPTH; the bound here only guards a malformed list.
+    for (let i = 0; p && i < MAX_FOLDER_DEPTH; i += 1) {
+      names.unshift(p.name);
+      p = p.parent_id ? byId.get(String(p.parent_id)) : undefined;
+    }
+    out.set(String(f.id), names.join(" / "));
+  }
+  return out;
+}
+
+/** Folders with an archived folder above them (not counting themselves): archiving a folder hides what's inside it. Pure. */
+export function underArchived(folders: FolderNode[], archived: Set<string>): Set<string> {
+  const byId = new Map(folders.map((f) => [String(f.id), f]));
+  const out = new Set<string>();
+  for (const f of folders) {
+    let p = f.parent_id ? byId.get(String(f.parent_id)) : undefined;
+    for (let i = 0; p && i < MAX_FOLDER_DEPTH; i += 1) {
+      if (archived.has(String(p.id))) {
+        out.add(String(f.id));
+        break;
+      }
+      p = p.parent_id ? byId.get(String(p.parent_id)) : undefined;
+    }
+  }
+  return out;
+}

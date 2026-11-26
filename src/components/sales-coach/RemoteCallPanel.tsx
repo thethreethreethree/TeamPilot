@@ -146,8 +146,8 @@ export function RemoteCallPanel({
       (["mine", "company"] as const).map((scope) =>
         fetch(`/api/coach/remote/library?scope=${scope}`, { cache: "no-store" })
           .then((r) => (r.ok ? r.json() : null))
-          // Archived folders (0346) aren't offered as places to save.
-          .then((j: { folders?: Array<{ name: string; archived?: boolean }> } | null) => (j?.folders ?? []).filter((f) => !f.archived).map((f) => f.name))
+          // Archived folders (0346), and folders inside one (0353), aren't offered as places to save. Names are paths.
+          .then((j: { folders?: Array<{ name: string; archived?: boolean; insideArchived?: boolean }> } | null) => (j?.folders ?? []).filter((f) => !f.archived && !f.insideArchived).map((f) => f.name))
           .catch(() => [] as string[]),
       ),
     ).then((lists) => live && setFolderNames([...new Set(["Listen later", ...lists.flat()])].sort()));
@@ -407,9 +407,11 @@ export function RemoteCallPanel({
             <input
               value={folder}
               onChange={(e) => setFolder(e.target.value)}
-              maxLength={60}
+              // 0353: a path — "Objections / Pricing" — up to three levels of 60 characters each.
+              maxLength={190}
               list="library-folders"
               placeholder="Folder (optional)"
+              title="A folder, or a folder inside one: Objections / Pricing"
               aria-label="Folder"
               className="w-32 rounded border border-default bg-surface px-2 py-1 text-xs text-primary"
             />

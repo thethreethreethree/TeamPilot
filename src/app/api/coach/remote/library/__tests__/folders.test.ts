@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/admin", () => ({
     rpc: async () => ({ data: false, error: null }), // 0337: no call is hidden in these tests
     from: (t: string) => {
       const b: Record<string, unknown> = {};
-      for (const m of ["select", "in", "order", "limit"]) b[m] = () => b;
+      for (const m of ["select", "in", "order", "limit", "is"]) b[m] = () => b;
       b.eq = (k: string, v: unknown) => (t === "library_folders" && st.lookups.push([k, v]), b);
       b.insert = (row: Record<string, unknown>) => (st.inserts.push({ t, row }), b);
       b.maybeSingle = async () => ({ data: t === "library_folders" ? (st.folder ?? { id: "f-new" }) : { id: "item-1" }, error: null });
@@ -92,3 +92,31 @@ describe("archiving a folder (0346, F12.6)", () => {
     expect(st.inserts.find((i) => i.t === "library_folder_events")!.row).toMatchObject({ folder_id: "f-old", kind: "restore" });
   });
 });
+
+describe("nested folders (0353, F12.6)", () => {
+  it("\"Objections / Pricing\" finds or creates each level inside the one before it", async () => {
+    const r = await add({ scope: "mine", folderName: " Objections /  Pricing " });
+    expect(r.status).toBe(200);
+    const created = st.inserts.filter((i) => i.t === "library_folders").map((i) => i.row);
+    expect(created).toEqual([
+      expect.objectContaining({ name: "Objections", parent_id: null }),
+      expect.objectContaining({ name: "Pricing", parent_id: "f-new" }),
+    ]);
+    expect(st.lookups).toEqual(expect.arrayContaining([["name", "Objections"], ["name", "Pricing"], ["parent_id", "f-new"]]));
+    expect(st.inserts.find((i) => i.t === "library_items")!.row).toMatchObject({ folder_id: "f-new" });
+  });
+  it("more than three levels is refused with the reason", async () => {
+    const r = await add({ scope: "mine", folderName: "A / B / C / D" });
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toMatch(/at most 3 levels/);
+    expect(st.inserts).toEqual([]);
+  });
+  it("saving inside an archived folder brings the archived folder back (once)", async () => {
+    st.existing = [{ id: "f-old" }]; // every level resolves to an existing folder
+    st.events = [{ id: 5, folder_id: "f-old", kind: "archive" }];
+    const r = await add({ scope: "mine", folderName: "Objections / Pricing" });
+    expect((await r.json()).restored).toBe(true);
+    expect(st.inserts.filter((i) => i.t === "library_folder_events")).toHaveLength(1);
+  });
+});
+
