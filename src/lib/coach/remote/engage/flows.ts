@@ -138,3 +138,28 @@ export function replayEnrolment(steps: Step[], startedAt: string, acts: Activity
   const step = steps[stepIndex];
   return { state, stepIndex, dueAt: state === "active" && step ? dueAfter(base, step) : null };
 }
+
+// ── Analytics (plan E2; Gong F26.7–F26.9) ─────────────────────────────────────────────────────────────────────────
+export type StatActivity = { enrolmentId: string; flowId: string; repId: string; stepKind: StepKind | null; action: EnrolAction; outcome: string | null };
+export type StatRow = { key: string; people: number; stepsDone: number; emails: number; calls: number; connectRate: number | null; meetings: number; replies: number; optOuts: number };
+
+/** Per flow or per rep: activity counts and connect rate (connected outcomes ÷ calls with an outcome). Pure. */
+export function engageStats(acts: StatActivity[], enrolments: Array<{ id: string; flowId: string; repId: string }>, by: "flow" | "rep"): StatRow[] {
+  const keyOf = (x: { flowId: string; repId: string }) => (by === "flow" ? x.flowId : x.repId);
+  const rows = new Map<string, StatRow & { outcomes: string[] }>();
+  const row = (k: string) => rows.get(k) ?? rows.set(k, { key: k, people: 0, stepsDone: 0, emails: 0, calls: 0, connectRate: null, meetings: 0, replies: 0, optOuts: 0, outcomes: [] }).get(k)!;
+  for (const e of enrolments) row(keyOf(e)).people += 1;
+  for (const a of acts) {
+    const r = row(keyOf(a));
+    if (a.action === "complete_step" || a.action === "meeting_booked" || (a.action === "opted_out" && a.outcome)) {
+      r.stepsDone += 1;
+      if (a.stepKind === "email") r.emails += 1;
+      if (a.stepKind === "call") r.calls += 1;
+    }
+    if (a.outcome) r.outcomes.push(a.outcome);
+    if (a.action === "meeting_booked") r.meetings += 1;
+    if (a.action === "replied") r.replies += 1;
+    if (a.action === "opted_out") r.optOuts += 1;
+  }
+  return [...rows.values()].map(({ outcomes, ...r }) => ({ ...r, connectRate: connectRate(outcomes) })).sort((a, b) => b.people - a.people || a.key.localeCompare(b.key));
+}

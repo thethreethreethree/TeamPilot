@@ -23,20 +23,20 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefin
 const field = "rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary";
 
 export function RemoteEngage() {
-  const [tab, setTab] = useState<"today" | "flows">("today");
+  const [tab, setTab] = useState<"today" | "flows" | "analytics">("today");
   return (
     <section aria-label="Engage" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-primary"><ListChecks className="h-4 w-4 text-brand" aria-hidden /> Engage</h2>
         <div role="tablist" aria-label="Engage" className="inline-flex overflow-hidden rounded-lg border border-default">
-          {(["today", "flows"] as const).map((t) => (
+          {(["today", "flows", "analytics"] as const).map((t) => (
             <button key={t} role="tab" type="button" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-2.5 py-1 text-xs ${tab === t ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>
-              {t === "today" ? "Today" : "Flows"}
+              {t === "today" ? "Today" : t === "flows" ? "Flows" : "Analytics"}
             </button>
           ))}
         </div>
       </div>
-      {tab === "today" ? <Today /> : <Flows />}
+      {tab === "today" ? <Today /> : tab === "flows" ? <Flows /> : <Analytics />}
     </section>
   );
 }
@@ -269,6 +269,90 @@ function FlowEditor({ canCompany, onSaved, onCancel }: { canCompany: boolean; on
         <button type="button" onClick={onCancel} className="px-2 text-muted hover:text-primary">Cancel</button>
       </div>
       {err && <p className="text-amber-700 dark:text-amber-300">{err}</p>}
+    </div>
+  );
+}
+
+type StatRow = { key: string; name?: string; people: number; stepsDone: number; emails: number; calls: number; connectRate: number | null; meetings: number; replies: number; optOuts: number };
+/** Engage → Analytics (plan E2; Gong F26.7–F26.9): per flow and per rep, over 30 or 90 days. */
+function Analytics() {
+  const [days, setDays] = useState<30 | 90>(30);
+  const [data, setData] = useState<{ byFlow: StatRow[]; byRep: StatRow[]; viewerId: string } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [names, setNames] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    let live = true;
+    setData(null);
+    setFailed(false);
+    fetch(`/api/coach/remote/engage/stats?days=${days}`, { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        const j = await r.json();
+        if (live) setData(j);
+      })
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [days]);
+  useEffect(() => {
+    fetch("/api/team")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d: { members?: Array<{ id: string; full_name?: string | null }> }) => setNames(new Map((d.members ?? []).map((m) => [m.id, m.full_name ?? "A rep"]))))
+      .catch(() => setNames(new Map())); // names are labels only; ids still show as "A rep"
+  }, []);
+  const table = (title: string, rows: StatRow[], label: (r: StatRow) => string) => (
+    <div className="overflow-x-auto rounded-xl border border-default bg-surface">
+      <table className="w-full min-w-[40rem] text-left text-xs">
+        <thead className="text-[10px] uppercase tracking-wide text-muted">
+          <tr>
+            <th className="px-3 py-2 font-medium">{title}</th>
+            <th className="px-3 py-2 text-right font-medium">People</th>
+            <th className="px-3 py-2 text-right font-medium">Steps done</th>
+            <th className="px-3 py-2 text-right font-medium">Emails</th>
+            <th className="px-3 py-2 text-right font-medium">Calls</th>
+            <th className="px-3 py-2 text-right font-medium" title="Connected outcomes ÷ calls with an outcome">Connect rate</th>
+            <th className="px-3 py-2 text-right font-medium">Meetings</th>
+            <th className="px-3 py-2 text-right font-medium">Replies</th>
+            <th className="px-3 py-2 text-right font-medium">Opt-outs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key} className="border-t border-default">
+              <td className="px-3 py-2 text-primary">{label(r)}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.people}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.stepsDone}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.emails}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.calls}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-primary">{r.connectRate === null ? "—" : `${Math.round(r.connectRate * 100)}%`}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-primary">{r.meetings}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.replies}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.optOuts}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+  return (
+    <div className="space-y-3">
+      <div role="group" aria-label="Period" className="inline-flex overflow-hidden rounded-lg border border-default">
+        {([30, 90] as const).map((d) => (
+          <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={`px-2.5 py-1 text-xs ${days === d ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>{d} days</button>
+        ))}
+      </div>
+      {failed ? <p className="text-xs text-secondary">Couldn&apos;t load Engage analytics. Refresh to try again.</p> : !data ? (
+        <p className="flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading…</p>
+      ) : data.byFlow.length === 0 ? (
+        <p className="text-xs text-secondary">No one has been in a flow yet.</p>
+      ) : (
+        <>
+          {table("Flow", data.byFlow, (r) => r.name ?? "A flow")}
+          {table("Rep", data.byRep, (r) => (r.key === data.viewerId ? "You" : names.get(r.key) ?? "A rep"))}
+          <p className="text-[11px] text-muted">Steps, calls and outcomes in the last {days} days; people counts everyone ever enrolled. Connect rate counts calls with an outcome.</p>
+        </>
+      )}
     </div>
   );
 }

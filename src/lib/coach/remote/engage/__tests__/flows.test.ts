@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { addBusinessDays, applyAction, checkSteps, connectRate, dueAfter, fillTemplate, FlowError, outcomeAction, replayEnrolment } from "../flows";
+import { addBusinessDays, applyAction, checkSteps, connectRate, dueAfter, engageStats, fillTemplate, FlowError, outcomeAction, replayEnrolment } from "../flows";
 
 test("steps: a valid flow passes; bad ones are refused", () => {
   assert.doesNotThrow(() => checkSteps([{ kind: "email", delay: { amount: 0, unit: "business_days" }, title: "Intro" }]));
@@ -57,4 +57,18 @@ test("replay: due from the step before; a stale or disallowed action is ignored"
   if (r1.stepIndex !== 1 || r1.dueAt?.slice(0, 10) !== "2026-11-27") throw new Error("r1 " + JSON.stringify(r1));
   const r2 = replayEnrolment(steps, start, [{ stepIndex: 0, action: "resume", createdAt: "2026-11-25T09:00:00Z" }, { stepIndex: 0, action: "replied", createdAt: "2026-11-26T09:00:00Z" }]);
   if (r2.state !== "finished" || r2.dueAt !== null) throw new Error("r2");
+});
+
+test("engage stats: per flow, connect rate from outcomes, meetings and replies", () => {
+  const en = [{ id: "e1", flowId: "f1", repId: "a" }, { id: "e2", flowId: "f1", repId: "b" }];
+  const acts = [
+    { enrolmentId: "e1", flowId: "f1", repId: "a", stepKind: "email" as const, action: "complete_step" as const, outcome: null },
+    { enrolmentId: "e1", flowId: "f1", repId: "a", stepKind: "call" as const, action: "complete_step" as const, outcome: "left_voicemail" },
+    { enrolmentId: "e2", flowId: "f1", repId: "b", stepKind: "call" as const, action: "meeting_booked" as const, outcome: "meeting_booked" },
+    { enrolmentId: "e2", flowId: "f1", repId: "b", stepKind: null, action: "replied" as const, outcome: null },
+  ];
+  const [f] = engageStats(acts, en, "flow");
+  if (!f || f.people !== 2 || f.stepsDone !== 3 || f.emails !== 1 || f.calls !== 2 || f.meetings !== 1 || f.replies !== 1 || f.connectRate !== 0.5) throw new Error(JSON.stringify(f));
+  const byRep = engageStats(acts, en, "rep");
+  if (byRep.length !== 2) throw new Error("rep rows");
 });
