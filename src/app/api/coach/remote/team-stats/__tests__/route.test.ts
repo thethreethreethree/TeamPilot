@@ -24,6 +24,8 @@ const scope = vi.hoisted(() => ({ result: { ok: true, members: null } as { ok: t
 vi.mock("@/lib/coach/remote/teamScope", () => ({ teamFromRequest: vi.fn(async () => scope.result) }));
 vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => true) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+const cat = vi.hoisted(() => ({ map: new Map<string, string | null>() as Map<string, string | null> | null }));
+vi.mock("@/lib/coach/remote/callCategoriesRead", () => ({ categoriesOf: vi.fn(async () => cat.map) }));
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { GET } from "../route";
 
@@ -55,5 +57,15 @@ describe("GET team-stats", () => {
     expect((await (await get("?days=30&team=x")).json()).reps).toHaveLength(1);
     scope.result = { ok: false, status: 404, error: "Team not found." };
     expect((await get("?days=30&team=x")).status).toBe(404);
+  });
+  it("?category= (F10.9, 0367) keeps only calls whose current category is it; a failed category read is a 500", async () => {
+    const C = "11111111-1111-4111-8111-111111111111";
+    cat.map = new Map([["s1", "22222222-2222-4222-8222-222222222222"]]);
+    expect((await (await get(`?days=7&category=${C}`)).json()).reps).toEqual([]);
+    cat.map = new Map([["s1", C]]);
+    expect((await (await get(`?days=7&category=${C}`)).json()).reps).toHaveLength(1);
+    cat.map = null;
+    expect((await get(`?days=7&category=${C}`)).status).toBe(500);
+    expect((await get("?days=7&category=nope")).status).toBe(400);
   });
 });

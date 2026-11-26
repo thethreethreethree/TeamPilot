@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { currentCategories } from "./callCategories";
 import { NON_SALES_KINDS } from "@/lib/coach/v5/nonSalesSubjects";
 import { toCsv } from "@/lib/export/toCsv";
 import { REMOTE_CONTEXTS, SALES_CONTEXTS, isRemoteContext } from "@/lib/coach/sessionContext";
@@ -41,6 +42,8 @@ export type CallSearchFilters = {
   topic?: string;
   /** Remote Sales' own search: phone and video calls only (founder 2026-11-22, separate from Sales Coach). */
   remoteOnly?: boolean;
+  /** A call category (0367): only calls whose CURRENT category (the latest pick) is this one. */
+  categoryId?: string;
   /** Internal (never parsed from a URL): calls that ENDED at or after this time — a followed search's "new" (0342). */
   endedAfter?: string;
 };
@@ -91,6 +94,11 @@ export function parseCallSearch(params: URLSearchParams): { filters: CallSearchF
   if (tracker) {
     if (!uuid.test(tracker)) return { error: "Unknown tracker." };
     f.trackerId = tracker;
+  }
+  const category = params.get("category");
+  if (category) {
+    if (!uuid.test(category)) return { error: "Unknown category." };
+    f.categoryId = category;
   }
   const outcome = params.get("outcome");
   if (outcome && outcome !== "all") {
@@ -207,6 +215,32 @@ export async function runCallSearch(db: SupabaseClient, f: CallSearchFilters): P
     if ((data ?? []).length >= READ_CAP) narrower = true;
     const ids = new Set(((data ?? []) as Array<{ session_id: string }>).map((r) => String(r.session_id)));
     restrictTo = restrictTo ? new Set([...restrictTo].filter((id) => ids.has(id))) : ids;
+    if (restrictTo.size === 0) return { ok: true, rows: [], truncated: false };
+  }
+
+  // 2a. Category (0367) → calls whose CURRENT category is this one: the calls ever picked into it, then every pick on
+  // those calls, so a call moved to another category since doesn't count (currentCategories — the one rule, §2.2).
+  if (f.categoryId) {
+    const { data: inIt, error } = await db.from("call_category_picks").select("session_id").eq("category_id", f.categoryId).limit(READ_CAP);
+    if (error) {
+      if (MISSING.has(String(error.code))) return { ok: false, status: 503, error: "Call categories are waiting on database migration 0367." };
+      console.error(`[callSearch] category read failed: ${error.message}`);
+      return { ok: false, status: 500, error: "The category filter failed." };
+    }
+    if ((inIt ?? []).length >= READ_CAP) narrower = true;
+    const candidates = [...new Set(((inIt ?? []) as Array<{ session_id: string }>).map((r) => String(r.session_id)))];
+    const picks: Array<{ id: number; session_id: string; category_id: string | null }> = [];
+    for (let i = 0; i < candidates.length; i += 150) {
+      const { data: all, error: aErr } = await db.from("call_category_picks").select("id, session_id, category_id").in("session_id", candidates.slice(i, i + 150)).limit(READ_CAP);
+      if (aErr) {
+        console.error(`[callSearch] category picks read failed: ${aErr.message}`);
+        return { ok: false, status: 500, error: "The category filter failed." };
+      }
+      if ((all ?? []).length >= READ_CAP) narrower = true;
+      picks.push(...((all ?? []) as typeof picks));
+    }
+    const now = currentCategories(picks);
+    restrictTo = narrow(restrictTo, new Set([...now].filter(([, c]) => c === f.categoryId).map(([s]) => s)));
     if (restrictTo.size === 0) return { ok: true, rows: [], truncated: false };
   }
 

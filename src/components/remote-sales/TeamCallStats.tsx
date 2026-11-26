@@ -38,11 +38,20 @@ export function TeamCallStats({ team }: { team?: string } = {}) {
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [data, setData] = useState<Resp | null>(null);
   const [state, setState] = useState<"loading" | "hidden" | "failed" | "ok">("loading");
+  // F10.9 (0367): narrow to one call category, when the company has a list.
+  const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    fetch("/api/coach/remote/call-categories")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: { categories?: Array<{ id: string; name: string }> }) => setCategories(j.categories ?? []))
+      .catch(() => setCategories([])); // no list → no filter offered; the stats themselves still load
+  }, []);
 
   useEffect(() => {
     let live = true;
     setState("loading");
-    fetch(withTeam(`/api/coach/remote/team-stats?days=${days}`, team), { cache: "no-store" })
+    fetch(withTeam(`/api/coach/remote/team-stats?days=${days}${category ? `&category=${category}` : ""}`, team), { cache: "no-store" })
       .then(async (r) => {
         if (!live) return;
         if (r.status === 403) return setState("hidden");
@@ -54,7 +63,7 @@ export function TeamCallStats({ team }: { team?: string } = {}) {
     return () => {
       live = false;
     };
-  }, [days, team]);
+  }, [days, team, category]);
 
   if (state === "hidden") return null;
   return (
@@ -63,6 +72,14 @@ export function TeamCallStats({ team }: { team?: string } = {}) {
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-primary">
           <BarChart3 className="h-4 w-4 text-brand" aria-hidden /> Team call stats
         </h2>
+        {categories.length > 0 && (
+          <select value={category} onChange={(e) => setCategory(e.currentTarget.value)} aria-label="Call category" className="ml-auto rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary">
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
         <div role="group" aria-label="Period" className="inline-flex overflow-hidden rounded-lg border border-default">
           {([7, 30, 90] as const).map((d) => (
             <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={`px-2.5 py-1 text-xs ${days === d ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>

@@ -118,6 +118,20 @@ describe("runCallSearch — the added filters", () => {
     expect(calls).toContainEqual(["events", "eq", ["kind", "coach.pitch_score_disputed"]]);
     expect(calls).toContainEqual(["coaching_sessions", "in", ["id", ["s2"]]]);
   });
+  it("category (0367): only calls whose CURRENT category is it — a call moved to another since is left out", async () => {
+    const C1 = "11111111-1111-4111-8111-111111111111";
+    const picks = [
+      { id: 1, session_id: "s1", category_id: C1 },
+      { id: 2, session_id: "s1", category_id: "22222222-2222-4222-8222-222222222222" }, // s1 moved since
+      { id: 3, session_id: "s2", category_id: C1 },
+    ];
+    const { db, calls } = fakeDb({ call_category_picks: picks, coaching_sessions: sessions, profiles: [] });
+    expect(parseCallSearch(new URLSearchParams(`category=${C1}`))).toEqual({ filters: { categoryId: C1 } });
+    expect(parseCallSearch(new URLSearchParams("category=x"))).toHaveProperty("error");
+    await runCallSearch(db, { categoryId: C1 });
+    expect(calls).toContainEqual(["call_category_picks", "eq", ["category_id", C1]]);
+    expect(calls).toContainEqual(["coaching_sessions", "in", ["id", ["s2"]]]);
+  });
   it("talk share uses the newest transcript version, and a call with no measured share is left out", async () => {
     const { db } = fakeDb({
       coaching_sessions: sessions,

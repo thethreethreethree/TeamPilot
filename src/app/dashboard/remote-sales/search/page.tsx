@@ -30,11 +30,13 @@ type Filters = {
   element: string; grade: string; talkMin: string; talkMax: string; disputed: string;
   // F11.12: a topic or competitor the call's AI read found.
   topic: string;
+  // F10.10 (0367): the call's current category.
+  category: string;
 };
 
 const EMPTY: Filters = {
   q: "", channel: "all", rep: "", outcome: "all", from: "", to: "", scoreMin: "", scoreMax: "", tracker: "",
-  element: "", grade: "missed", talkMin: "", talkMax: "", disputed: "", topic: "",
+  element: "", grade: "missed", talkMin: "", talkMax: "", disputed: "", topic: "", category: "",
 };
 const CHANNEL: Record<string, string> = { phone: "Phone", video: "Video" }; // Remote Sales: phone and video only
 const OUTCOME: Record<string, string> = { sold: "Sold", follow_up: "Follow-up", no_sale: "No sale", undecided: "Undecided" };
@@ -63,6 +65,8 @@ export default function SearchCallsPage() {
   const [saved, setSaved] = useState<Saved[]>([]);
   const [savedAvailable, setSavedAvailable] = useState(true);
   const [trackers, setTrackers] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [categoriesFailed, setCategoriesFailed] = useState(false);
   const [reps, setReps] = useState<Array<{ id: string; full_name: string | null }>>([]);
   // Failed reads are said, not shown as "none" (2026-11-23).
   const [listFailed, setListFailed] = useState({ saved: false, trackers: false, reps: false });
@@ -123,6 +127,11 @@ export default function SearchCallsPage() {
       // A draft tracker (0352) has never been checked on a call, so it can't find any: not offered as a filter.
       .then((j: { trackers?: Array<{ id: string; name: string; draft?: boolean }> } | null) => setTrackers((j?.trackers ?? []).filter((t) => !t.draft)))
       .catch(() => setListFailed((x) => ({ ...x, trackers: true })));
+    // F10.10 (0367): the company's call categories, for the Category filter.
+    fetch("/api/coach/remote/call-categories")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: { categories?: Array<{ id: string; name: string }> }) => setCategories(j.categories ?? []))
+      .catch(() => setCategoriesFailed(true));
   }, [run]);
 
   useEffect(() => {
@@ -230,6 +239,16 @@ export default function SearchCallsPage() {
               Topic or competitor
               <input value={f.topic} onChange={set("topic")} placeholder="e.g. pricing, Spectrum" maxLength={60} className={input} />
             </label>
+            {(categories.length > 0 || categoriesFailed) && (
+              <label className="block text-[11px] text-muted">
+                Category
+                <select value={f.category} onChange={set("category")} className={input}>
+                  <option value="">Any</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {categoriesFailed && <option disabled>Couldn&apos;t load categories — refresh</option>}
+                </select>
+              </label>
+            )}
             {trackers.length > 0 && (
               <label className="block text-[11px] text-muted">
                 Mentions tracker

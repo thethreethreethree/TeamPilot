@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { categoriesOf } from "@/lib/coach/remote/callCategoriesRead";
 import { teamFromRequest } from "@/lib/coach/remote/teamScope";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { treeAllowsRepChecked } from "@/lib/api/treeAccess";
@@ -30,6 +31,9 @@ export async function GET(req: NextRequest) {
   const days = Number(new URL(req.url).searchParams.get("days") ?? 30);
   if (!PERIODS.has(days)) return NextResponse.json({ error: "Period must be 7, 30 or 90 days." }, { status: 400 });
   const since = new Date(Date.now() - days * DAY).toISOString();
+  // ?category= (F10.9, 0367): only calls whose current category is this one.
+  const category = new URL(req.url).searchParams.get("category");
+  if (category && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category)) return NextResponse.json({ error: "Unknown category." }, { status: 400 });
 
   const db = callerScopedDb(req) ?? (await createClient());
   type R = {
@@ -53,7 +57,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load team call stats." }, { status: 500 });
   }
   const num = (v: unknown) => (v == null ? null : Number(v));
-  const rows: StatRow[] = (data ?? []).filter((r) => inTeam(String(r.rep_id))).map((r) => ({
+  let picked: Map<string, string | null> | null = null;
+  if (category) {
+    picked = await categoriesOf(db, (data ?? []).map((r) => String(r.session_id)));
+    if (!picked) {
+      console.error(`[team-stats] category read failed company=${mgr.companyId}`);
+      return NextResponse.json({ error: "Couldn't load team call stats." }, { status: 500 });
+    }
+  }
+  const rows: StatRow[] = (data ?? []).filter((r) => inTeam(String(r.rep_id)) && (!picked || picked.get(String(r.session_id)) === category)).map((r) => ({
     sessionId: String(r.session_id),
     repId: String(r.rep_id),
     version: Number(r.transcript_version),
@@ -74,5 +86,5 @@ export async function GET(req: NextRequest) {
     }
     for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null }>) names.set(String(p.id), p.full_name ?? "Unnamed teammate");
   }
-  return NextResponse.json({ days, ...teamCallStats(rows, names) });
+  return NextResponse.json({ days, category: category ?? null, ...teamCallStats(rows, names) });
 }
