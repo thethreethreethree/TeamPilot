@@ -8,13 +8,16 @@ import { ArrowDown, ArrowUp, BookOpen, Trash2 } from "lucide-react";
  * (each save is a new version — reps keep the lessons they've done), assign it with a due date, retire it, and see each
  * rep's progress. Saving a new course opens its Assign step (§1.5.1: the next action is in front of the manager).
  */
-type Step = { uid?: string; title: string; body: string };
-type Course = { id: string; title: string; summary: string | null; retired: boolean; version: number; steps: Array<{ uid: string; title: string; body: string }> };
+type Step = { uid?: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null };
+type Course = { id: string; title: string; summary: string | null; retired: boolean; version: number; steps: Array<{ uid: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null }> };
+type Scenario = { id: string; title: string; retired_at: string | null };
 type Progress = { id: string; title: string; repName: string | null; dueAt: string; done: number; total: number; state: string };
 type Member = { id: string; full_name: string | null };
 const STATE: Record<string, string> = { not_started: "Not started", in_progress: "In progress", done: "Done", overdue: "Overdue" };
 const input = "w-full rounded-lg border border-default bg-base px-2 py-1.5 text-xs text-primary";
-const blank = (): Step => ({ title: "", body: "" });
+const blank = (): Step => ({ title: "", body: "", kind: "lesson", scenarioId: null });
+/** A step is ready to save: a lesson has text; a practice names a scenario (its note is optional). */
+const ready = (s: Step) => !!s.title.trim() && (s.kind === "practice" ? !!s.scenarioId : !!s.body.trim());
 
 export function CourseManager() {
   const [courses, setCourses] = useState<Course[] | null>(null);
@@ -23,6 +26,10 @@ export function CourseManager() {
   const [progress, setProgress] = useState<Progress[] | null>(null);
   const [progressFailed, setProgressFailed] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
+  // Practice steps (0357) pick one of the company's live scenarios.
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  // A failed scenarios read is said — never "write a scenario first" when there are scenarios we couldn't load.
+  const [scenariosFailed, setScenariosFailed] = useState(false);
   const [membersFailed, setMembersFailed] = useState(false);
   // The editor: null = closed; id null = a new course.
   const [editing, setEditing] = useState<{ id: string | null; title: string; summary: string; steps: Step[] } | null>(null);
@@ -61,6 +68,18 @@ export function CourseManager() {
       .then((j: { members?: Member[] } | null) => setMembers(j?.members ?? []))
       .catch(() => setMembersFailed(true));
   }, [load]);
+  // Each time the editor opens: a scenario written in Scenarios below since the page loaded is offered too.
+  const editorOpen = editing !== null;
+  useEffect(() => {
+    if (!editorOpen) return;
+    fetch("/api/coach/remote/scenarios")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: { scenarios?: Scenario[] }) => {
+        setScenarios((j.scenarios ?? []).filter((x) => !x.retired_at));
+        setScenariosFailed(false);
+      })
+      .catch(() => setScenariosFailed(true));
+  }, [editorOpen]);
 
   const send = async (method: string, url: string, body: unknown, ok: string): Promise<Record<string, unknown> | null> => {
     setBusy(true);
@@ -129,7 +148,26 @@ export function CourseManager() {
                     <button type="button" aria-label={`Move lesson ${i + 1} down`} disabled={i === editing.steps.length - 1} onClick={() => move(i, 1)} className="p-1 text-muted disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
                     <button type="button" aria-label={`Remove lesson ${i + 1}`} disabled={editing.steps.length === 1} onClick={() => setEditing({ ...editing, steps: editing.steps.filter((_, k) => k !== i) })} className="p-1 text-muted disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
-                  <textarea aria-label={`Lesson ${i + 1} text`} placeholder="What the rep reads" value={s.body} maxLength={4000} rows={4} onChange={(e) => setStep(i, { body: e.target.value })} className={input} />
+                  <div className="flex gap-1 text-[11px]" role="group" aria-label={`Step ${i + 1} kind`}>
+                    {(["lesson", "practice"] as const).map((k) => (
+                      <button key={k} type="button" aria-pressed={s.kind === k} disabled={k === "practice" && scenarios.length === 0}
+                        onClick={() => setStep(i, { kind: k, scenarioId: k === "practice" ? s.scenarioId : null })}
+                        className={`rounded-full border px-2 py-0.5 disabled:opacity-40 ${s.kind === k ? "border-strong font-semibold text-primary" : "border-default text-muted"}`}>
+                        {k === "lesson" ? "Lesson" : "Practice"}
+                      </button>
+                    ))}
+                    {scenariosFailed && <span className="text-muted">Couldn&apos;t load your practice scenarios. Reopen the editor to try again.</span>}
+                    {!scenariosFailed && scenarios.length === 0 && <span className="text-muted">Write a practice scenario below to add practice steps.</span>}
+                  </div>
+                  {s.kind === "practice" && (
+                    <select aria-label={`Step ${i + 1} scenario`} value={s.scenarioId ?? ""} onChange={(e) => setStep(i, { scenarioId: e.target.value || null, title: s.title || (scenarios.find((x) => x.id === e.target.value)?.title ?? "") })} className={input}>
+                      <option value="">Pick a scenario…</option>
+                      {scenarios.map((x) => (
+                        <option key={x.id} value={x.id}>{x.title}</option>
+                      ))}
+                    </select>
+                  )}
+                  <textarea aria-label={`Lesson ${i + 1} text`} placeholder={s.kind === "practice" ? "A note before they practice (optional)" : "What the rep reads"} value={s.body} maxLength={4000} rows={s.kind === "practice" ? 2 : 4} onChange={(e) => setStep(i, { body: e.target.value })} className={input} />
                 </li>
               ))}
             </ol>
@@ -139,13 +177,14 @@ export function CourseManager() {
               </button>
               <button
                 type="button"
-                disabled={busy || !editing.title.trim() || editing.steps.some((s) => !s.title.trim() || !s.body.trim())}
+                disabled={busy || !editing.title.trim() || !editing.steps.every(ready)}
                 onClick={async () => {
-                  const steps = editing.steps.map((s) => ({ uid: s.uid, title: s.title, body: s.body }));
+                  const steps = editing.steps.map((s) => ({ uid: s.uid, title: s.title, body: s.body, kind: s.kind, scenarioId: s.scenarioId }));
                   const j = editing.id
-                    ? await send("PUT", "/api/coach/remote/courses", { courseId: editing.id, steps }, "Saved. Reps keep the lessons they've already done.")
+                    ? await send("PUT", "/api/coach/remote/courses", { courseId: editing.id, steps }, "Saved. Reps keep the steps they've already done.")
                     : await send("POST", "/api/coach/remote/courses", { title: editing.title, summary: editing.summary, steps }, "Course saved — now pick who takes it.");
                   if (!j) return;
+                  if (j.practiceAssigned === false) setMsg("Saved, but a new practice step didn't reach everyone taking the course. Assign that scenario from Scenarios below.");
                   // A new course goes straight to Assign; an edited one closes back to the list.
                   if (!editing.id && typeof j.id === "string") {
                     setAssignFor(j.id);
@@ -161,13 +200,16 @@ export function CourseManager() {
             </div>
           </div>
         )}
-        {live.length === 0 && !editing && <p className="text-xs text-muted">No courses yet. A course is a set of lessons reps read in order, with a due date.</p>}
+        {live.length === 0 && !editing && <p className="text-xs text-muted">No courses yet. A course is a set of lessons and practice reps work through in order, with a due date.</p>}
         <ul className="space-y-1.5">
           {live.map((c) => (
             <li key={c.id} className="rounded-lg border border-default p-2 text-xs">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-primary">{c.title}</span>
-                <span className="text-muted">{c.steps.length} lesson{c.steps.length === 1 ? "" : "s"}</span>
+                <span className="text-muted">
+                  {c.steps.filter((x) => x.kind !== "practice").length} lesson{c.steps.filter((x) => x.kind !== "practice").length === 1 ? "" : "s"}
+                  {c.steps.some((x) => x.kind === "practice") ? ` · ${c.steps.filter((x) => x.kind === "practice").length} practice` : ""}
+                </span>
                 <span className="ml-auto flex gap-2">
                   <button type="button" onClick={() => { setAssignFor(assignFor === c.id ? null : c.id); setPicked([]); }} className="text-brand hover:underline">Assign</button>
                   <button type="button" onClick={() => setEditing({ id: c.id, title: c.title, summary: c.summary ?? "", steps: c.steps.map((s) => ({ ...s })) })} className="text-secondary hover:text-primary">Edit lessons</button>
@@ -203,7 +245,7 @@ export function CourseManager() {
         {progress && progress.length === 0 && <p className="text-xs text-muted">No courses assigned yet.</p>}
         {progress && progress.length > 0 && (
           <table className="w-full text-xs">
-            <thead><tr className="text-left text-muted"><th className="py-1">Rep</th><th>Course</th><th>Lessons</th><th>Status</th></tr></thead>
+            <thead><tr className="text-left text-muted"><th className="py-1">Rep</th><th>Course</th><th>Steps</th><th>Status</th></tr></thead>
             <tbody>
               {progress.map((p) => (
                 <tr key={p.id} className="border-t border-default">

@@ -1,15 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { BookOpen, Check } from "lucide-react";
 
 /**
- * "Your courses" — the training courses a manager gave this rep (2026-11-26, Gong F17.1; migration 0355). Each course
- * shows "n of m lessons" and its due date; opening it lists the lessons in order. Marking a lesson done opens the next
+ * "Your courses" — the training courses a manager gave this rep (2026-11-26, Gong F17.1; migrations 0355, 0357). Each
+ * course shows "n of m steps" and its due date; a practice step opens the role-play and is done when it's practiced; opening it lists the lessons in order. Marking a lesson done opens the next
  * one not done (§1.5.1: the rep is never left on a finished lesson with no next step). Renders nothing when nothing is
  * assigned; a failed read is said.
  */
-type Step = { uid: string; title: string; body: string; done: boolean };
+type Step = {
+  uid: string; title: string; body: string; done: boolean; kind?: "lesson" | "practice";
+  /** Practice steps (0357): the practice to open, and its state in words. */
+  practiceAssignmentId?: string | null; practiceState?: string | null;
+};
+const PRACTICE: Record<string, string> = { due: "Not practiced yet", overdue: "Not practiced yet — overdue", attempted: "Practiced", passed: "Passed", not_passed_yet: "Not passed yet — try again" };
 type Course = { id: string; title: string; summary: string | null; assignedByName: string | null; dueAt: string; done: number; total: number; state: "not_started" | "in_progress" | "done" | "overdue"; steps?: Step[] };
 const STATE: Record<Course["state"], string> = { not_started: "Not started", in_progress: "In progress", done: "Done", overdue: "Overdue" };
 const when = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -95,7 +101,7 @@ export function AssignedCourses() {
               <span className="font-semibold text-brand">{c.title}</span>
               <span className="text-muted">{c.assignedByName ? `from ${c.assignedByName}` : ""}</span>
               <span className={`ml-auto ${c.state === "overdue" ? "font-semibold text-primary" : "text-secondary"}`}>
-                {c.done} of {c.total} lesson{c.total === 1 ? "" : "s"} · {STATE[c.state]}
+                {c.done} of {c.total} step{c.total === 1 ? "" : "s"} · {STATE[c.state]}
                 {c.state !== "done" ? ` · due ${when(c.dueAt)}` : ""}
               </span>
             </button>
@@ -114,8 +120,18 @@ export function AssignedCourses() {
                       </button>
                       {openStep === s.uid && (
                         <div className="space-y-2 border-t border-default px-2 py-2">
-                          <p className="whitespace-pre-wrap text-xs leading-relaxed text-primary">{s.body}</p>
-                          {!s.done && (
+                          {s.body && <p className="whitespace-pre-wrap text-xs leading-relaxed text-primary">{s.body}</p>}
+                          {s.kind === "practice" && (
+                            <p className="flex flex-wrap items-center gap-2 text-xs">
+                              <span className="text-secondary">{s.practiceState ? PRACTICE[s.practiceState] ?? s.practiceState : "Not assigned to you yet — ask your manager."}</span>
+                              {s.practiceAssignmentId && !s.done && (
+                                <Link href={`/dashboard/remote-sales/practice?assignment=${s.practiceAssignmentId}`} className="rounded-lg bg-ember-400 px-3 py-1 font-semibold text-ink-950">
+                                  Practice it
+                                </Link>
+                              )}
+                            </p>
+                          )}
+                          {s.kind !== "practice" && !s.done && (
                             <button type="button" disabled={busy} onClick={() => void markDone(c, s)} className="rounded-lg bg-ember-400 px-3 py-1 text-xs font-semibold text-ink-950 disabled:opacity-60">
                               {busy ? "Saving…" : "Mark done"}
                             </button>

@@ -10,6 +10,7 @@ const st = vi.hoisted(() => ({
   stepsError: null as { code?: string; message: string } | null,
   inserts: [] as Array<[string, unknown]>,
   updates: [] as Array<[string, unknown]>,
+  data: {} as Record<string, unknown[]>,
 }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/requireSalesCoachManager", () => ({ requireSalesCoachManager: vi.fn(async () => (st.manager ? { userId: "mgr1", companyId: "co1" } : null)) }));
@@ -29,7 +30,8 @@ vi.mock("@/lib/supabase/admin", () => ({
         st.updates.push([t, v]);
         return q;
       };
-      q.then = (res: (v: unknown) => unknown) => Promise.resolve(res({ data: [{ id: "k1" }], error: null }));
+      q.then = (res: (v: unknown) => unknown) => Promise.resolve(res({ data: st.data[t] ?? [{ id: "k1" }], error: null }));
+      q.range = async (from: number) => ({ data: from > 0 ? [] : (st.data[t] ?? []), error: null });
       return q;
     },
   }),
@@ -45,6 +47,7 @@ beforeEach(() => {
   st.stepsError = null;
   st.inserts = [];
   st.updates = [];
+  st.data = {};
 });
 
 describe("courses", () => {
@@ -62,7 +65,7 @@ describe("courses", () => {
   it("saving writes the next version and keeps a lesson's uid", async () => {
     st.top = [{ version: 3 }];
     const r = await call(PUT, { courseId: "k1", steps: [{ uid: U1, title: "Open", body: "b" }] });
-    expect(await r.json()).toEqual({ id: "k1", version: 4 });
+    expect(await r.json()).toEqual({ id: "k1", version: 4, practiceAssigned: true });
     expect(st.inserts[0]![1]).toMatchObject([{ version: 4, step_uid: U1 }]);
     expect(st.updates).toEqual([]); // never an edit
   });
@@ -73,5 +76,18 @@ describe("courses", () => {
     expect((await call(POST, { title: "Discovery", steps: [{ title: "a", body: "b" }] })).status).toBe(500);
     expect(st.updates[0]![0]).toBe("training_courses");
     expect(st.updates[0]![1]).toHaveProperty("retired_at");
+  });
+  it("a practice step needs a live scenario, and a new one reaches the reps already taking the course, from the manager who gave it (0357)", async () => {
+    const SC = "00000000-0000-4000-8000-0000000000aa";
+    st.data.training_scenarios = [];
+    expect((await call(PUT, { courseId: "k1", steps: [{ kind: "practice", title: "Try", scenarioId: SC }] })).status).toBe(400);
+    st.data.training_scenarios = [{ id: SC, retired_at: null }];
+    st.data.training_course_assignments = [{ rep_id: "rep1", due_at: "2999-01-01T00:00:00Z", assigned_by: "mgr9", id: "a1" }];
+    st.data.training_assignments = [];
+    st.top = [{ version: 1 }];
+    const r = await call(PUT, { courseId: "k1", steps: [{ kind: "practice", title: "Try", scenarioId: SC }] });
+    expect(await r.json()).toMatchObject({ version: 2, practiceAssigned: true });
+    const given = st.inserts.find(([t]) => t === "training_assignments");
+    expect(given?.[1]).toEqual([{ company_id: "co1", scenario_id: SC, rep_id: "rep1", assigned_by: "mgr9", due_at: "2999-01-01T00:00:00Z" }]);
   });
 });

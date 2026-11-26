@@ -2,7 +2,7 @@
  * Training courses — ordered lessons a manager writes and assigns (2026-11-26, Gong ledger F17.1; migration 0355).
  *
  * A course's lessons are stored as VERSIONS (§3.1): saving writes a whole new set of rows, and the current course is
- * the highest version. A lesson keeps its step_uid across versions, so a rep's "done" survives a reorder or a
+ * the highest version. A step keeps its step_uid across versions, so a rep's "done" survives a reorder or a
  * rewording; a lesson removed from the current version simply stops counting. Progress is DERIVED here — one function
  * for the rep's list and the manager's table (§2.2). Pure, so it is tested.
  */
@@ -11,8 +11,9 @@ export const TITLE_MAX = 120;
 export const BODY_MAX = 4000;
 export const SUMMARY_MAX = 600;
 
-export type StepRow = { version: number; position: number; step_uid: string; title: string; body: string };
-export type Step = { uid: string; title: string; body: string };
+export type StepRow = { version: number; position: number; step_uid: string; title: string; body: string; kind?: string | null; scenario_id?: string | null };
+/** A lesson (text the rep marks done) or a practice (a scenario; done when its practice counts as done — 0357). */
+export type Step = { uid: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null };
 
 /** The current version's lessons, in order. */
 export function currentSteps(rows: StepRow[]): Step[] {
@@ -21,7 +22,7 @@ export function currentSteps(rows: StepRow[]): Step[] {
   return rows
     .filter((r) => Number(r.version) === v)
     .sort((a, b) => a.position - b.position)
-    .map((r) => ({ uid: String(r.step_uid), title: r.title, body: r.body }));
+    .map((r) => ({ uid: String(r.step_uid), title: r.title, body: r.body, kind: r.kind === "practice" ? "practice" : "lesson", scenarioId: r.scenario_id ? String(r.scenario_id) : null }));
 }
 
 export function currentVersion(rows: Array<{ version: number }>): number {
@@ -52,15 +53,19 @@ export function parseSteps(raw: unknown, newUid: () => string): { ok: true; step
   const steps: Step[] = [];
   const seen = new Set<string>();
   for (const [i, r] of raw.entries()) {
-    const o = (r ?? {}) as { uid?: unknown; title?: unknown; body?: unknown };
+    const o = (r ?? {}) as { uid?: unknown; title?: unknown; body?: unknown; kind?: unknown; scenarioId?: unknown };
+    const kind = o.kind === "practice" ? "practice" : "lesson";
     const title = typeof o.title === "string" ? o.title.trim() : "";
     const body = typeof o.body === "string" ? o.body.trim() : "";
-    if (!title || title.length > TITLE_MAX) return { ok: false, error: `Lesson ${i + 1} needs a title of up to ${TITLE_MAX} characters.` };
-    if (!body || body.length > BODY_MAX) return { ok: false, error: `Lesson ${i + 1} needs text of up to ${BODY_MAX} characters.` };
+    const scenarioId = kind === "practice" && typeof o.scenarioId === "string" && UUID.test(o.scenarioId) ? o.scenarioId.toLowerCase() : null;
+    if (!title || title.length > TITLE_MAX) return { ok: false, error: `Step ${i + 1} needs a title of up to ${TITLE_MAX} characters.` };
+    if (kind === "lesson" && (!body || body.length > BODY_MAX)) return { ok: false, error: `Lesson ${i + 1} needs text of up to ${BODY_MAX} characters.` };
+    if (kind === "practice" && !scenarioId) return { ok: false, error: `Step ${i + 1} needs a practice scenario.` };
+    if (body.length > BODY_MAX) return { ok: false, error: `Step ${i + 1}'s note is over ${BODY_MAX} characters.` };
     let uid = typeof o.uid === "string" && UUID.test(o.uid) ? o.uid.toLowerCase() : newUid();
     if (seen.has(uid)) uid = newUid(); // a duplicated lesson is a new lesson, not the same one twice
     seen.add(uid);
-    steps.push({ uid, title, body });
+    steps.push({ uid, title, body, kind, scenarioId });
   }
   return { ok: true, steps };
 }

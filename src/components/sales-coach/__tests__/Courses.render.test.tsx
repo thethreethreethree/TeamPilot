@@ -38,7 +38,7 @@ describe("AssignedCourses", () => {
     expect(screen.queryByText("Ask before you pitch.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Mark done" }));
     await screen.findByText("You finished “Discovery”.");
-    expect(screen.getByText(/2 of 2 lessons · Done/)).toBeTruthy();
+    expect(screen.getByText(/2 of 2 steps · Done/)).toBeTruthy();
   });
   it("nothing assigned renders nothing; a failed read is said", async () => {
     vi.stubGlobal("fetch", vi.fn(() => ok({ available: true, assignments: [] })));
@@ -48,6 +48,22 @@ describe("AssignedCourses", () => {
     vi.stubGlobal("fetch", vi.fn(() => ok({}, 500)));
     render(<AssignedCourses />);
     await screen.findByText(/Couldn't load your courses/);
+  });
+});
+
+describe("AssignedCourses — practice steps (0357)", () => {
+  it("a practice step links to its practice and has no Mark done; one not yet assigned says so", async () => {
+    const steps = [
+      { uid: "p1", title: "Try the opener", body: "", done: false, kind: "practice", practiceAssignmentId: "ta1", practiceState: "due" },
+      { uid: "p2", title: "Handle price", body: "", done: false, kind: "practice", practiceAssignmentId: null, practiceState: null },
+    ];
+    vi.stubGlobal("fetch", vi.fn(() => ok({ available: true, assignments: [{ id: "a1", title: "Discovery", summary: null, assignedByName: null, dueAt: "2999-01-01T00:00:00Z", done: 0, total: 2, state: "not_started", steps }] })));
+    render(<AssignedCourses />);
+    fireEvent.click(await screen.findByText("Discovery"));
+    expect(screen.getByRole("link", { name: "Practice it" }).getAttribute("href")).toBe("/dashboard/remote-sales/practice?assignment=ta1");
+    expect(screen.queryByRole("button", { name: "Mark done" })).toBeNull();
+    fireEvent.click(screen.getByText("Handle price"));
+    expect(screen.getByText("Not assigned to you yet — ask your manager.")).toBeTruthy();
   });
 });
 

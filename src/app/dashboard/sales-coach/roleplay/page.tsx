@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import {
   DeckCard,
@@ -463,6 +464,10 @@ export default function SalesCoachRoleplayPage() {
                   Your attempt is scored on the skill below and shared with the manager who assigned it
                   {assignment.passScore !== null ? ` — pass mark ${assignment.passScore}/100` : ""}.
                 </p>
+                {/* A practice step in a course returns to the course (2026-11-26, 0357): the next step is there. */}
+                <Link href="/dashboard/remote-sales/training" className="mt-1 inline-block text-xs font-semibold text-brand hover:underline">
+                  Back to Training
+                </Link>
               </DeckCard>
             )}
 

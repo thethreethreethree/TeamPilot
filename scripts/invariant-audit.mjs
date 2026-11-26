@@ -2432,7 +2432,7 @@ for (const f of FILES) {
 const MANAGER_CHECK_RE = /requireSalesCoachManager\(|isSalesCoachManager\(|canManagerViewRepSkills\(/;
 const TREE_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/coach/remote/courses/route.ts",
-    "0355 training courses are COMPANY content (a course's title, summary and lessons), like 0282 scenarios — no rep's data. The service role reads and inserts courses and their lesson versions pinned to the manager's company; no rep is read or acted on. Giving a course to reps is /course-assignments, which asks the tree (treeFilterRepsChecked)."],
+    "0355 training courses are COMPANY content (a course's title, summary and steps), like 0282 scenarios. The service role reads and inserts courses and their step versions pinned to the manager's company. Giving a course to reps is /course-assignments, which asks the tree (treeFilterRepsChecked). The one rep-facing write here (0357): a NEW practice step in a saved version is assigned to reps ALREADY taking the course, assigned_by the manager who gave them the course (tree-checked then), never the editor; no rep's data is read back or returned."],
   ["src/app/api/coach/remote/market/topic-groups/route.ts",
     "0319 topic groups are a COMPANY setting (how the company's topic labels are counted), not a rep's data. The service role only inserts a group or a retirement pinned to the manager's company and reads one group id of that company; no rep is read or acted on. The topics a manager may group are read through the CALLER's client (readMarketInputs), so they are already limited by the reporting tree."],
   ["src/app/api/coach/sales-session/roleplay/route.ts",

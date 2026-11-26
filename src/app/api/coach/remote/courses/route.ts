@@ -4,7 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
-import { currentSteps, currentVersion, parseSteps, SUMMARY_MAX, TITLE_MAX, type StepRow } from "@/lib/coach/remote/courses";
+import { currentSteps, currentVersion, parseSteps, SUMMARY_MAX, TITLE_MAX, type Step, type StepRow } from "@/lib/coach/remote/courses";
+import { assignPractice, scenariosUsable } from "@/lib/coach/remote/coursePractice";
 
 /**
  * /api/coach/remote/courses — training courses: ordered lessons a manager writes (2026-11-26, Gong F17.1; migration 0355).
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
   const ids = list.map((c) => c.id);
   for (let i = 0; i < ids.length; i += 150) {
     const { data, error: sErr } = await fetchAllPagedResult<StepRow & { course_id: string; id: number }>(
-      (from, to) => admin.from("training_course_steps").select("course_id, version, position, step_uid, title, body, id").eq("company_id", mgr.companyId).in("course_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      (from, to) => admin.from("training_course_steps").select("course_id, version, position, step_uid, title, body, kind, scenario_id, id").eq("company_id", mgr.companyId).in("course_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
       { label: "course steps", maxRows: 200_000 },
     );
     if (sErr) {
@@ -71,10 +72,18 @@ export async function GET(req: NextRequest) {
   });
 }
 
-async function insertVersion(admin: ReturnType<typeof createAdminClient>, companyId: string, courseId: string, version: number, steps: Array<{ uid: string; title: string; body: string }>, by: string) {
+async function insertVersion(admin: ReturnType<typeof createAdminClient>, companyId: string, courseId: string, version: number, steps: Step[], by: string) {
   return admin.from("training_course_steps").insert(
-    steps.map((s, i) => ({ company_id: companyId, course_id: courseId, version, position: i + 1, step_uid: s.uid, kind: "lesson", title: s.title, body: s.body, created_by: by })),
+    steps.map((s, i) => ({ company_id: companyId, course_id: courseId, version, position: i + 1, step_uid: s.uid, kind: s.kind, scenario_id: s.scenarioId, title: s.title, body: s.body, created_by: by })),
   );
+}
+
+/** A practice step must name a live scenario of this company (0357). Null = fine; else the response to send. */
+async function badScenarios(admin: ReturnType<typeof createAdminClient>, companyId: string, steps: Step[]) {
+  const ok = await scenariosUsable(admin, companyId, steps.flatMap((s) => (s.scenarioId ? [s.scenarioId] : [])));
+  if (ok === null) return NextResponse.json({ error: "Couldn't save the course." }, { status: 500 });
+  if (!ok) return NextResponse.json({ error: "One of the practice scenarios isn't available any more. Pick another." }, { status: 400 });
+  return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -92,6 +101,8 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
   const admin = createAdminClient();
+  const bad = await badScenarios(admin, mgr.companyId, parsed.steps);
+  if (bad) return bad;
   const { data: course, error } = await admin.from("training_courses").insert({ company_id: mgr.companyId, title, summary, created_by: mgr.userId }).select("id").single();
   if (error || !course) {
     if (error && missing(error)) return NextResponse.json({ error: NOT_READY }, { status: 503 });
@@ -120,6 +131,8 @@ export async function PUT(req: NextRequest) {
   const admin = createAdminClient();
   const { data: course } = await admin.from("training_courses").select("id, retired_at").eq("company_id", mgr.companyId).eq("id", b.courseId).maybeSingle();
   if (!course || course.retired_at) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+  const bad = await badScenarios(admin, mgr.companyId, parsed.steps);
+  if (bad) return bad;
   const { data: top, error: vErr } = await admin.from("training_course_steps").select("version").eq("company_id", mgr.companyId).eq("course_id", course.id).order("version", { ascending: false }).limit(1);
   if (vErr) {
     console.error(`[courses] version read failed: ${vErr.message}`);
@@ -133,7 +146,24 @@ export async function PUT(req: NextRequest) {
     console.error(`[courses] new version failed: ${error.message}`);
     return NextResponse.json({ error: "Couldn't save the course." }, { status: 500 });
   }
-  return NextResponse.json({ id: course.id, version });
+  // A practice step added in this version reaches the reps already taking the course, due with their course and assigned
+  // by the manager who gave them the course — whose tree was checked then — not by whoever edits it. Nothing about
+  // these reps is returned.
+  const practice = parsed.steps.flatMap((s) => (s.scenarioId ? [s.scenarioId] : []));
+  let practiceAssigned = true;
+  if (practice.length) {
+    const { data: takers, error: tErr } = await fetchAllPagedResult<{ rep_id: string; due_at: string; assigned_by: string; id: string }>(
+      (from, to) => admin.from("training_course_assignments").select("rep_id, due_at, assigned_by, id").eq("company_id", mgr.companyId).eq("course_id", course.id).order("id", { ascending: true }).range(from, to),
+      { label: "course takers", maxRows: 50_000 },
+    );
+    const r = tErr ? "failed" : await assignPractice(admin, mgr.companyId, { scenarioIds: practice, reps: (takers ?? []).map((t) => ({ repId: String(t.rep_id), dueAt: t.due_at, by: String(t.assigned_by) })) });
+    if (r !== "ok") {
+      console.error(`[courses] practice for existing reps: ${tErr?.message ?? r}`);
+      practiceAssigned = false;
+    }
+  }
+  // The lessons are saved either way; a practice that didn't reach every rep is said, never hidden (§1.5.3: fail loud).
+  return NextResponse.json({ id: course.id, version, practiceAssigned });
 }
 
 export async function PATCH(req: NextRequest) {

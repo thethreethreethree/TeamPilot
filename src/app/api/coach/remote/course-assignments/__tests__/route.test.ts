@@ -83,4 +83,18 @@ describe("course assignments", () => {
     expect((await put({ assignmentId: "a2", stepUid: "u2" })).status).toBe(404); // someone else's course
     expect(st.inserts).toHaveLength(1);
   });
+  it("a practice step (0357) is done from the rep's own attempt, opens its practice, and can't be ticked by hand", async () => {
+    st.tables.training_course_steps = [S(2, 1, "u1"), { ...S(2, 3, "p1"), kind: "practice", scenario_id: "sc1", body: "" }];
+    st.tables.training_scenarios = [{ id: "sc1", company_id: "co1", pass_score: 70 }];
+    st.tables.training_assignments = [{ id: "ta1", company_id: "co1", rep_id: "rep1", scenario_id: "sc1", due_at: "2999-01-01T00:00:00Z" }];
+    st.tables.training_attempts = [{ id: 1, company_id: "co1", assignment_id: "ta1", score: 60, applied: true, passed: false, created_at: "2026-11-26T00:00:00Z" }];
+    let a = (await (await GET(new Request("http://t/x") as never)).json()).assignments[0];
+    expect(a.steps[1]).toMatchObject({ uid: "p1", kind: "practice", done: false, practiceAssignmentId: "ta1", practiceState: "not_passed_yet" });
+    expect(a).toMatchObject({ done: 1, total: 2 });
+    st.tables.training_attempts.push({ id: 2, company_id: "co1", assignment_id: "ta1", score: 80, applied: true, passed: true, created_at: "2026-11-26T01:00:00Z" });
+    a = (await (await GET(new Request("http://t/x") as never)).json()).assignments[0];
+    expect(a).toMatchObject({ done: 2, total: 2, state: "done" });
+    expect((await put({ assignmentId: "a1", stepUid: "p1" })).status).toBe(400);
+    expect(st.inserts).toEqual([]);
+  });
 });

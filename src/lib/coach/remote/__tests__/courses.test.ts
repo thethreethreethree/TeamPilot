@@ -13,7 +13,7 @@ describe("training courses", () => {
     expect(currentSteps([])).toEqual([]);
   });
   it("progress counts current lessons only; done beats overdue; overdue only when not done", () => {
-    const steps = [{ uid: "a", title: "", body: "" }, { uid: "c", title: "", body: "" }];
+    const steps = [{ uid: "a", title: "", body: "", kind: "lesson" as const, scenarioId: null }, { uid: "c", title: "", body: "", kind: "lesson" as const, scenarioId: null }];
     const past = "2026-01-01T00:00:00Z";
     const future = "2999-01-01T00:00:00Z";
     expect(courseProgress({ steps, doneUids: ["b"], dueAt: future })).toEqual({ done: 0, total: 2, state: "not_started" }); // "b" was removed
@@ -26,9 +26,17 @@ describe("training courses", () => {
     const fresh = () => U(n++);
     expect(parseSteps([], fresh)).toEqual({ ok: false, error: "Add at least one lesson." });
     expect(parseSteps(Array.from({ length: MAX_STEPS + 1 }, () => ({ title: "t", body: "b" })), fresh).ok).toBe(false);
-    expect(parseSteps([{ title: " ", body: "b" }], fresh)).toEqual({ ok: false, error: "Lesson 1 needs a title of up to 120 characters." });
+    expect(parseSteps([{ title: " ", body: "b" }], fresh)).toEqual({ ok: false, error: "Step 1 needs a title of up to 120 characters." });
     const r = parseSteps([{ uid: U(1), title: " Open ", body: " Ask first " }, { uid: U(1), title: "Copy", body: "b" }, { uid: "nope", title: "New", body: "b" }], fresh);
     expect(r.ok && r.steps.map((s) => s.uid)).toEqual([U(1), U(100), U(101)]);
-    expect(r.ok && r.steps[0]).toEqual({ uid: U(1), title: "Open", body: "Ask first" });
+    expect(r.ok && r.steps[0]).toEqual({ uid: U(1), title: "Open", body: "Ask first", kind: "lesson", scenarioId: null });
+  });
+  it("a practice step needs a scenario; its note is optional (0357)", () => {
+    let n = 200;
+    const fresh = () => U(n++);
+    expect(parseSteps([{ kind: "practice", title: "Try it", body: "" }], fresh)).toEqual({ ok: false, error: "Step 1 needs a practice scenario." });
+    const r = parseSteps([{ kind: "practice", title: "Try it", body: "", scenarioId: U(7) }], fresh);
+    expect(r.ok && r.steps[0]).toMatchObject({ kind: "practice", scenarioId: U(7), body: "" });
+    expect(currentSteps([{ version: 1, position: 1, step_uid: "p", title: "Try", body: "", kind: "practice", scenario_id: "s1" }])[0]).toMatchObject({ kind: "practice", scenarioId: "s1" });
   });
 });

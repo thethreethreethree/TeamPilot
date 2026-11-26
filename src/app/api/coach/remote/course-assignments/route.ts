@@ -6,6 +6,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { treeFilterRepsChecked } from "@/lib/api/treeAccess";
 import { courseProgress, currentSteps, type StepRow } from "@/lib/coach/remote/courses";
+import { assignPractice, practiceStates } from "@/lib/coach/remote/coursePractice";
 
 /**
  * /api/coach/remote/course-assignments — courses given to reps (2026-11-26, Gong F17.1; migration 0355).
@@ -26,7 +27,7 @@ async function stepsFor(admin: Admin, companyId: string, courseIds: string[]) {
   const by = new Map<string, StepRow[]>();
   for (let i = 0; i < courseIds.length; i += 150) {
     const { data, error } = await fetchAllPagedResult<StepRow & { course_id: string; id: number }>(
-      (from, to) => admin.from("training_course_steps").select("course_id, version, position, step_uid, title, body, id").eq("company_id", companyId).in("course_id", courseIds.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      (from, to) => admin.from("training_course_steps").select("course_id, version, position, step_uid, title, body, kind, scenario_id, id").eq("company_id", companyId).in("course_id", courseIds.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
       { label: "course steps", maxRows: 200_000 },
     );
     if (error) return null;
@@ -94,6 +95,15 @@ export async function GET(req: NextRequest) {
     }
   }
   const people = [...new Set(rows.flatMap((r) => [String(r.rep_id), String(r.assigned_by)]))];
+  // Practice steps (0357): each rep's practice of each scenario the current courses name — done by its own verdict.
+  const currentOf = new Map(courseIds.map((id) => [id, currentSteps(steps.get(id) ?? [])]));
+  const practice = await practiceStates(
+    admin,
+    ctx.companyId,
+    rows.map((r) => String(r.rep_id)),
+    [...currentOf.values()].flatMap((l) => l.flatMap((x) => (x.scenarioId ? [x.scenarioId] : []))),
+  );
+  if (!practice) return fail("practice", "read");
   const nameOf = new Map<string, string | null>();
   for (let i = 0; i < people.length; i += 150) {
     const { data: profs, error: pErr } = await admin.from("profiles").select("id, full_name").eq("company_id", ctx.companyId).in("id", people.slice(i, i + 150));
@@ -105,8 +115,11 @@ export async function GET(req: NextRequest) {
     available: true,
     assignments: rows.map((r) => {
       const c = courseById.get(String(r.course_id));
-      const list = currentSteps(steps.get(String(r.course_id)) ?? []);
-      const done = doneBy.get(r.id) ?? new Set<string>();
+      const list = currentOf.get(String(r.course_id)) ?? [];
+      // A lesson is done when the rep marked it; a practice when its practice counts as done. Never the other way.
+      const marked = doneBy.get(r.id) ?? new Set<string>();
+      const pOf = (scenarioId: string | null) => (scenarioId ? practice.get(`${r.rep_id}|${scenarioId}`) : undefined);
+      const done = new Set(list.filter((x) => (x.kind === "practice" ? pOf(x.scenarioId)?.done : marked.has(x.uid))).map((x) => x.uid));
       return {
         id: r.id,
         courseId: r.course_id,
@@ -118,7 +131,9 @@ export async function GET(req: NextRequest) {
         assignedByName: nameOf.get(String(r.assigned_by)) ?? null,
         dueAt: r.due_at,
         // The rep sees the lessons; the manager's table needs only the progress.
-        steps: team ? undefined : list.map((s) => ({ ...s, done: done.has(s.uid) })),
+        steps: team
+          ? undefined
+          : list.map((s) => ({ ...s, done: done.has(s.uid), practiceAssignmentId: pOf(s.scenarioId)?.assignmentId ?? null, practiceState: pOf(s.scenarioId)?.state ?? null })),
         ...courseProgress({ steps: list, doneUids: done, dueAt: r.due_at }),
       };
     }),
@@ -176,6 +191,14 @@ export async function POST(req: NextRequest) {
       console.error(`[course-assignments] insert failed: ${error.message}`);
       return NextResponse.json({ error: "Couldn't assign it." }, { status: 500 });
     }
+    // The course's practice steps come with it, due with the course (0357).
+    const steps = await stepsFor(admin, mgr.companyId, [courseId]);
+    const scen = steps ? currentSteps(steps.get(courseId) ?? []).flatMap((x) => (x.scenarioId ? [x.scenarioId] : [])) : null;
+    const r = scen === null ? "failed" : await assignPractice(admin, mgr.companyId, { scenarioIds: scen, reps: fresh.map((repId) => ({ repId, dueAt, by: mgr.userId })) });
+    if (r !== "ok") {
+      console.error(`[course-assignments] practice assign: ${r}`);
+      return NextResponse.json({ error: "The course was assigned, but its practice scenarios weren't. Assign them from Scenarios below.", assigned: fresh.length }, { status: 502 });
+    }
   }
   return NextResponse.json({ assigned: fresh.length, alreadyAssigned: already.size, skipped: repIds.length - targets.length });
 }
@@ -198,7 +221,9 @@ export async function PUT(req: NextRequest) {
   if (!a) return NextResponse.json({ error: "Course not found." }, { status: 404 });
   const steps = await stepsFor(admin, ctx.companyId, [String(a.course_id)]);
   if (!steps) return NextResponse.json({ error: "Couldn't save that." }, { status: 500 });
-  if (!currentSteps(steps.get(String(a.course_id)) ?? []).some((s) => s.uid === b.stepUid)) return NextResponse.json({ error: "That lesson isn't in this course any more. Reload it." }, { status: 409 });
+  const step = currentSteps(steps.get(String(a.course_id)) ?? []).find((s) => s.uid === b.stepUid);
+  if (!step) return NextResponse.json({ error: "That lesson isn't in this course any more. Reload it." }, { status: 409 });
+  if (step.kind === "practice") return NextResponse.json({ error: "A practice step is done when you practice it." }, { status: 400 });
   const { error } = await admin.from("training_step_completions").insert({ company_id: ctx.companyId, assignment_id: a.id, step_uid: b.stepUid, rep_id: ctx.userId });
   if (error && error.code !== "23505") {
     console.error(`[course-assignments] completion failed: ${error.message}`);
