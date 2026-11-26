@@ -6,6 +6,7 @@ import { UnscoredBacklog } from "@/components/sales-coach/UnscoredBacklog";
 import { TeamUsage } from "@/components/remote-sales/TeamUsage";
 import { TeamCallStats } from "@/components/remote-sales/TeamCallStats";
 import { TeamCoverage } from "@/components/remote-sales/TeamCoverage";
+import { BriefTemplatesManager } from "@/components/remote-sales/BriefTemplatesManager";
 import { WeeklyRoutine } from "@/components/remote-sales/WeeklyRoutine";
 import { TeamPicker } from "@/components/remote-sales/TeamPicker";
 import { useEffect, useState } from "react";
@@ -48,6 +49,8 @@ export default function RemoteSalesCoachingPage() {
       <TeamCallStats team={scoped} />
       {/* What the team's calls cover (F10.11, 2026-11-25): share of calls per tracker and per topic. */}
       <TeamCoverage team={scoped} />
+      {/* Brief templates (F13.2, 2026-11-26): the questions a call should answer; run from a call's page. */}
+      <BriefTemplatesManager />
       <section aria-label="Score disputes" id="score-disputes" className="scroll-mt-20">
         <h2 className="mb-2 text-sm font-semibold text-primary">Score disputes</h2>
         <DisputeQueue module="remote_sales" />

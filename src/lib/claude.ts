@@ -744,6 +744,23 @@ export async function callBriefCoach(args: { companyId?: string; systemPrompt: s
   });
 }
 
+/**
+ * Brief templates (0364, F13.2): answer a manager's own questions about one call, each answer citing transcript lines.
+ * Day-1 like the call brief (controlExempt): a factual read of what was said, not guidance to the rep.
+ */
+export async function customBriefCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 1200,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_custom_brief",
+    sessionId: args.sessionId,
+  });
+}
+
 /** Remote Sales Macro Mode (0303): a follow-up email or text for the rep to edit and send. Day-1 (controlExempt). */
 export async function followUpDraftCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
   return call({

@@ -583,3 +583,6 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-26 · call-categories · F10.10 / F10.9: phone/video calls have no category to filter by
       why-unresolved: founder decision. Picker failed three times on 2026-11-26.
       next-action: recommended — the rep picks one at close from a fixed list the company admin sets (no AI guess); alternatives: AI suggests and the rep confirms, or not now.
+- [ ] 2026-11-26 · vocabulary-past-calls · F8.9: a company's "heard as" corrections (0354) fix NEW transcript lines only; Gong also re-applies them to past calls
+      why-unresolved: founder decision (cost). Re-applying writes a new transcript version for each past call whose lines change (as trim does with copy_transcript_version), and each such call's AI reads (summary, moments, intel, brief) then re-run on the new version — one paid AI pass per changed call. Production today: 0 vocabularies.
+      next-action: recommended — re-apply on request per vocabulary change, showing first how many calls would change and that their AI reads re-run; alternatives: re-apply text only and keep the old AI reads (they'd quote the old words), or leave past calls as they are.

@@ -2431,6 +2431,8 @@ for (const f of FILES) {
 // cannot reach another rep's data.
 const MANAGER_CHECK_RE = /requireSalesCoachManager\(|isSalesCoachManager\(|canManagerViewRepSkills\(/;
 const TREE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/brief-templates/route.ts",
+    "0364 brief templates are COMPANY content (a template's name and its questions), like 0282 scenarios and 0355 courses — no rep's data. The service role reads and inserts templates pinned to the manager's company; no rep is read or acted on. Running a template on a call is /[id]/custom-brief, which opens the call through the caller's own client first."],
   ["src/app/api/coach/remote/saved-searches/events/route.ts",
     "0362: requireSalesCoachManager only gates SHARING the caller's OWN saved search (a filter, no calls). The service role reads that one search row and the company's share rows, and writes the caller's own follow/seen or a share row — no rep is read or acted on. Counts for a shared search run through each follower's own client (reporting tree, hidden calls) in /saved-searches."],
   ["src/app/api/coach/remote/courses/route.ts",
@@ -2559,6 +2561,8 @@ const ERASURE_EXTENSIONS = new Map([
     "Legal erasure reaches pipeline prospects never linked to an erased call: a match function and 0316's exact prospect step (name/organization removed, renamed '(erased on request)', its to-do Tasks blanked), called only by the same erasure route for the same request, before rss_erase_sessions."],
   ["0322_erasure_day_plans.sql",
     "Legal erasure reaches reps' day plans (remote_day_plans), which name customers but are tied to no call: a match function and a replace-the-identifier function, called only by the same erasure route for the same request, before rss_erase_sessions; remote_day_plans' rules made erasure-aware with 0285's exact pattern. §3.1.1(2): that customer's data and nothing else."],
+  ["0364_brief_templates.sql",
+    "Custom brief answers (F13.2) can quote the customer, so rss_erase_sessions (0351's exact body) also deletes custom_briefs, whose append-only rules yield to erasure with 0285's exact pattern. Same function, same single caller. §3.1.1(2): erasure must reach every stored copy of the customer's words."],
   ["0351_erasure_task_signals_by_source.sql",
     "Legal erasure scrubs a callback's signals by source alone, as 0350 does for its task events (a signal derived from a misfiled task event could carry another company's id); every source is a task of the requesting company's own, checked calls. Same function, same single caller."],
   ["0350_erasure_events_by_subject.sql",

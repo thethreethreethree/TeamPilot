@@ -158,6 +158,12 @@ const ALLOWLIST = new Map([
   ["pitch_score_events.update", "0252 a rep who could update could erase the evidence behind a violation; corrections go through score_overrides."],
   ["pitch_score_events.delete", "0252 same as update — a deletable violation is an unenforced one."],
   // 0282 RSS Phase 7: training scenarios, assignments, due changes, attempts.
+  ["brief_templates.insert", "0364 written by /api/coach/remote/brief-templates after requireSalesCoachManager; company and created_by from auth."],
+  ["brief_templates.update", "0364 only the route stamps retired_at once; a trigger forbids any other change."],
+  ["brief_templates.delete", "0364 retire, never delete (DB rule too): stored answers reference the template."],
+  ["custom_briefs.insert", "0364 written by /api/coach/remote/[id]/custom-brief after the caller's own client opens the call (RLS: rep or tree, hidden calls)."],
+  ["custom_briefs.update", "0364 §3.1 (DB rule too): an answer is stored once per transcript version; only legal erasure may touch it."],
+  ["custom_briefs.delete", "0364 §3.1.1: only rss_erase_sessions deletes these (the rule yields to rss.erasure)."],
   ["saved_search_shares.insert", "0362 written by /api/coach/remote/saved-searches/events after the owner and manager checks; company from auth."],
   ["saved_search_shares.update", "0362 §3.1 (DB rule too): a share is a fact; unsharing is a new row."],
   ["saved_search_shares.delete", "0362 §3.1 (DB rule too): the history of shares stays."],
