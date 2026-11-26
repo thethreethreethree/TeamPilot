@@ -30,6 +30,7 @@ beforeEach(() => {
     training_scenarios: { data: { id: "s1", retired_at: null }, error: null },
     training_scenario_stages_current: { data: [{ scenario_id: "s1", stage_label: "Demo" }], error: null },
     remote_prospects_current: { data: [{ stage_label: "Demo" }, { stage_label: "Demo" }, { stage_label: "demo" }, { stage_label: "Close" }], error: null },
+    deal_stage_list_current: { data: null, error: null },
   };
   st.insertErr = null;
   st.inserted = [];
@@ -43,6 +44,10 @@ describe("scenario stages route", () => {
   });
   it("GET returns the tags and the stage names in use", async () => {
     expect(await (await GET(get())).json()).toEqual({ available: true, tags: [{ scenarioId: "s1", label: "Demo" }], stages: ["Close", "Demo"] });
+  });
+  it("GET offers the company's own stage list first (0371), then other names in use", async () => {
+    st.reads.deal_stage_list_current = { data: { stages: [{ name: "Discovery", kind: "open" }, { name: "Demo", kind: "open" }] }, error: null };
+    expect((await (await GET(get())).json()).stages).toEqual(["Discovery", "Demo", "Close"]);
   });
   it("GET says so when 0310 is not applied, and 500s on any other failure", async () => {
     st.reads.training_scenario_stages_current = { data: null, error: { code: "42P01", message: "missing" } };

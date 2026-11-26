@@ -35,3 +35,21 @@ export function stagesInUse(labels: Array<string | null>): string[] {
   }
   return [...byKey.values()].map((m) => [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]![0]).sort((a, b) => a.localeCompare(b));
 }
+
+/**
+ * The stage names to offer when tagging a scenario (2026-11-27): the company's own stage list first (0371, in its
+ * order), then any other name already used on prospects (one spelling each), so a tag matches what reps' deals say.
+ * Pure.
+ */
+export function stageChoices(companyList: string[] | null, inUse: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const n of [...(companyList ?? []), ...inUse]) {
+    const clean = cleanStageLabel(n);
+    if (!clean || seen.has(stageKey(clean))) continue;
+    seen.add(stageKey(clean));
+    out.push(clean);
+  }
+  return out;
+}
+

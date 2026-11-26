@@ -320,7 +320,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 
 ## Filed by training by deal stage (2026-11-23, docs/tbc/2026-11-23-stage-training)
 
-- [ ] 2026-11-23 · stage-training · stage names are free text; a scenario's stage tag matches only the same name (ignoring case and spacing)
+- [x] 2026-11-23 · stage-training · stage names are free text; a scenario's stage tag matches only the same name (ignoring case and spacing) — DONE 2026-11-27: the company stage list exists (0371, deal board) and the scenario tag box offers it first, then names in use
       why-unresolved: a company stage list is a pipeline change of its own
       next-action: an optional company stage list offered in the prospect's stage box and the tag box
       part done 2026-11-23: the prospect's stage box now suggests the stage names in use (one spelling each) — docs/tbc/2026-11-23-stage-suggestions. A company list stays open.

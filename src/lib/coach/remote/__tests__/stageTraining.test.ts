@@ -35,3 +35,13 @@ describe("stagesInUse", () => {
     expect(stagesInUse(["Demo", "demo", "Demo", null, "  ", "Negotiation"])).toEqual(["Demo", "Negotiation"]);
   });
 });
+
+import { stageChoices } from "../stageTraining";
+describe("stageChoices (2026-11-27)", () => {
+  it("the company's stage list first, in its order, then other names in use; one spelling per stage", () => {
+    expect(stageChoices(["Discovery", "Proposal"], ["proposal ", "Demo"])).toEqual(["Discovery", "Proposal", "Demo"]);
+  });
+  it("no company list: the names in use", () => {
+    expect(stageChoices(null, ["Demo"])).toEqual(["Demo"]);
+  });
+});
