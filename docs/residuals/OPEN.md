@@ -581,11 +581,11 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       why-unresolved: founder decision — 0285 excluded notes a person retyped. Picker failed three times on 2026-11-26 ("Stream closed").
       next-action: recommended — erasure blanks the typed text of those events and keeps that the dispute happened, who wrote it and the score (the callback-task rule); alternatives: leave them, or delete those events.
       DECIDED 2026-11-26 (founder picker): "Blank the text". DONE in 0366 — dispute and answer notes and score-correction reasons become "[erased]"; the record, author, time and score stay (docs/tbc/2026-11-26-erasure-score-notes).
-- [ ] 2026-11-26 · call-categories · F10.10 / F10.9: phone/video calls have no category to filter by
+- [x] 2026-11-26 · call-categories · F10.10 / F10.9: phone/video calls have no category to filter by — DONE (found closed 2026-11-27, entry was stale): 0367, 23ba4914 "Calls: categories — an admin's list, the rep's pick"; filters in docs/tbc/2026-11-26-category-filters
       why-unresolved: founder decision. Picker failed three times on 2026-11-26.
       next-action: recommended — the rep picks one at close from a fixed list the company admin sets (no AI guess); alternatives: AI suggests and the rep confirms, or not now.
       DECIDED 2026-11-26 (founder picker): "Rep picks at close" from an admin-set list. To build.
-- [ ] 2026-11-26 · vocabulary-past-calls · F8.9: a company's "heard as" corrections (0354) fix NEW transcript lines only; Gong also re-applies them to past calls
+- [x] 2026-11-26 · vocabulary-past-calls · F8.9: a company's "heard as" corrections (0354) fix NEW transcript lines only; Gong also re-applies them to past calls — DONE (found closed 2026-11-27, entry was stale): /api/coach/remote/settings/vocabulary/reapply, docs/tbc/2026-11-26-vocabulary-past-calls
       why-unresolved: founder decision (cost). Re-applying writes a new transcript version for each past call whose lines change (as trim does with copy_transcript_version), and each such call's AI reads (summary, moments, intel, brief) then re-run on the new version — one paid AI pass per changed call. Production today: 0 vocabularies.
       next-action: recommended — re-apply on request per vocabulary change, showing first how many calls would change and that their AI reads re-run; alternatives: re-apply text only and keep the old AI reads (they'd quote the old words), or leave past calls as they are.
       DECIDED 2026-11-26 (founder picker): "On request, with a count". To build.
