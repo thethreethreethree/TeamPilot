@@ -25,7 +25,7 @@ export type AccountRow = {
   activity: { level: Level; score: number; calls90: number };
 };
 
-export type ContactRow = { id: string; name: string; title: string | null; rank: Rank; accountId: string | null };
+export type ContactRow = { id: string; name: string; title: string | null; rank: Rank; accountId: string | null; email?: string | null; phone?: string | null };
 
 const CAP = 1000;
 
@@ -162,12 +162,12 @@ export async function accountDetail(db: SupabaseClient, accountId: string) {
   return { account: { id: acc.id as string, name: (acc.name as string | null) ?? "(no name)", createdAt: acc.created_at as string }, deals, contacts, timeline: timeline.slice(0, 300) };
 }
 
-function toContact(c: { id: string; name: string | null; title: string | null; account_id: string | null }): ContactRow {
-  return { id: c.id, name: c.name ?? "(no name)", title: c.title, rank: rankOf(c.title), accountId: c.account_id };
+function toContact(c: { id: string; name: string | null; title: string | null; account_id: string | null; email?: string | null; phone?: string | null }): ContactRow {
+  return { id: c.id, name: c.name ?? "(no name)", title: c.title, rank: rankOf(c.title), accountId: c.account_id, email: c.email ?? null, phone: c.phone ?? null };
 }
 
 export async function contactsOfAccount(db: SupabaseClient, accountId: string): Promise<ContactRow[]> {
-  const { data, error } = await db.from("contacts_current").select("id, name, title, account_id").eq("account_id", accountId).order("name").order("id").limit(500);
+  const { data, error } = await db.from("contacts_current").select("id, name, title, account_id, email, phone").eq("account_id", accountId).order("name").order("id").limit(500);
   if (error) throw new AccountReadError(`contacts: ${error.message}`);
   return ((data ?? []) as Array<{ id: string; name: string | null; title: string | null; account_id: string | null }>).map(toContact);
 }
@@ -180,10 +180,10 @@ export async function contactsOfDeal(db: SupabaseClient, prospectId: string): Pr
   if (error) throw new AccountReadError(`deal contacts: ${error.message}`);
   const rows = (links ?? []) as Array<{ contact_id: string; role: string }>;
   if (!rows.length) return [];
-  const { data: cs, error: cErr } = await db.from("contacts_current").select("id, name, title, account_id").in("id", rows.map((r) => r.contact_id));
+  const { data: cs, error: cErr } = await db.from("contacts_current").select("id, name, title, account_id, email, phone").in("id", rows.map((r) => r.contact_id));
   if (cErr) throw new AccountReadError(`contacts: ${cErr.message}`);
   const role = new Map(rows.map((r) => [r.contact_id, r.role]));
-  return ((cs ?? []) as Array<{ id: string; name: string | null; title: string | null; account_id: string | null }>)
+  return ((cs ?? []) as Array<{ id: string; name: string | null; title: string | null; account_id: string | null; email: string | null; phone: string | null }>)
     .map((c) => ({ ...toContact(c), role: role.get(c.id) ?? "other" }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

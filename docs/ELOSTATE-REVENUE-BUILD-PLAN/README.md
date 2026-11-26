@@ -2,7 +2,22 @@
 
 What EloState needs to compete with Gong beyond coaching: accounts, deals, warnings, playbooks, AI deal review, win/loss, ask-anything and forecast. It builds on the calls, coaching and prospects already live.
 
-## State of the plan
+## Shipped (2026-11-27)
+
+| Phase | Commit | Migration |
+|---|---|---|
+| 1 Accounts and contacts | 165aec25 | 0370 |
+| 2 Deal board, stages, saved views | b3e87459 | 0371 |
+| 3a Gong's deal warnings in dealRisk | c5cd8ecd | 0372 |
+| 3b Playbooks and the AI Deal Reviewer | 043e5d4d | 0373 |
+| 3c Deal brief and next steps | 3fa22495 | 0374 |
+| 4 Win/loss, drivers, account activity | af193246 | 0375 |
+| 5 Ask about a deal or account | 06b452cd | — |
+| 6 Forecast board | b527c7c4 | 0376 |
+
+Next: `docs/ELOSTATE-ENGAGE-PLATFORM-BUILD-PLAN` (Engage, API, MCP, agents).
+
+## State of the plan (as written)
 
 ```
 Features      27   ████████████████████████████████████████░░░░

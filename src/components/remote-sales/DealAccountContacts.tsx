@@ -11,7 +11,7 @@ import { Building2, UserPlus, X } from "lucide-react";
  *   · Contacts: the people on the deal with a role; add an existing contact of the account or a new one; remove.
  * Every change is an event through /api/coach/remote/prospects/:id; the panel reloads from the server after each.
  */
-export type DealContact = { id: string; name: string; title: string | null; rank: string; role: string };
+export type DealContact = { id: string; name: string; title: string | null; rank: string; role: string; email?: string | null; phone?: string | null };
 type Option = { id: string; name: string };
 
 const ROLES: Array<[string, string]> = [["decision_maker", "Decision maker"], ["champion", "Champion"], ["user", "User"], ["other", "Other"]];
@@ -146,6 +146,7 @@ export function DealAccountContacts({
               <button type="button" disabled={busy} onClick={() => void post({ action: "contact", contactId: c.id, role: "removed" })} aria-label={`Take ${c.name} off this deal`} className="text-muted hover:text-primary">
                 <X className="h-3.5 w-3.5" aria-hidden />
               </button>
+              <ContactReach dealId={dealId} contact={c} onSaved={() => void post({ action: "contact", contactId: c.id, role: c.role })} />
             </li>
           ))}
         </ul>
@@ -272,6 +273,78 @@ export function AddContact({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A contact's email and phone (0377: where an email step goes and what a call step dials), and "Add to a flow" (Engage,
+ * plan E1). Each change is an event on the contact; the panel reloads after it.
+ */
+function ContactReach({ dealId, contact, onSaved }: { dealId: string; contact: DealContact; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState(contact.email ?? "");
+  const [phone, setPhone] = useState(contact.phone ?? "");
+  const [flows, setFlows] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [flowId, setFlowId] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!open || flows) return;
+    fetch("/api/coach/remote/engage/flows", { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        setFlows(((await r.json()) as { flows: Array<{ id: string; name: string }> }).flows);
+      })
+      .catch(() => setMsg("Couldn't load flows."));
+  }, [open, flows]);
+  const saveField = async (kind: "email" | "phone", value: string) => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/coach/remote/contacts/${contact.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, value: value.trim() || null }) });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(j.error ?? (kind === "email" ? "That doesn't look like an email address." : "That doesn't look like a phone number."));
+      onSaved();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't save that.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const enrol = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/coach/remote/engage/enrolments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "enrol", flowId, prospectId: dealId, contactId: contact.id }) });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(j.error ?? "Couldn't add them to the flow.");
+      setMsg("Added. Their steps are on Engage → Today.");
+      setFlowId("");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't add them to the flow.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="text-[11px] text-secondary underline-offset-2 hover:text-primary hover:underline">
+        {contact.email || contact.phone ? [contact.email, contact.phone].filter(Boolean).join(" · ") : "Email, phone, flow"}
+      </button>
+    );
+  }
+  return (
+    <div className="mt-1 flex w-full flex-wrap items-center gap-1.5 rounded-lg border border-default p-1.5">
+      <input value={email} onChange={(e) => setEmail(e.currentTarget.value)} onBlur={() => { if (email.trim() !== (contact.email ?? "")) void saveField("email", email); }} placeholder="Email" aria-label={`${contact.name}'s email`} className={`${field} w-44`} />
+      <input value={phone} onChange={(e) => setPhone(e.currentTarget.value)} onBlur={() => { if (phone.trim() !== (contact.phone ?? "")) void saveField("phone", phone); }} placeholder="Phone" aria-label={`${contact.name}'s phone`} className={`${field} w-36`} />
+      <select value={flowId} onChange={(e) => setFlowId(e.currentTarget.value)} aria-label="Flow" className={field}>
+        <option value="">{flows === null ? "Loading flows…" : flows.length ? "Add to a flow…" : "No flows yet"}</option>
+        {(flows ?? []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+      </select>
+      <button type="button" disabled={saving || !flowId} onClick={() => void enrol()} className="rounded-lg border border-default px-2 py-1 text-xs text-primary disabled:opacity-50">Add</button>
+      <button type="button" onClick={() => setOpen(false)} className="px-1 text-[11px] text-muted hover:text-primary">Close</button>
+      {msg && <span className="w-full text-[11px] text-secondary">{msg}</span>}
     </div>
   );
 }

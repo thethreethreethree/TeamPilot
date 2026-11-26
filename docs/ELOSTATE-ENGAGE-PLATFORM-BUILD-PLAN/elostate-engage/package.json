@@ -1,0 +1,8 @@
+{
+  "name": "elostate-engage",
+  "private": true,
+  "version": "0.1.0",
+  "description": "EloState Engage, API, MCP and agents: rules as code with tests. Drops into src/lib/coach/remote/engage/.",
+  "type": "module",
+  "scripts": { "test": "node --test tests/*.test.ts", "check": "npm run test" }
+}

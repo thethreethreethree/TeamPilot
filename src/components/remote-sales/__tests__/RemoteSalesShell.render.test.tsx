@@ -42,7 +42,7 @@ describe("RemoteSalesShell tabs", () => {
     for (const m of [false, null]) {
       macro = m;
       render(<RemoteSalesShell>x</RemoteSalesShell>);
-      expect(tabs()).toEqual(["Calls", "Pipeline", "Accounts", "Scoreboard", "Search", "Library", "Training"]);
+      expect(tabs()).toEqual(["Calls", "Pipeline", "Accounts", "Engage", "Scoreboard", "Search", "Library", "Training"]);
       cleanup();
     }
   });

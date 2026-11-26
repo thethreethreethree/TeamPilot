@@ -1,0 +1,29 @@
+# EloState Engage, API, MCP and agents — brief
+
+> This is the brief, not the method (BUILD-STARTER + TBC). Nothing is invented. Anything unanswered reads NOT DECIDED.
+
+1. **What:** the remaining revenue-stack products: outbound flows with call outcomes, a public API, an MCP server and agents.
+2. **Entities:** flow, enrolment, step activity, API key, MCP key, agent, run (`docs/01`).
+3. **Who:** reps work their steps; managers build company flows and read analytics; admins hold keys.
+4. **Brand:** the app's tokens.
+5. **Reference:** the teardown's M24–M27, M31, M32; the evidence report (#1014 #1004 #988 #1012).
+6. **Real content:** none to supply. Email drafts are the rep's own text.
+7. **Existing data:** deals, contacts and accounts (revenue Phases 1–6).
+8. **Deployment:** Vercel, with the preconditions in `docs/08`.
+9. **Hard constraints:**
+   - no email sent from the app without a configured sender;
+   - no opt-out wording drafted here;
+   - keys stored only as hashes;
+   - every read through the caller's own access.
+10. **Done:** a rep runs their day from Engage, and an outside AI asks about a deal through MCP with that rep's access.
+
+## Decisions log
+| Date | Decision | Chosen | Why |
+|---|---|---|---|
+| 2026-11-27 | Order | Engage, then CRM / API / MCP, then agents | Founder picker |
+| 2026-11-27 | Email and dialer | Manual email and phone `tel:` until the services are set up | §1.5.3: no silent dependence on unset config |
+
+## Open questions
+| # | Question | Blocks |
+|---|---|---|
+| E1–E9 | see `docs/00` | none block E1 |

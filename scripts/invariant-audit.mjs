@@ -2559,6 +2559,8 @@ for (const f of FILES) {
 // append-only rules yield to it — are not a second door: the function stays single and only the erasure route calls it
 // (checked above). Each is named here WITH what it adds, so a new mention of the flag still fails until reviewed.
 const ERASURE_EXTENSIONS = new Map([
+  ["0377_engage_flows.sql",
+    "Engage step notes (plan E1) can quote the customer: engage_activities' append-only rules yield to erasure with 0285's exact pattern; rss_erase_sessions and rss_erase_prospects are 0374's exact bodies, and rss_erase_contacts 0370's, each plus one step blanking the notes on the erased deals' or contacts' enrolments. Same functions, same single caller."],
   ["0374_deal_briefs.sql",
     "Deal briefs (revenue Phase 3c) quote and summarise the customer: deal_briefs' append-only rules yield to erasure with 0285's exact pattern; rss_erase_sessions and rss_erase_prospects are 0373's exact bodies plus one step deleting the erased deals' briefs. Same functions, same single caller."],
   ["0373_deal_playbooks.sql",

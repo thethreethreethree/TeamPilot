@@ -48,7 +48,7 @@ describe("one prospect", () => {
     expect(body.todos.map((t: { id: string }) => t.id)).toEqual(["t1"]);
     // Revenue Phase 1 (0370): its account and contacts, each contact with its role and rank.
     expect(body.account).toEqual({ id: "a1", name: "Acme" });
-    expect(body.contacts).toEqual([{ id: "c1", name: "Dana", title: "VP Sales", rank: "vp", accountId: "a1", role: "champion" }]);
+    expect(body.contacts).toEqual([{ id: "c1", name: "Dana", title: "VP Sales", rank: "vp", accountId: "a1", email: null, phone: null, role: "champion" }]);
   });
 
   for (const table of ["accounts_current", "deal_contacts_current"]) {
