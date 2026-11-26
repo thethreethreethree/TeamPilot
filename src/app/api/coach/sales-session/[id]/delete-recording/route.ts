@@ -5,6 +5,8 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { removeRecordingAudio } from "@/lib/coach/v5/removeRecordingAudio";
 import { recordAudit } from "@/lib/audit/recordAudit";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 
 /**
  * POST /api/coach/sales-session/[id]/delete-recording — remove one recording's audio, on request.
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const admin = createAdminClient();
   const { data: session } = await admin
     .from("coaching_sessions")
-    .select("id, company_id, audio_asset_url")
+    .select("id, company_id, agent_id, audio_asset_url")
     .eq("id", id)
     .maybeSingle();
   if (!session || session.company_id !== companyId) {
@@ -79,6 +81,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       { error: "Only a manager or an administrator can delete a recording." },
       { status: 403 },
     );
+  }
+
+  // 0273 + 0337 (review of 2026-11-26): the read above uses the service role, so it skips the RLS that narrows a
+  // manager to their reporting tree and hides a call a company phrase matched. Ask both questions here, through the
+  // database's own rules (treeAllowsRep, hiddenFrom — §2.2), and answer a call the caller cannot reach with the same
+  // 404 as another company's: never confirm it exists. The rep's own call is always theirs.
+  if (session.agent_id !== auth.user.id) {
+    let reachable = false;
+    try {
+      reachable = (await treeAllowsRep(req, String(session.agent_id))) && !(await hiddenFrom(admin, [id], auth.user.id)).has(id);
+    } catch (err) {
+      console.error("[delete-recording] access check failed:", err);
+      return NextResponse.json({ error: "Couldn't check access to this call. Nothing was changed." }, { status: 500 });
+    }
+    if (!reachable) return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
 
   const audioAssetUrl = session.audio_asset_url as string | null;

@@ -2532,6 +2532,8 @@ const ERASURE_EXTENSIONS = new Map([
     "Legal erasure reaches pipeline prospects never linked to an erased call: a match function and 0316's exact prospect step (name/organization removed, renamed '(erased on request)', its to-do Tasks blanked), called only by the same erasure route for the same request, before rss_erase_sessions."],
   ["0322_erasure_day_plans.sql",
     "Legal erasure reaches reps' day plans (remote_day_plans), which name customers but are tied to no call: a match function and a replace-the-identifier function, called only by the same erasure route for the same request, before rss_erase_sessions; remote_day_plans' rules made erasure-aware with 0285's exact pattern. §3.1.1(2): that customer's data and nothing else."],
+  ["0351_erasure_task_signals_by_source.sql",
+    "Legal erasure scrubs a callback's signals by source alone, as 0350 does for its task events (a signal derived from a misfiled task event could carry another company's id); every source is a task of the requesting company's own, checked calls. Same function, same single caller."],
   ["0350_erasure_events_by_subject.sql",
     "Legal erasure deletes a call's events by subject alone (they may have been filed under another company's id before 0349); every subject is one of the requesting company's own calls, checked at the top of the function. Same function, same single caller."],
   ["0343_call_speaker_names.sql",
@@ -2762,18 +2764,16 @@ const PAGING_UNIQUE_ALLOWLIST = new Map([
 // LEARNED: 2026-11-26. Hiding a call is enforced by RLS, which the service role bypasses. An independent review found
 // seven service-role routes (coaching inbox, uncoached lists, session list, disputes, calibration, coach chats,
 // vendor monitoring) still naming hidden calls to managers. THE RULE: an API route that uses createAdminClient and
-// reads coaching_sessions, coaching_transcript_segments_current or pitch_scores calls hiddenFrom /
+// reads a call table under the hide rules (or events about a call) calls hiddenFrom /
 // hiddenInCompanyFrom / hiddenCallsForCompany, or is listed here with why no hidden call can reach a person.
 const HIDE_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/coach/sales-session/recordings/route.ts", "in-person (door) recordings — the hide is for phone/video calls (0337)."],
   ["src/app/api/coach/sales-session/recording-purge-cron/route.ts", "cron: deletes old audio; returns no call to any person."],
   ["src/app/api/coach/sales-session/team-activity/route.ts", "in-person team activity — the hide is for phone/video calls."],
   ["src/app/api/coach/sales-session/team-analytics/route.ts", "one company-wide count; names no call."],
-  ["src/app/api/coach/sales-session/[id]/upload-recording/route.ts", "the rep's own call (owner-gated write); the rep always sees their hidden call."],
-  ["src/app/api/coach/sales-session/[id]/delete-recording/route.ts", "opens the call through the caller's client (getSession) first; RLS refuses a hidden call."],
+  ["src/app/api/coach/sales-session/[id]/upload-recording/route.ts", "opens the call through the caller's client (getSession, RLS) before the service-role write; RLS refuses a hidden call."],
   ["src/app/api/coach/sales-session/[id]/audio-chunk/route.ts", "the rep's own live call (owner-gated write)."],
   ["src/app/api/coach/sales-session/[id]/retranscribe/route.ts", "opens the call through the caller's client first; RLS refuses a hidden call."],
-  ["src/app/api/coach/sales-session/[id]/save-recording/route.ts", "the rep's own call (owner-gated write)."],
   ["src/app/api/coach/sales-session/pitch-score/route.ts", "opens the call through the caller's client (getSession) before reading or writing its score."],
   ["src/app/api/coach/sales-session/rep-activity/route.ts", "in-person rep activity — the hide is for phone/video calls."],
   ["src/app/api/coach/sales-session/auto-close-stale-cron/route.ts", "cron: closes abandoned sessions; returns no call to any person."],
@@ -2787,13 +2787,28 @@ const HIDE_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/coach/remote/erasure/route.ts", "company admins only — admins may see hidden calls (0337)."],
   ["src/app/api/coach/remote/[id]/grants/route.ts", "company admins only; the granted view itself checks hiddenFrom."],
   ["src/app/api/coach/remote/coverage/route.ts", "reads calls through the caller's client; the service role only resolves ?team= (teamScope)."],
+  // 2026-11-26 (review of 181b459f..19d07354): the check now covers every call table under the hide rules (0339/0341),
+  // not three. These routes touch one of the wider set and were each read: none returns a hidden call's content.
+  ["src/app/api/coach/sales-session/[id]/why/route.ts", "reads the call's why-events with the service role only after getSession (caller's client, RLS) returned the call."],
+  ["src/app/api/coach/sales-session/[id]/summarize/route.ts", "getSession (caller's client, RLS) first; the service role only writes and reads that call's summary event."],
+  ["src/app/api/coach/sales-session/[id]/transcript-edit/route.ts", "getSession through the caller's client, then owner or tree-allowed manager; reads go through the caller's client, the service role only writes."],
+  ["src/app/api/coach/gamification/notifications/route.ts", "the list is read through the caller's client (RLS, 0339); the service role only marks the caller's own notifications read."],
+  ["src/app/api/coach/remote/stage-practice/route.ts", "grades are read through the caller's client; the service role only inserts the rep's own training assignment."],
+  ["src/app/api/coach/remote/team-stats/route.ts", "stats are read through the caller's client (RLS, 0339); the service role only resolves ?team= (teamScope)."],
+  ["src/app/api/coach/remote/[id]/followup/route.ts", "getSession (caller's client, RLS) first; the service role reads the rep's name and writes the draft."],
+  ["src/app/api/coach/remote/[id]/callbacks/route.ts", "getSession (caller's client, RLS) first; the service role writes the callback task."],
+  ["src/app/api/coach/remote/[id]/brief/review/route.ts", "getSession (caller's client, RLS) first; the service role reads a name and writes the to-do."],
 ]);
 {
   const seen = new Set();
   for (const f of FILES) {
     if (!/^src\/app\/api\/.*\/route\.ts$/.test(f.path)) continue;
     if (!/createAdminClient/.test(f.sql)) continue;
-    if (!/\.from\(\s*["'`](coaching_sessions|coaching_transcript_segments_current|pitch_scores)["'`]/.test(f.sql)) continue;
+    // Every call table the hide rules cover (0337/0339/0341), plus events read about a call — not only the three
+    // tables a call list reads, or a route serving a call's AI reads or notes through the service role passes unseen.
+    const callTable = /\.from\(\s*["'`](coaching_sessions|coaching_transcript_segments_current|coaching_transcript_segments|pitch_scores|after_pitch_summaries|coaching_cue_outcomes|coaching_cues|library_items|manager_notifications|pitch_score_elements|pitch_score_events|pitch_score_overrides|recording_comments|recording_share_events|session_interaction_stats|tracker_hits|transcript_line_edits|call_notes|remote_call_briefs|remote_followup_drafts|session_follow_through|snippets)["'`]/;
+    const callEvents = /\.from\(\s*["'`]events["'`]/.test(f.sql) && /sales_session:|pitch:/.test(f.sql);
+    if (!callTable.test(f.sql) && !callEvents) continue;
     if (/\b(hiddenFrom|hiddenInCompanyFrom|hiddenCallsForCompany)\b/.test(f.sql)) continue;
     seen.add(f.path);
     if (HIDE_ROUTE_ALLOWLIST.has(f.path)) continue;

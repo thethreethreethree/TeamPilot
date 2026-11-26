@@ -9,6 +9,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+// 0273 + 0337: the tree and hidden-call verdicts, controllable per test (their own rules are tested in treeAccess / hidePhrases).
+const access = vi.hoisted(() => ({ tree: true, hidden: false, fail: false }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => access.tree) }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenFrom: vi.fn(async (_a: unknown, ids: string[]) => {
+    if (access.fail) throw new Error("hidden check failed: boom");
+    return new Set(access.hidden ? ids : []);
+  }),
+}));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -46,6 +55,7 @@ const OWNED = { id: "sess1", agent_id: "rep1", company_id: "co1" };
 beforeEach(() => {
   vi.clearAllMocks();
   captured.eqs = [];
+  Object.assign(access, { tree: true, hidden: false, fail: false });
 });
 
 describe("POST /save-recording", () => {
@@ -72,5 +82,34 @@ describe("POST /save-recording", () => {
     mockAdmin(OWNED, [{ id: "sess1" }]);
     expect((await POST(req({ saved: true }), ctx)).status).toBe(200);
     expect(captured.eqs).toContainEqual({ col: "company_id", val: "co1" }); // the write is tenant-scoped
+  });
+});
+
+describe("a manager saving a rep's call (review 2026-11-26: the service-role read skipped RLS)", () => {
+  const MGR = { company_id: "co1", role: "member", sales_coach_role: "admin" };
+  it("200 when the rep is in the manager's tree and the call is not hidden from them", async () => {
+    setCaller("mgr1", MGR);
+    mockAdmin(OWNED, [{ id: "sess1" }]);
+    expect((await POST(req({ saved: true }), ctx)).status).toBe(200);
+  });
+  it("404 when the rep is outside the manager's tree — no write is attempted", async () => {
+    setCaller("mgr1", MGR);
+    access.tree = false;
+    mockAdmin(OWNED, [{ id: "sess1" }]);
+    expect((await POST(req({ saved: true }), ctx)).status).toBe(404);
+    expect(captured.eqs).toHaveLength(1); // only the session read's .eq("id"); the update never ran
+  });
+  it("404 when the call is hidden from the manager", async () => {
+    setCaller("mgr1", MGR);
+    access.hidden = true;
+    mockAdmin(OWNED, [{ id: "sess1" }]);
+    expect((await POST(req({ saved: true }), ctx)).status).toBe(404);
+  });
+  it("the owning rep is never asked about tree or hides — their own call is theirs", async () => {
+    setCaller("rep1", REP);
+    access.tree = false;
+    access.hidden = true;
+    mockAdmin(OWNED, [{ id: "sess1" }]);
+    expect((await POST(req({ saved: true }), ctx)).status).toBe(200);
   });
 });

@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { isMissingColumnError } from "@/lib/coach/v5/migrationGuard";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 
 /**
  * POST /api/coach/sales-session/[id]/save-recording   body: { saved?: boolean }  (default true)
@@ -68,6 +70,21 @@ export async function POST(
       { error: "Only the rep or a manager can save this recording." },
       { status: 403 }
     );
+  }
+
+  // 0273 + 0337 (review of 2026-11-26): the read above uses the service role, so it skips the RLS that narrows a
+  // manager to their reporting tree and hides a call a company phrase matched. Ask both questions here, through the
+  // database's own rules (treeAllowsRep, hiddenFrom — §2.2), and answer a call the caller cannot reach with the same
+  // 404 as another company's: never confirm it exists. The rep's own call is always theirs.
+  if (session.agent_id !== auth.user.id) {
+    let reachable = false;
+    try {
+      reachable = (await treeAllowsRep(req, String(session.agent_id))) && !(await hiddenFrom(admin, [id], auth.user.id)).has(id);
+    } catch (err) {
+      console.error("[save-recording] access check failed:", err);
+      return NextResponse.json({ error: "Couldn't check access to this call. Nothing was changed." }, { status: 500 });
+    }
+    if (!reachable) return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
 
   // CORRECTION (2026-07-17, A13/A21): the first version of this comment cited team/route.ts as "the precedent

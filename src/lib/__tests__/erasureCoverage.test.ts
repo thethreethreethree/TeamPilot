@@ -75,3 +75,11 @@ describe("erasure reaches a call's events wherever they were filed (0350)", () =
     expect(body).not.toMatch(/delete from events where company_id = p_company and subject = any \(subjects\)/);
   });
 });
+
+describe("erasure scrubs a callback's signals wherever they were filed (0351)", () => {
+  it("the latest body scrubs task signals by source alone, as it does the task events", () => {
+    const body = latestEraseBody();
+    expect(body).toMatch(/update signals set payload = rss_scrub_keys\(payload, array\['title', 'description'\]\)\s+where source = any \(task_subjects\);/);
+    expect(body).not.toMatch(/where company_id = p_company and source = any \(task_subjects\)/);
+  });
+});

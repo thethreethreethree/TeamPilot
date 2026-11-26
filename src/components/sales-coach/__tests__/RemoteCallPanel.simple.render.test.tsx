@@ -91,4 +91,13 @@ describe("RemoteCallPanel — questions asked (F9.6)", () => {
     await screen.findByRole("button", { name: "Back 15 seconds" });
     expect(screen.queryByText(/Questions asked by the rep/)).toBeNull();
   });
+  it("with no recording, the questions read as text and say why they can't play — no dead buttons", async () => {
+    const noAudio = { ...WIRE, audioUrl: null, questions: [{ atMs: 65_000, text: "What's driving the change this quarter?" }] };
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith("/stats") ? noAudio : { trims: [] }) })));
+    render(<RemoteCallPanel sessionId="s1" />);
+    expect(await screen.findByText("Questions asked by the rep (1)")).toBeTruthy();
+    expect(screen.getByText(/What's driving the change this quarter\?/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /What's driving the change/ })).toBeNull();
+    expect(screen.getByText("This call has no recording, so these can't be played.")).toBeTruthy();
+  });
 });

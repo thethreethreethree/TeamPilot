@@ -569,13 +569,22 @@ export function RemoteCallPanel({
           <ul className="mt-1 space-y-0.5">
             {wire.questions.map((q, i) => (
               <li key={`${q.atMs}-${i}`}>
-                <button type="button" onClick={() => seek(q.atMs / 1000)} className="text-left text-secondary hover:text-primary" title="Play from here">
-                  <span className="mr-1.5 tabular-nums text-muted">{mmss(q.atMs)}</span>
-                  {q.text}
-                </button>
+                {wire.audioUrl ? (
+                  <button type="button" onClick={() => seek(q.atMs / 1000)} className="text-left text-secondary hover:text-primary" title="Play from here">
+                    <span className="mr-1.5 tabular-nums text-muted">{mmss(q.atMs)}</span>
+                    {q.text}
+                  </button>
+                ) : (
+                  // No recording (deleted, past retention, or erased): the questions still read, but nothing can play.
+                  <span className="text-secondary">
+                    <span className="mr-1.5 tabular-nums text-muted">{mmss(q.atMs)}</span>
+                    {q.text}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
+          {!wire.audioUrl && <p className="mt-1 text-[11px] text-muted">This call has no recording, so these can&apos;t be played.</p>}
         </details>
       )}
       <p className="text-[11px] text-muted">

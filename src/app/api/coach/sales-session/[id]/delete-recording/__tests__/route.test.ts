@@ -21,6 +21,15 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/coach/v5/removeRecordingAudio", () => ({ removeRecordingAudio: vi.fn() }));
 vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async () => true) }));
+// 0273 + 0337: the tree and hidden-call verdicts, controllable per test (their own rules are tested in treeAccess / hidePhrases).
+const access = vi.hoisted(() => ({ tree: true, hidden: false, fail: false }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => access.tree) }));
+vi.mock("@/lib/coach/remote/hidePhrases", () => ({
+  hiddenFrom: vi.fn(async (_a: unknown, ids: string[]) => {
+    if (access.fail) throw new Error("hidden check failed: boom");
+    return new Set(access.hidden ? ids : []);
+  }),
+}));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -74,6 +83,7 @@ beforeEach(() => {
   vi.mocked(removeRecordingAudio).mockReset();
   vi.mocked(recordAudit).mockClear();
   vi.mocked(removeRecordingAudio).mockResolvedValue({ ok: true, chunksRemoved: 0 });
+  Object.assign(access, { tree: true, hidden: false, fail: false });
 });
 
 describe("who may delete a recording", () => {
@@ -175,5 +185,31 @@ describe("a recording that is already gone", () => {
     // Nothing to remove and nothing to clear — the end state the caller asked for already holds.
     expect(removeRecordingAudio).not.toHaveBeenCalled();
     expect(updates).toHaveLength(0);
+  });
+});
+
+describe("a manager who cannot reach the call (review 2026-11-26: the service-role read skipped RLS)", () => {
+  it("404s a call whose rep is outside the manager's reporting tree, and deletes nothing", async () => {
+    setup({});
+    access.tree = false;
+    const res = await POST(req(), ctx("s1"));
+    expect(res.status).toBe(404);
+    expect(removeRecordingAudio).not.toHaveBeenCalled();
+    expect(updates).toHaveLength(0);
+  });
+
+  it("404s a call hidden from this manager by a company phrase, and deletes nothing", async () => {
+    setup({});
+    access.hidden = true;
+    expect((await POST(req(), ctx("s1"))).status).toBe(404);
+    expect(removeRecordingAudio).not.toHaveBeenCalled();
+    expect(updates).toHaveLength(0);
+  });
+
+  it("refuses with a 500 when the hidden check cannot be answered — never deletes on an unknown", async () => {
+    setup({});
+    access.fail = true;
+    expect((await POST(req(), ctx("s1"))).status).toBe(500);
+    expect(removeRecordingAudio).not.toHaveBeenCalled();
   });
 });
