@@ -198,3 +198,26 @@ export function questionMarkers(segments: Segment[]): Array<{ atMs: number; text
     .filter((s) => s.speaker === 'rep' && isQuestion(s.text))
     .map((s) => ({ atMs: s.startMs, text: s.text.trim().slice(0, 160) }));
 }
+
+/**
+ * Filler words (2026-11-26; Gong ledger F9.6: points of interest include "filler words"). The rep's clear fillers —
+ * um, uh, uhm, erm, in any length ("ummm") — counted as the transcript wrote them, with when each line was said, and a
+ * rate per minute of the REP's own talk (not the whole call, so a long listener isn't flattered). Words that are often
+ * not filler ("like", "so", "you know") are left out on purpose: a count that guesses is worse than a smaller true one.
+ * Speech-to-text keeps these words in our transcripts (production 2026-11-26: 168 of 186 calls have them), but it may
+ * miss some, so the page says the count is from the transcript. Pure.
+ */
+export const FILLER_RE = /\b(u+m+|u+h+|uhm+|e+r+m+)\b/gi;
+export function fillerMarkers(segments: Segment[]): { moments: Array<{ atMs: number; count: number; text: string }>; total: number; perRepMinute: number | null } {
+  const valid = validateSegments(segments);
+  const moments: Array<{ atMs: number; count: number; text: string }> = [];
+  for (const s of valid) {
+    if (s.speaker !== 'rep') continue;
+    const n = (s.text.match(FILLER_RE) ?? []).length;
+    if (n > 0) moments.push({ atMs: s.startMs, count: n, text: s.text.trim().slice(0, 160) });
+  }
+  const total = moments.reduce((k, m) => k + m.count, 0);
+  const repMs = valid.filter((s) => s.speaker === 'rep').reduce((k, s) => k + Math.max(0, s.endMs - s.startMs), 0);
+  return { moments, total, perRepMinute: repMs >= 60_000 ? Math.round((total / (repMs / 60_000)) * 10) / 10 : null };
+}
+

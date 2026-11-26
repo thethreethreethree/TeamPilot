@@ -52,6 +52,8 @@ type Wire =
       audioUrl: string | null;
       /** F9.6 (2026-11-26): the rep's questions with their times. Absent from an older server. */
       questions?: Array<{ atMs: number; text: string }>;
+      /** F9.6 (2026-11-26): the rep's filler words. Absent from an older server. */
+      fillers?: { moments: Array<{ atMs: number; count: number; text: string }>; total: number; perRepMinute: number | null };
     };
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
@@ -587,6 +589,25 @@ export function RemoteCallPanel({
             ))}
           </ul>
           {!wire.audioUrl && <p className="mt-1 text-[11px] text-muted">This call has no recording, so these can&apos;t be played.</p>}
+        </details>
+      )}
+      {wire.fillers && wire.fillers.total > 0 && (
+        <details className="rounded-lg border border-default bg-base p-2 text-xs">
+          <summary className="cursor-pointer text-secondary hover:text-primary">
+            Filler words by the rep ({wire.fillers.total}{wire.fillers.perRepMinute != null ? ` · ${wire.fillers.perRepMinute} per minute of the rep's talk` : ""})
+          </summary>
+          <p className="mt-1 text-[11px] text-muted">Um, uh and erm as the transcript wrote them; speech-to-text may miss some.</p>
+          <ul className="mt-1 space-y-0.5">
+            {wire.fillers.moments.map((f, i) => (
+              <li key={`${f.atMs}-${i}`}>
+                <button type="button" onClick={() => seek(f.atMs / 1000)} className="text-left text-secondary hover:text-primary" title="Play from here">
+                  <span className="mr-1.5 tabular-nums text-muted">{mmss(f.atMs)}</span>
+                  {f.count > 1 ? <span className="mr-1 text-muted">×{f.count}</span> : null}
+                  {f.text}
+                </button>
+              </li>
+            ))}
+          </ul>
         </details>
       )}
       <p className="text-[11px] text-muted">

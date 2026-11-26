@@ -101,3 +101,19 @@ describe("RemoteCallPanel — questions asked (F9.6)", () => {
     expect(screen.getByText("This call has no recording, so these can't be played.")).toBeTruthy();
   });
 });
+
+describe("RemoteCallPanel — filler words (F9.6, 2026-11-26)", () => {
+  it("shows the rep's filler count and rate, each moment playing from its time, with the transcript caveat; not in Macro Mode", async () => {
+    const withF = { ...WIRE, fillers: { moments: [{ atMs: 125_000, count: 2, text: "Um, so, uh, the plan" }], total: 2, perRepMinute: 1.5 } };
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith("/stats") ? withF : { trims: [] }) })));
+    render(<RemoteCallPanel sessionId="s1" />);
+    expect(await screen.findByText("Filler words by the rep (2 · 1.5 per minute of the rep's talk)")).toBeTruthy();
+    expect(screen.getByText(/speech-to-text may miss some/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Um, so, uh, the plan/ }).textContent).toContain("2:05");
+    cleanup();
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith("/stats") ? withF : { trims: [] }) })));
+    render(<RemoteCallPanel sessionId="s1" simple />);
+    await screen.findByRole("button", { name: "Back 15 seconds" });
+    expect(screen.queryByText(/Filler words by the rep/)).toBeNull();
+  });
+});

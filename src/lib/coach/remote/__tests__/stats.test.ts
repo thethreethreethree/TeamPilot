@@ -107,3 +107,22 @@ describe("questionMarkers (F9.6, 26 Nov)", () => {
     expect(computeInteractionStats(segs).repQuestionsPerHour).toBe(Math.round((2 / 9000) * 3_600_000 * 10) / 10);
   });
 });
+
+describe("fillerMarkers (F9.6, 2026-11-26)", () => {
+  it("counts the rep's clear fillers only, with when, and a rate per minute of the rep's talk", async () => {
+    const { fillerMarkers } = await import("../stats");
+    const r = fillerMarkers([
+      { speaker: "rep", startMs: 0, endMs: 30_000, text: "Um, so, uh, ummm the plan is fine" },
+      { speaker: "customer", startMs: 30_000, endMs: 40_000, text: "Uh huh, um okay" },
+      { speaker: "rep", startMs: 40_000, endMs: 70_000, text: "I like that you asked — erm, yes. Drum and umbrella aren't fillers." },
+    ]);
+    expect(r.moments.map((m) => [m.atMs, m.count])).toEqual([[0, 3], [40_000, 1]]);
+    expect(r.total).toBe(4);
+    expect(r.perRepMinute).toBe(4); // 4 over 60 s of rep talk
+  });
+  it("no rate below a minute of rep talk", async () => {
+    const { fillerMarkers } = await import("../stats");
+    expect(fillerMarkers([{ speaker: "rep", startMs: 0, endMs: 5_000, text: "um" }]).perRepMinute).toBeNull();
+  });
+});
+
