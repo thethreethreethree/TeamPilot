@@ -2431,6 +2431,8 @@ for (const f of FILES) {
 // cannot reach another rep's data.
 const MANAGER_CHECK_RE = /requireSalesCoachManager\(|isSalesCoachManager\(|canManagerViewRepSkills\(/;
 const TREE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/courses/route.ts",
+    "0355 training courses are COMPANY content (a course's title, summary and lessons), like 0282 scenarios — no rep's data. The service role reads and inserts courses and their lesson versions pinned to the manager's company; no rep is read or acted on. Giving a course to reps is /course-assignments, which asks the tree (treeFilterRepsChecked)."],
   ["src/app/api/coach/remote/market/topic-groups/route.ts",
     "0319 topic groups are a COMPANY setting (how the company's topic labels are counted), not a rep's data. The service role only inserts a group or a retirement pinned to the manager's company and reads one group id of that company; no rep is read or acted on. The topics a manager may group are read through the CALLER's client (readMarketInputs), so they are already limited by the reporting tree."],
   ["src/app/api/coach/sales-session/roleplay/route.ts",
@@ -2583,6 +2585,41 @@ if (!FILES.some((x) => x.path === ERASURE_ROUTE)) {
 
 // ═══ INVARIANT 39 — the admin-role list is written in ONE place (admin_roles(), 0265) ═══════════════════════
 //
+// LEARNED: 2026-11-26. 0309 puts a RESTRICTIVE mfa_required policy on every table that grants access, so a session
+// that hasn't finished multi-factor sign-in reaches nothing. 0355 created four training tables without it; only
+// verify:live caught it — AFTER the apply, against production. This catches it before: every table created after
+// 0309 that has a policy must also get mfa_required (by name, or in a do-block that names the table and mfa_required).
+//
+// THE RULE: a table created in a migration numbered above 0309 with any `create policy … on <table>` also has
+// mfa_required, in that migration or a later one.
+{
+  const created = new Map(); // table -> migration
+  const hasPolicy = new Set();
+  const covered = new Set();
+  for (const name of migs) {
+    const num = Number(name.slice(0, 4));
+    const sql = readFileSync(join(MIG_DIR, name), "utf8").replace(/--.*$/gm, "");
+    if (num > 309) for (const m of sql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\(/gi)) created.set(m[1].toLowerCase(), name);
+    for (const m of sql.matchAll(/create\s+policy\s+("[^"]+"|\w+)\s+on\s+(?:public\.)?(\w+)/gi)) {
+      if (m[1] === "mfa_required") covered.add(m[2].toLowerCase());
+      else hasPolicy.add(m[2].toLowerCase());
+    }
+    // A loop that adds mfa_required to a list of tables (0356's shape): every quoted table name in that block counts.
+    for (const b of sql.matchAll(/do\s+\$(\w*)\$([\s\S]*?)\$\1\$/gi)) {
+      if (!/mfa_required/.test(b[2])) continue;
+      for (const q of b[2].matchAll(/'(\w+)'/g)) covered.add(q[1].toLowerCase());
+    }
+  }
+  for (const [table, mig] of created) {
+    if (!hasPolicy.has(table) || covered.has(table)) continue;
+    findings.push({
+      rule: "A table that grants access has no mfa_required policy (0309: an unverified session could reach it)",
+      file: `supabase/migrations/${mig}`,
+      why: `${table} gets a policy but never \`create policy mfa_required on public.${table} as restrictive for all to authenticated using ((select public.rss_mfa_ok())) with check ((select public.rss_mfa_ok()))\`. Add it in a new migration if this one is applied.`,
+    });
+  }
+}
+
 // LEARNED: 2026-11-20. 0265 (founder ruling) replaced 47 POLICY copies of ['CEO','COO','admin'] with admin_roles()
 // after the list gained CFO. The FUNCTION is_sales_coach_manager() (0252) kept its copy — it was not a policy — and
 // every RSS policy calling it refused a CFO the app called a manager (fixed in 0290). A sweep by shape misses the
