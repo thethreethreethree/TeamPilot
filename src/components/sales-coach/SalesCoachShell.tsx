@@ -7,6 +7,7 @@ import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import { filterManagerNavSections } from "@/lib/nav/managerNav";
 import { LearningModeFab } from "@/components/learning/LearningModeFab";
 import { NotificationBell } from "@/components/sales-coach/NotificationBell";
+
 import {
   NavProgressProvider,
   NavProgressBar,
@@ -235,6 +236,23 @@ const MACRO_MOBILE_TABS: NavItem[] = [
   { label: "Role Play", href: "/dashboard/sales-coach/roleplay", icon: Target },
 ];
 
+/**
+ * Desktop (md and up) or not; null until the browser says. The shell mounts exactly ONE bell from it (review
+ * 2026-11-26): CSS-hidden bells stay mounted, and two bells meant two pollers and a Realtime channel that went deaf.
+ */
+function useIsDesktop(): boolean | null {
+  const [desktop, setDesktop] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const on = () => setDesktop(mq.matches);
+    on();
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
+  return desktop;
+}
+
 export function SalesCoachShell({
   children,
   // Module hard-lock (0207): true for a single-module (sales_coach-locked) account — it can't return to the
@@ -250,6 +268,7 @@ export function SalesCoachShell({
   // user never clicks a nav entry that bounces them (AMD-006 L3). isManager is false while loading →
   // items stay hidden until confirmed (safe direction). MOBILE_TABS has no manager items, so it's unaffected.
   const isSalesCoachManager = useIsSalesCoachManager();
+  const isDesktop = useIsDesktop();
   // Filter manager-only items WITHIN each section, then drop any section left empty (so a rep never sees a
   // bare "Manager Dashboard" heading with nothing under it — AMD-006 L3). Shared + tested helper.
   const managerSections = filterManagerNavSections(NAV_SECTIONS, isSalesCoachManager);
@@ -305,15 +324,23 @@ export function SalesCoachShell({
     <NavProgressProvider>
     <div className="fixed inset-0 z-[60] flex flex-col md:flex-row bg-base overflow-hidden">
       {collapsed ? (
-        <button
-          type="button"
-          onClick={() => setCollapsed(false)}
-          aria-label="Expand Sales Coach navigation"
-          title="Expand navigation"
-          className="w-6 flex-shrink-0 bg-ember-400/[0.08] border-r border-ember-400/40 hidden md:flex items-center justify-center text-brand hover:text-primary hover:bg-ember-400/20 transition-colors"
-        >
-          <ChevronRight className="w-4 h-4" aria-hidden />
-        </button>
+        <div className="w-6 flex-shrink-0 bg-ember-400/[0.08] border-r border-ember-400/40 hidden md:flex flex-col items-center">
+          {/* The collapsed strip keeps the bell (small), so collapsing the sidebar never hides your notices. */}
+          {isDesktop === true && (
+            <div className="pt-[max(0.5rem,env(safe-area-inset-top))]">
+              <NotificationBell align="left" size="sm" />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            aria-label="Expand Sales Coach navigation"
+            title="Expand navigation"
+            className="flex w-full flex-1 items-center justify-center text-brand hover:text-primary hover:bg-ember-400/20 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" aria-hidden />
+          </button>
+        </div>
       ) : (
         <aside className="w-56 flex-shrink-0 bg-brand-shell text-white/90 border-r border-white/[0.06] hidden md:flex flex-col h-full">
           {/* Brand */}
@@ -331,9 +358,11 @@ export function SalesCoachShell({
                 </p>
               </div>
               {/* Everyone's notices (2026-11-26) — was only on the Scoreboard page, managers only. Opens to the right. */}
-              <div className="-mt-1.5 shrink-0">
-                <NotificationBell align="left" tone="dark" />
-              </div>
+              {isDesktop === true && (
+                <div className="-mt-1.5 shrink-0">
+                  <NotificationBell align="left" tone="dark" />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
@@ -458,10 +487,6 @@ export function SalesCoachShell({
             area (founder 2026-07-03). Driven by the sidebar links' pending
             state via useLinkStatus. */}
         <NavProgressBar />
-        {/* Phones have no sidebar: the bell sits at the top right of the page, on its own chip so it reads on any page. */}
-        <div className="md:hidden absolute right-2 top-[max(0.5rem,env(safe-area-inset-top))] z-20 rounded-lg border border-default bg-surface/90 shadow-sm">
-          <NotificationBell />
-        </div>
         {children}
       </main>
 
@@ -504,6 +529,13 @@ export function SalesCoachShell({
             </Link>
           );
         })}
+        {/* Phones: the bell is the tab bar's last cell, its panel opening upward — never over a page's own controls
+            (review 2026-11-26: a floating chip covered the KPI period switch). */}
+        {isDesktop === false && (
+          <div className="flex flex-1 items-center justify-center">
+            <NotificationBell tone="dark" drop="up" />
+          </div>
+        )}
       </nav>
 
       <LearningModeFab />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Trophy, CircleDollarSign } from "lucide-react";
 import { createClient, supabaseEnabled } from "@/lib/supabase/client";
@@ -265,11 +265,21 @@ function destination(n: Notif): string | null {
 /** A followed saved search with calls since it was last opened (F12.7, 0342) — derived on read, never stored. */
 type Followed = { id: string; name: string; query: string; newCount: number; newCapped: boolean };
 const FOLLOW_POLL_MS = 10 * 60_000;
+/** Fired by the Search page once a followed search's "seen" is recorded. */
+export const FOLLOW_SEEN_EVENT = "elostate:saved-search-seen";
 
 /** Opens the search on Remote Sales Search; `saved` tells the page which saved search to mark seen. */
 export const followedHref = (f: Pick<Followed, "id" | "query">) => `/dashboard/remote-sales/search?${f.query ? `${f.query}&` : ""}saved=${encodeURIComponent(f.id)}`;
 
-export function NotificationBell({ align = "right", tone = "light" }: { align?: "left" | "right"; tone?: "light" | "dark" } = {}) {
+export function NotificationBell({
+  align = "right",
+  tone = "light",
+  size = "md",
+  drop = "down",
+}: { align?: "left" | "right"; tone?: "light" | "dark"; size?: "md" | "sm"; drop?: "down" | "up" } = {}) {
+  // Each mount its own Realtime channel (review 2026-11-26): the browser shares one Supabase client, and a second
+  // channel of the same name is the first one, so a second .on() after subscribe() threw and that bell went deaf.
+  const mountId = useId();
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
   /** How many exist in total, so a bounded list can say so. Null = no count available. */
@@ -298,7 +308,13 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
   useEffect(() => {
     void loadFollowed();
     const t = setInterval(loadFollowed, FOLLOW_POLL_MS);
-    return () => clearInterval(t);
+    // The Search page says when it has recorded a search as seen, so the bell doesn't show it again for 10 minutes.
+    const onSeen = () => void loadFollowed();
+    window.addEventListener(FOLLOW_SEEN_EVENT, onSeen);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener(FOLLOW_SEEN_EVENT, onSeen);
+    };
   }, [loadFollowed]);
   // The badge counts unread notices plus followed searches with new calls (each search once, however many calls).
   const badge = unread + followed.length;
@@ -342,7 +358,7 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
         const uid = data.user?.id;
         if (cancelled || !uid) return;
         channel = supabase
-          .channel(`manager-notifs:${uid}`)
+          .channel(`manager-notifs:${uid}:${mountId}`)
           .on(
             "postgres_changes",
             // "*" and not "INSERT", and the difference is a whole class of alert.
@@ -374,7 +390,7 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
       cancelled = true;
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, mountId]);
 
   // Close on outside click.
   useEffect(() => {
@@ -443,9 +459,9 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
           if (!open && unread > 0) void markShownRead();
         }}
         aria-label={`Notifications${badge > 0 ? ` (${badge} unread)` : ""}`}
-        className={`relative rounded-lg p-2 ${tone === "dark" ? "text-white/60 hover:bg-white/5 hover:text-white" : "text-secondary hover:bg-surface-raised hover:text-primary"}`}
+        className={`relative rounded-lg ${size === "sm" ? "p-1" : "p-2"} ${tone === "dark" ? "text-white/60 hover:bg-white/5 hover:text-white" : "text-secondary hover:bg-surface-raised hover:text-primary"}`}
       >
-        <Bell size={18} />
+        <Bell size={size === "sm" ? 14 : 18} />
         {badge > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
             {badge > 9 ? "9+" : badge}
@@ -454,7 +470,7 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
       </button>
 
       {open && (
-        <div className={`absolute ${align === "left" ? "left-0" : "right-0"} z-50 mt-2 max-h-96 w-80 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-default bg-surface shadow-lg`}>
+        <div className={`absolute ${align === "left" ? "left-0" : "right-0"} ${drop === "up" ? "bottom-full mb-2" : "mt-2"} z-50 max-h-96 w-80 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-default bg-surface shadow-lg`}>
           <div className="flex items-center justify-between border-b border-default px-3 py-2">
             <span className="text-sm font-semibold text-primary">Notifications</span>
             {items.length > 0 && (
@@ -480,9 +496,15 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
                   href={followedHref(f)}
                   // The search page records it seen; drop it here now rather than at the next 10-minute poll (which
                   // brings it back if that record failed).
-                  onClick={() => {
+                  onClick={(e) => {
                     setOpen(false);
                     setFollowed((xs) => xs.filter((x) => x.id !== f.id));
+                    // Already on Search: a client navigation wouldn't remount the page, so its filters and "seen" would
+                    // never run (review 2026-11-26). Load the page fresh instead.
+                    if (window.location.pathname === "/dashboard/remote-sales/search") {
+                      e.preventDefault();
+                      window.location.assign(followedHref(f));
+                    }
                   }}
                   className="block px-3 py-2 hover:bg-surface-raised"
                 >

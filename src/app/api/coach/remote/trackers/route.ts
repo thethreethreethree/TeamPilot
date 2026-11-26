@@ -212,11 +212,14 @@ export async function PATCH(req: NextRequest) {
   if (body.action === "publish") {
     // A draft goes live (0352): only a draft that is still on; a smart one then reads back recent calls like a new one,
     // and counts toward the company's smart-tracker cap exactly as creating one live does.
-    const { data: draft, error: dErr } = await admin.from("keyword_trackers").select("kind").eq("id", body.id).eq("company_id", manager.companyId).maybeSingle();
+    const { data: draft, error: dErr } = await admin.from("keyword_trackers").select("kind, draft, active").eq("id", body.id).eq("company_id", manager.companyId).maybeSingle();
     if (dErr) {
       console.error(`[remote/trackers] publish read failed: ${dErr.message}`);
       return NextResponse.json({ error: "Couldn't put the tracker live." }, { status: 500 });
     }
+    // Already live (a second click), switched off, or not ours: the honest answer is "not a draft", before any cap.
+    if (!draft || draft.draft !== true || draft.active !== true)
+      return NextResponse.json({ error: "That draft wasn't found (it may already be live or switched off)." }, { status: 404 });
     if (draft?.kind === "smart") {
       const { count, error: cErr } = await admin.from("keyword_trackers_live").select("id", { count: "exact", head: true }).eq("company_id", manager.companyId).eq("kind", "smart");
       if (cErr) {

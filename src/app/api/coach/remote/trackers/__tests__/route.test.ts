@@ -24,6 +24,7 @@ const db = vi.hoisted(() => ({
   smartOn: 0,
   updateFound: true,
   ranges: [] as Array<[string, string, unknown]>, // 0344: gte/lt on the backfill list
+  read: { kind: "keyword", draft: true, active: true } as Record<string, unknown>, // a plain read (0352 publish)
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -42,7 +43,7 @@ vi.mock("@/lib/supabase/admin", () => ({
           db.updates.push({ patch, filters: [...filters] });
           return { data: db.updateFound ? { id: "t1" } : null, error: null };
         }
-        return { data: { id: "t-new" }, error: null };
+        return { data: { id: "t-new", ...db.read }, error: null };
       };
       b.then = (res: (v: unknown) => unknown) => res({ data: db.sessions, count: db.smartOn, error: null });
       return b;
@@ -68,6 +69,7 @@ beforeEach(() => {
   db.sessions = [];
   db.smartOn = 0;
   later.fns = [];
+  db.read = { kind: "keyword", draft: true, active: true };
   db.updateFound = true;
   db.ranges = [];
   mock(requireSalesCoachManager).mockResolvedValue(MGR);
@@ -216,6 +218,13 @@ describe("draft trackers (0352, F11.4)", () => {
   it("switching off is still the default PATCH", async () => {
     await PATCH(req({ id: "11111111-1111-4111-8111-111111111111" }, "PATCH"));
     expect(db.updates.at(-1)!.patch).toEqual({ active: false });
+  });
+
+  it("a second Go live on a smart tracker already live is a 404, not the cap's 409 (review 2026-11-26)", async () => {
+    db.read = { kind: "smart", draft: false, active: true };
+    db.smartOn = 99;
+    const res = await PATCH(req({ id: "11111111-1111-4111-8111-111111111111", action: "publish" }, "PATCH"));
+    expect(res.status).toBe(404);
   });
 });
 

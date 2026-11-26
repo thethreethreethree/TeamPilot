@@ -1,5 +1,6 @@
 "use client";
 
+import { FOLLOW_SEEN_EVENT } from "@/components/sales-coach/NotificationBell";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, BellRing, Download, Loader2, Search, Star, X } from "lucide-react";
@@ -107,7 +108,11 @@ export default function SearchCallsPage() {
         const opened = openedId ? j.searches.find((s) => s.id === openedId) : undefined;
         if (opened?.following && (opened.newCount || opened.newCapped)) {
           void fetch("/api/coach/remote/saved-searches/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: opened.id, kind: "seen" }) })
-            .then((r) => r.ok && setSaved((xs) => xs.map((x) => (x.id === opened.id ? { ...x, newCount: 0, newCapped: false } : x))))
+            .then((r) => {
+              if (!r.ok) return;
+              setSaved((xs) => xs.map((x) => (x.id === opened.id ? { ...x, newCount: 0, newCapped: false } : x)));
+              window.dispatchEvent(new Event(FOLLOW_SEEN_EVENT)); // the bell refreshes
+            })
             .catch(() => null);
         }
       })
