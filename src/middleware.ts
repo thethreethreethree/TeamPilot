@@ -139,10 +139,10 @@ export const config = {
     // So the authed-user redirect on the branded login (above) actually
     // runs — without this entry the middleware never fires there.
     "/sales-coach/login",
-    // Multi-factor sign-in: the extension's connect page (2026-11-27) — it hands the session to the Chrome extension,
+    // Multi-factor sign-in: the extension's connect page only (2026-11-27; not its privacy / download pages) — it hands the session to the Chrome extension,
     // so a session that still owes its code is held at the code screen first; the extension then gets a session that
     // has passed it, instead of one every API route refuses (OPEN.md 2026-11-23 "no code step" — the extension half).
-    "/extension/:path*",
+    "/extension/connect",
     // Multi-factor sign-in: every API route, so a session that owes its code is refused in front of all of them. Requests
     // without a session cookie return at once (see the top of middleware()).
     "/api/:path*",

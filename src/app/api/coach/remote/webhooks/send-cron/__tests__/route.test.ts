@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const db = vi.hoisted(() => ({ due: [] as unknown[], attempts: [] as Array<Record<string, unknown>>, claims: new Set<string>(), claimAt: "2026-11-20T10:00:00Z" }));
+const db = vi.hoisted(() => ({ due: [] as unknown[], attempts: [] as Array<Record<string, unknown>>, claims: new Set<string>(), claimAt: "2026-11-20T10:00:00Z", claimBroken: false }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     rpc: async () => ({ data: db.due, error: null }),
@@ -8,6 +8,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       select: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { created_at: db.claimAt }, error: null }) }) }) }) }),
       insert: async (row: Record<string, unknown>) => {
         if (table === "webhook_send_claims") {
+          if (db.claimBroken) return { error: { code: "42P01", message: "missing" } };
           const k = `${row.delivery_id}:${row.attempt_no}`;
           if (db.claims.has(k)) return { error: { code: "23505", message: "dup" } };
           db.claims.add(k);
@@ -39,6 +40,7 @@ beforeEach(() => {
   db.attempts = [];
   db.claims = new Set();
   db.claimAt = new Date().toISOString();
+  db.claimBroken = false;
 });
 
 describe("webhook send cron", () => {
@@ -82,5 +84,13 @@ describe("webhook send cron", () => {
     db.claimAt = new Date(Date.now() - 11 * 60_000).toISOString();
     await GET(req("Bearer c"));
     expect(db.attempts).toEqual([expect.objectContaining({ delivery_id: 1, attempt_no: 1, ok: false })]);
+  });
+  it("a claim that can't be written (not 'taken') sends nothing and fails the run loudly", async () => {
+    db.due = [due(1, "https://a.example.com", 0)];
+    db.claimBroken = true;
+    vi.mocked(sendSigned).mockClear();
+    const r = await GET(req("Bearer c"));
+    expect(r.status).toBe(500);
+    expect(sendSigned).not.toHaveBeenCalled();
   });
 });

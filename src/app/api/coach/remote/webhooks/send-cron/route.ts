@@ -36,15 +36,21 @@ export async function GET(req: NextRequest) {
   let delivered = 0;
   let failed = 0;
   let skipped = 0;
+  let claimErrors = 0;
   for (const d of due) {
     // Claim this attempt before sending (0384): two overlapping runs both see it due, and only the claim's winner sends.
     const { error: cErr } = await admin.from("webhook_send_claims").insert({ delivery_id: d.delivery_id, attempt_no: d.attempts + 1, company_id: d.company_id });
     if (cErr) {
-      if (cErr.code !== "23505") console.error(`[webhooks/send-cron] claim failed delivery=${d.delivery_id}: ${cErr.message}`);
+      if (cErr.code !== "23505") {
+        // Not "another run has it": the claim itself can't be written, so nothing can be sent safely. Loud (§1.5.3).
+        console.error(`[webhooks/send-cron] claim failed delivery=${d.delivery_id}: ${cErr.message}`);
+        claimErrors += 1;
+        continue;
+      }
       // A claim with no attempt recorded after STALE_CLAIM_MS: the run that took it stopped before sending. Record that
       // attempt as failed, so the delivery moves on to its next attempt instead of being stuck behind the claim forever.
       else await closeStaleClaim(admin, d);
-      skipped += 1; // another run has it, or the claim couldn't be written (never send unclaimed)
+      skipped += 1; // another run has it
       continue;
     }
     // call.to_crm (0330): the queue holds only the call's id; the content is assembled now, so it is current and an
@@ -70,6 +76,7 @@ export async function GET(req: NextRequest) {
     if (r.ok) delivered += 1;
     else failed += 1;
   }
+  if (claimErrors) return NextResponse.json({ error: "Webhook sends couldn't be claimed, so they weren't sent.", tried: due.length, delivered, failed, skipped, claimErrors }, { status: 500 });
   return NextResponse.json({ tried: due.length, delivered, failed, skipped, bounded: due.length >= BATCH });
 }
 
@@ -81,7 +88,7 @@ async function closeStaleClaim(admin: ReturnType<typeof createAdminClient>, d: {
   if (error || !claim || Date.now() - Date.parse(String(claim.created_at)) < STALE_CLAIM_MS) return;
   const { error: aErr } = await admin.from("webhook_attempts").insert({
     company_id: d.company_id, delivery_id: d.delivery_id, attempt_no: d.attempts + 1, ok: false, status: null,
-    error: "Claimed by a run that stopped before sending; retried as the next attempt.",
+    error: "Claimed by a run that stopped before recording this attempt (it may have been sent); retried as the next attempt.",
   });
   if (aErr && aErr.code !== "23505") console.error(`[webhooks/send-cron] stale claim not closed delivery=${d.delivery_id}: ${aErr.message}`);
 }
