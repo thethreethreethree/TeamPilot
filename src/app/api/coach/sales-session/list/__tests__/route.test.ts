@@ -19,6 +19,10 @@ vi.mock("@/lib/coach/remote/hidePhrases", () => ({
   }),
 }));
 
+// 0273: the reporting tree (treeFilterReps — the database's rule); reps in `tree.out` are outside this manager's chain.
+const tree = vi.hoisted(() => ({ out: new Set<string>() }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => ids.filter((i) => !tree.out.has(i))) }));
+
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { GET } from "../route";
@@ -40,6 +44,7 @@ const mockAdmin = () =>
       chain.select = () => chain;
       chain.order = () => chain;
       chain.limit = () => chain;
+      chain.range = () => chain; // paged (2026-11-26)
       chain.gte = () => chain;
       chain.in = () => chain;
       chain.not = (...args: unknown[]) => {
@@ -61,6 +66,7 @@ const MANAGER = { role: "admin", company_id: "co1", sales_coach_role: null };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  tree.out = new Set();
   eqCalls = [];
   notCalls = [];
   mockAdmin();
@@ -131,6 +137,8 @@ function richAdmin(opts: {
       chain.order = () => chain;
       chain.limit = () => chain;
       chain.gte = () => chain;
+      // Paged (2026-11-26): the first page holds the sessions, later pages are empty.
+      chain.range = (rangeFrom: number) => Promise.resolve({ data: rangeFrom > 0 ? [] : opts.sessions, error: null });
       chain.then = (res: (v: unknown) => unknown) => res({ data: opts.sessions, error: null });
       return chain;
     }
@@ -269,6 +277,16 @@ describe("GET /list — paged badge + signal reads (truncation-class fix, R3)", 
     const failed = await (await GET(req())).json();
     hide.fail = false;
     expect(failed).toEqual({ degraded: true });
+  });
+  it("a manager sees only reps in their reporting tree (0273; this route reads with the service role)", async () => {
+    setCaller("boss", MANAGER);
+    (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      richAdmin({ sessions: [session({ id: "s1", agent_id: "rep1" }), session({ id: "s2", agent_id: "elsewhere" })] }),
+    );
+    tree.out = new Set(["elsewhere"]);
+    const body = await (await GET(req())).json();
+    expect(body.sessions.map((x: { id: string }) => x.id)).toEqual(["s1"]);
+    expect(body.truncated).toBe(false);
   });
   it("a rep's own list isn't hide-checked — the rep always sees their own calls (0337)", async () => {
     setCaller("rep1", REP);

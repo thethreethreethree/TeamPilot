@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
+import { treeFilterReps } from "@/lib/api/treeAccess";
 import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { readIssueFor } from "@/lib/coach/v5/readIssue";
 import { fetchAllPaged } from "@/lib/supabase/paginate";
@@ -24,8 +25,16 @@ import { isSalesContext, REMOTE_CONTEXTS, type SalesContext } from "@/lib/coach/
  * single bounded events query (no per-session cue load — that's the
  * unbounded/N+1 class). Existing data only.
  *
- * Bounded to the most recent 300 sessions; the page filters client-side.
+ * The most recent 300 sessions the caller may see; the page filters client-side.
+ *
+ * 2026-11-26: a manager's list is narrowed to their reporting tree (treeFilterReps — the database's rule, 0273). This
+ * route reads with the service role, which skips the RLS that narrows a manager, so before this a manager outside a
+ * rep's chain still saw that rep's sessions here. And the tree and hidden-call filters run BEFORE the 300 cap (pages of
+ * 500, newest first, until 300 are kept or 10,000 are scanned), so other teams' calls can't crowd a manager's out.
  */
+const SHOWN = 300;
+const PAGE = 500;
+const MAX_PAGES = 20;
 async function resolve() {
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
@@ -75,6 +84,8 @@ export async function GET(req: Request) {
 
   const admin = createAdminClient();
 
+  // A fresh query per page (a builder is consumed by each read).
+  const build = () => {
   let query = admin
     .from("coaching_sessions")
     .select(
@@ -84,9 +95,7 @@ export async function GET(req: Request) {
     // Sales calls only (founder picker 2026-10-23): meetings and huddles are listed and reviewed under Meeting Coach.
     // Filtered IN the query, before the 300 limit, so meetings never crowd sales calls out of the page. The excluded
     // kinds are exactly the ones isSalesCall treats as not a sales call (nonSalesSubjects.ts).
-    .not("session_kind", "in", `(${NON_SALES_KINDS.join(",")})`)
-    .order("started_at", { ascending: false })
-    .limit(300);
+    .not("session_kind", "in", `(${NON_SALES_KINDS.join(",")})`);
   // Staff: only their own sessions.
   if (!ctx.isManager) {
     query = query.eq("agent_id", ctx.userId);
@@ -112,10 +121,8 @@ export async function GET(req: Request) {
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
     query = query.gte("started_at", since);
   }
-  const { data: sessionsData, error: sErr } = await query;
-  if (sErr) {
-    return NextResponse.json({ degraded: true });
-  }
+  return query;
+  };
   // 0337: a phone/video call a company phrase hid from this viewer is left out (its label and rep would name a call
   // the database refuses them). The database's verdict; a failed check reads as degraded, never as "shown".
   let hiddenSet: Set<string>;
@@ -124,7 +131,36 @@ export async function GET(req: Request) {
   } catch {
     return NextResponse.json({ degraded: true });
   }
-  const sessions = (sessionsData ?? []).filter((s) => !hiddenSet.has(String(s.id)));
+  type SessionRow = NonNullable<Awaited<ReturnType<typeof build>>["data"]>[number];
+  const sessions: SessionRow[] = [];
+  let truncated = false;
+  const treeVerdict = new Map<string, boolean>(); // rep → may this manager see them (asked once per rep)
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const { data: rows, error: sErr } = await build()
+      .order("started_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (sErr) return NextResponse.json({ degraded: true });
+    const batch = rows ?? [];
+    if (ctx.isManager) {
+      const unknown = [...new Set(batch.map((r) => String(r.agent_id)))].filter((id) => !treeVerdict.has(id));
+      if (unknown.length) {
+        const allowed = new Set(await treeFilterReps(req, unknown));
+        for (const id of unknown) treeVerdict.set(id, allowed.has(id));
+      }
+    }
+    for (const r of batch) {
+      if (hiddenSet.has(String(r.id))) continue;
+      if (ctx.isManager && !treeVerdict.get(String(r.agent_id))) continue;
+      if (sessions.length === SHOWN) {
+        truncated = true;
+        break;
+      }
+      sessions.push(r);
+    }
+    if (truncated || batch.length < PAGE) break;
+    if (page === MAX_PAGES - 1) truncated = true; // stopped scanning, not run out
+  }
 
   // Which sessions have a dissect / summary / review — one bounded query,
   // scoped to exactly these sessions' subjects.
@@ -326,6 +362,8 @@ export async function GET(req: Request) {
   return NextResponse.json({
     isManager: ctx.isManager,
     sessions: visibleRows,
+    // More sessions exist than the SHOWN newest returned (or the scan stopped at MAX_PAGES).
+    truncated,
     badgesAvailable,
   });
 }

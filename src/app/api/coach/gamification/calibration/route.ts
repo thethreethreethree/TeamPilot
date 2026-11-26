@@ -1,3 +1,4 @@
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { NextRequest, NextResponse } from "next/server";
 import { hiddenFrom, hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -51,11 +52,23 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
   // 1) Sessions in the company that HAVE model scores (an after_pitch) — the calibration pool.
-  const { data: aps } = await admin
-    .from("after_pitch_summaries")
-    .select("session_id, payload")
-    .eq("company_id", mgr.companyId)
-    .limit(500);
+  // Paged, newest first, and THEN filtered to this manager's tree and hides (2026-11-26): an unordered company-wide 500
+  // could leave a manager's own team out of their pool, and a failed read was taken as "no scored calls".
+  const { data: aps, error: apErr } = await fetchAllPagedResult<{ session_id: string; payload: unknown; id: string }>(
+    (from, to) =>
+      admin
+        .from("after_pitch_summaries")
+        .select("session_id, payload, id, created_at")
+        .eq("company_id", mgr.companyId)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    { label: "calibration pool", maxRows: 5_000 },
+  );
+  if (apErr) {
+    console.error(`[calibration] pool read failed company=${mgr.companyId}: ${apErr.message}`);
+    return NextResponse.json({ error: "Couldn't load calibration." }, { status: 500 });
+  }
   // Reporting tree (RSS Phase 0 step 8): the pool is read with the service role, so it keeps only sessions of
   // reps this manager may see. Not on the tree yet → the whole company, as today.
   const poolIds = [...new Set((aps ?? []).map((a) => String(a.session_id)))];

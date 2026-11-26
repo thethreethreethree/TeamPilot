@@ -1,3 +1,4 @@
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { NextRequest, NextResponse } from "next/server";
 import { outcomeConnected } from "@/lib/coach/v5/outcomeLabels";
 import { isRemoteContext } from "@/lib/coach/sessionContext";
@@ -35,7 +36,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load team usage." }, { status: 500 });
   };
 
-  const { data: profs, error: pErr } = await admin.from("profiles").select("id, full_name").eq("company_id", mgr.companyId).limit(1000);
+  // Every person, then the tree (2026-11-26: a company past 1,000 people lost the rest before the filter).
+  const { data: profs, error: pErr } = await fetchAllPagedResult<{ id: string; full_name: string | null }>(
+    (from, to) => admin.from("profiles").select("id, full_name").eq("company_id", mgr.companyId).order("id", { ascending: true }).range(from, to),
+    { label: "usage people", maxRows: 50_000 },
+  );
   if (pErr) return fail("profiles", pErr.message);
   const visible = new Set(await treeFilterReps(req, ((profs ?? []) as Array<{ id: string }>).map((p) => p.id)));
   visible.add(mgr.userId);

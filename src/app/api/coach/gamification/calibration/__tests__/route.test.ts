@@ -45,6 +45,7 @@ function setTables(tables: Record<string, unknown>) {
         return builder;
       };
       builder.then = (res: (v: unknown) => unknown) => res(result);
+      builder.range = (f: number) => (f > 0 ? Promise.resolve({ data: [], error: null }) : builder); // paged reads (2026-11-26)
       return builder;
     },
     _captured: captured,

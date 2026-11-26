@@ -32,6 +32,7 @@ function setTables(tables: Record<string, unknown>) {
       const b: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "order", "limit", "maybeSingle"]) b[m] = () => b;
       b.then = (res: (v: unknown) => unknown) => res(result);
+      b.range = (f: number) => (f > 0 ? Promise.resolve({ data: [], error: null }) : b); // paged reads (2026-11-26)
       return b;
     },
   });

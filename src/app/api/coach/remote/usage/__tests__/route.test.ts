@@ -14,10 +14,11 @@ vi.mock("@/lib/supabase/admin", () => ({
     },
     from: (t: string) => {
       const b: Record<string, unknown> = {};
-      for (const m of ["select", "gte", "limit"]) b[m] = () => b;
+      for (const m of ["select", "gte", "limit", "order"]) b[m] = () => b;
       b.eq = (c: string, v: unknown) => (st.filters.push([t, c, v]), b);
       b.in = (c: string, v: unknown) => (st.filters.push([t, c, v]), b);
       b.then = (r: (v: unknown) => unknown) => r(st.reads[t] ?? { data: [], error: null });
+      b.range = (f: number) => (f > 0 ? Promise.resolve({ data: [], error: null }) : b); // paged reads (2026-11-26)
       return b;
     },
   }),
