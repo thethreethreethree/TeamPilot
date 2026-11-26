@@ -158,6 +158,12 @@ const ALLOWLIST = new Map([
   ["pitch_score_events.update", "0252 a rep who could update could erase the evidence behind a violation; corrections go through score_overrides."],
   ["pitch_score_events.delete", "0252 same as update — a deletable violation is an unenforced one."],
   // 0282 RSS Phase 7: training scenarios, assignments, due changes, attempts.
+  ["call_categories.insert", "0367 written by /api/coach/remote/call-categories after the company-admin check; company and created_by from auth."],
+  ["call_categories.update", "0367 only the route stamps retired_at once; a trigger forbids any other change."],
+  ["call_categories.delete", "0367 retire, never delete (DB rule too): picks reference the category."],
+  ["call_category_picks.insert", "0367 written by /api/coach/remote/[id]/category for the call's own rep after the caller's client opens the call."],
+  ["call_category_picks.update", "0367 §3.1 (DB rule too): a new pick is a new row; the latest wins."],
+  ["call_category_picks.delete", "0367 §3.1 (DB rule too): the history of picks stays."],
   ["brief_templates.insert", "0364 written by /api/coach/remote/brief-templates after requireSalesCoachManager; company and created_by from auth."],
   ["brief_templates.update", "0364 only the route stamps retired_at once; a trigger forbids any other change."],
   ["brief_templates.delete", "0364 retire, never delete (DB rule too): stored answers reference the template."],

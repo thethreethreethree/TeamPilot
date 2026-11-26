@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { HidePhrasesPanel } from "@/components/remote-sales/HidePhrasesPanel";
+import { CallCategoriesPanel } from "@/components/remote-sales/CallCategoriesPanel";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { VocabularySettings } from "@/components/remote-sales/VocabularySettings";
@@ -284,6 +285,8 @@ export function ProtectionSettings() {
       <WebhooksPanel />
       {/* 0337 (F33.8): admin phrases that hide calls from all but the rep and admins. */}
       <HidePhrasesPanel />
+      {/* Call categories (0367, F10.10): the list reps pick from on each call's page. Company admins only. */}
+      <CallCategoriesPanel />
     </div>
   );
 }

@@ -52,6 +52,7 @@ import { HiddenCallNotice } from "@/components/remote-sales/HiddenCallNotice";
 import { RenameCall } from "@/components/remote-sales/RenameCall";
 import { CallNotes } from "@/components/remote-sales/CallNotes";
 import { CustomBriefs } from "@/components/remote-sales/CustomBriefs";
+import { CallCategoryPicker } from "@/components/remote-sales/CallCategoryPicker";
 import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
@@ -537,6 +538,8 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
         )}
         {/* RSS Phase 1: where a phone/video session is in processing (renders nothing for door or meetings). */}
         {session && isRemoteContext(session.context) && <StageChips sessionId={id} />}
+        {/* Call category (0367, F10.10): the rep picks one at close; others see it. */}
+        {session && isRemoteContext(session.context) && session.status !== "active" && <CallCategoryPicker sessionId={id} />}
         {session && isRemoteContext(session.context) && session.status !== "active" && <ConsentStatus sessionId={id} />}
         {/* RSS Phase 2: player, talk-time lanes and the stat strip for a finished phone/video call. */}
         {session && isRemoteContext(session.context) && session.status !== "active" && (
