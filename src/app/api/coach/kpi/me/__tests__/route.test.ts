@@ -7,6 +7,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }));
+// F23.8 team narrowing: the tree check and the company's people, controllable per test.
+const team = vi.hoisted(() => ({ allowed: true, people: [] as Array<{ id: string; company_id: string; manager_id: string | null; role: string; sales_coach_role: string | null }> }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => team.allowed) }));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({ from: () => ({ select: () => ({ eq: async () => ({ data: team.people, error: null }) }) }) }),
+}));
+/** Every .in(column, values) the route sent, by table — to see which reps a read was narrowed to. */
+const inCalls: Array<{ table: string; col: string; vals: unknown[] }> = [];
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
@@ -16,8 +24,8 @@ const setAuth = (v: unknown) =>
   (getCurrentAuthContext as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(v);
 
 /** GET now reads ?scope from the request URL — build one (optionally with a scope). */
-const req = (scope?: string) =>
-  new Request(`http://localhost/api/coach/kpi/me${scope ? `?scope=${scope}` : ""}`);
+const req = (scope?: string, extra = "") =>
+  new Request(`http://localhost/api/coach/kpi/me${scope ? `?scope=${scope}${extra}` : ""}`);
 
 /** Fake supabase: from(table) → a thenable chain resolving to that table's data. */
 const setTables = (tables: Record<string, { data: unknown; error?: unknown }>) =>
@@ -28,7 +36,7 @@ const setTables = (tables: Record<string, { data: unknown; error?: unknown }>) =
       chain.eq = () => chain;
       chain.order = () => chain;
       chain.range = () => chain;
-      chain.in = () => chain;
+      chain.in = (col: string, vals: unknown[]) => (inCalls.push({ table: t, col, vals }), chain);
       chain.not = () => chain; // profiles member read (company scope) uses .not("sales_coach_role","is",null)
       // companies quota-target read uses maybeSingle; null target → quota metric stays "building".
       chain.maybeSingle = async () => ({
@@ -49,7 +57,12 @@ const sess = (id: string, day: string) => ({
   client_label: null,
 });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  inCalls.length = 0;
+  team.allowed = true;
+  team.people = [];
+});
 
 describe("GET /api/coach/kpi/me", () => {
   it("401 when unauthenticated", async () => {
@@ -189,3 +202,43 @@ describe("GET /api/coach/kpi/me — period (F23.8; founder: outcome numbers only
     expect((await (await GET(new Request("http://localhost/api/coach/kpi/me?days=7"))).json()).periodDays).toBeNull();
   });
 });
+
+describe("GET /api/coach/kpi/me — one manager's team in the company view (F23.8)", () => {
+  const MGR = "11111111-1111-4111-8111-111111111111";
+  const tables = () => ({
+    profiles: { data: [{ id: "u1" }, { id: MGR }, { id: "r1" }, { id: "r2" }] },
+    coaching_sessions: { data: [] },
+    after_pitch_summaries: { data: [] },
+    coaching_cues: { data: [] },
+    coaching_cue_outcomes: { data: [] },
+    coaching_transcript_segments: { data: [] },
+  });
+  const person = (id: string, manager_id: string | null) => ({ id, company_id: "co1", manager_id, role: "Member", sales_coach_role: "staff" });
+  const sessionReps = () => inCalls.find((c) => c.table === "coaching_sessions" && c.col === "agent_id")?.vals;
+
+  it("narrows the pooled sessions to the manager and everyone below them, and says which team", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    team.people = [person("u1", null), person(MGR, "u1"), person("r1", MGR), person("r2", "u1")];
+    setTables(tables());
+    const body = await (await GET(req("company", `&team=${MGR}`))).json();
+    expect(body).toMatchObject({ scope: "company", team: MGR, canPool: true });
+    expect(new Set(sessionReps())).toEqual(new Set([MGR, "r1"]));
+  });
+
+  it("a team the caller's tree doesn't allow is refused (404), never shown as the company", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: true });
+    team.allowed = false;
+    team.people = [person(MGR, null)];
+    setTables(tables());
+    expect((await GET(req("company", `&team=${MGR}`))).status).toBe(404);
+  });
+
+  it("a non-admin gets their own numbers whatever the team, and is told they can't pool", async () => {
+    setAuth({ userId: "u1", companyId: "co1", isAdmin: false });
+    setTables(tables());
+    const body = await (await GET(req("company", `&team=${MGR}`))).json();
+    expect(body).toMatchObject({ scope: "self", team: null, canPool: false });
+    expect(sessionReps()).toEqual(["u1"]);
+  });
+});
+

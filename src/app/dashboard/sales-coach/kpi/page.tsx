@@ -30,6 +30,12 @@ type KpiResponse = {
   sessions: Record<string, SessionInfo>;
   /** F23.8: the period the outcome numbers were computed over (null = all time) — labels read THIS, not the button. */
   periodDays?: number | null;
+  /** "company" only when the server pooled; the page's labels read THIS, never the button (§2.2, 2026-11-26). */
+  scope?: "self" | "company";
+  /** F23.8: the team the company numbers were narrowed to (null = the whole company). */
+  team?: string | null;
+  /** Whether this caller may see pooled numbers at all (a company admin). */
+  canPool?: boolean;
 };
 
 type TeamAgent = {
@@ -165,6 +171,8 @@ export default function KpiAnalyticsPage() {
   const [scope, setScope] = useState<"self" | "company">("self");
   // F23.8 (founder 2026-11-25 "Outcome numbers only"): the period for the outcome numbers; null = all time.
   const [period, setPeriod] = useState<PeriodDays>(null);
+  // F23.8: the chosen team — it narrows the per-rep table and, in the company view, the headline cards too (2026-11-26).
+  const [teamPick, setTeamPick] = useState("");
 
   // Extracted so the error banner's "Try again" can re-run it in place (no full page reload).
   // Only the LATEST request may land (review 2026-11-25): a slow earlier response (another period or scope) must not
@@ -175,7 +183,7 @@ export default function KpiAnalyticsPage() {
     setLoadError(false);
     setLoading(true);
     try {
-      const res = await fetch(`/api/coach/kpi/me?scope=${scope}${period ? `&days=${period}` : ""}`);
+      const res = await fetch(withTeam(`/api/coach/kpi/me?scope=${scope}${period ? `&days=${period}` : ""}`, scope === "company" ? teamPick || undefined : undefined));
       const body = res.ok ? await res.json() : null;
       if (seq !== loadSeq.current) return;
       if (body) setData(body);
@@ -185,7 +193,7 @@ export default function KpiAnalyticsPage() {
     } finally {
       if (seq === loadSeq.current) setLoading(false);
     }
-  }, [scope, period]);
+  }, [scope, period, teamPick]);
 
   useEffect(() => {
     void loadMe();
@@ -197,7 +205,6 @@ export default function KpiAnalyticsPage() {
   // default-to-company scope so a quota refresh doesn't yank a manager back out of the "Mine" view they chose.
   // F23.8: the chosen team, a request sequence (a slower earlier response must not overwrite a newer team's rows), and
   // an error for a team that couldn't load (review 2026-11-26).
-  const [teamPick, setTeamPick] = useState("");
   const [teamErr, setTeamErr] = useState<string | null>(null);
   const teamSeq = useRef(0);
   const loadTeam = useCallback(async (initial: boolean, pick = "") => {
@@ -361,7 +368,10 @@ export default function KpiAnalyticsPage() {
   // Scope-aware copy: in the company aggregate the page is showing the WHOLE business's pooled numbers, so the
   // "these are YOUR numbers, vs your own past" framing is not just off-tone — it's dishonest (the banner otherwise
   // asserts "measured against your own baseline, not your teammates" over data that IS every teammate pooled).
-  const isCompany = scope === "company";
+  // The server's verdict, not the button (2026-11-26): a sales-coach manager who isn't a company admin asked for
+  // "company" and got their own numbers back, while this line still called them the whole team's.
+  const isCompany = data?.scope === "company";
+  const isTeam = isCompany && !!data?.team;
 
   const renderMetricValue = (m: Metric) => {
     // A blocked metric is honestly "not available yet" (needs a capability we don't capture), never "building…".
@@ -401,7 +411,9 @@ export default function KpiAnalyticsPage() {
             <h1 className="text-lg font-semibold text-primary">KPI Analytics</h1>
           </div>
           <p className="text-xs text-muted mt-1">
-            {isCompany
+            {isTeam
+              ? "One team's results, pooled — the manager picked below and everyone under them."
+              : isCompany
               ? "Your whole team's results, pooled — the business as a whole, across every rep."
               : "Measure growth, not just results — compared to your own past, never a leaderboard."}
           </p>
@@ -424,7 +436,7 @@ export default function KpiAnalyticsPage() {
           {/* Company / Mine scope toggle — only a manager/admin sees it (team loaded ⇒ the /team route returned
               200, which it only does for managers). Company pools the whole business's outcomes so Layer-1 shows
               real numbers; Mine is the individual's own view. (Founder 2026-08-29.) */}
-          {team !== null && (
+          {team !== null && data?.canPool !== false && (
             <div className="inline-flex items-center rounded-md border border-default overflow-hidden text-[11px] font-semibold">
               <button
                 type="button"
@@ -721,7 +733,7 @@ export default function KpiAnalyticsPage() {
             <Users className="w-4 h-4 text-brand" aria-hidden />
             <h2 className="text-sm font-semibold text-primary">Team</h2>
             <span className="text-[10px] uppercase tracking-widest text-muted font-mono">manager view</span>
-            {/* The picker narrows this per-rep table only; the headline cards above stay the company / your own. */}
+            {/* The picker narrows this per-rep table and, in the Company view, the headline cards above (F23.8). */}
             <TeamPicker value={teamPick} onChange={pickTeam} />
             {teamErr && <span role="alert" className="text-xs text-amber-700 dark:text-amber-300">{teamErr}</span>}
             <button

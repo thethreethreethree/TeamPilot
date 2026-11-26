@@ -2778,6 +2778,7 @@ const HIDE_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/coach/sales-session/rep-activity/route.ts", "in-person rep activity — the hide is for phone/video calls."],
   ["src/app/api/coach/sales-session/auto-close-stale-cron/route.ts", "cron: closes abandoned sessions; returns no call to any person."],
   ["src/app/api/coach/kpi/team/route.ts", "reads calls through the caller's client; the service role only resolves ?team= (teamScope)."],
+  ["src/app/api/coach/kpi/me/route.ts", "reads calls through the caller's client (RLS); the service role only resolves ?team= (teamScope), F23.8."],
   ["src/app/api/coach/kpi/compute-cron/route.ts", "cron: KPI snapshots (counts); returns no call to any person."],
   ["src/app/api/coach/meeting-session/[id]/dissect/route.ts", "meetings, not phone/video sales calls."],
   ["src/app/api/coach/remote/prospects/[pid]/route.ts", "lists a prospect's calls through the caller's client (RLS); the service role only writes."],

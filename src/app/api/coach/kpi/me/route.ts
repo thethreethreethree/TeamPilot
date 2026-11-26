@@ -41,6 +41,9 @@ import {
   type ProspectSessionInput,
 } from "@/lib/coach/kpi/compute";
 import { contextsOf } from "@/lib/coach/sessionContext";
+import { teamFromRequest } from "@/lib/coach/remote/teamScope";
+import { treeAllowsRep } from "@/lib/api/treeAccess";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // The after-pitch score dimensions that become Layer-3 quality KPIs (real evidenced scores).
 const LAYER3_KEYS = ["opener", "objection", "tone", "close", "question_rate", "next_step"] as const;
@@ -76,6 +79,10 @@ export async function GET(req: Request) {
   const scope = new URL(req.url).searchParams.get("scope");
   let agentIds: string[] = [ctx.userId];
   let effectiveScope: "self" | "company" = "self";
+  // F23.8 (2026-11-26): inside the company view, ?team=<manager> narrows the pooled numbers to that manager and
+  // everyone below them, the same picker as the per-rep table. Only ever narrower: the company view stays admin-only
+  // (founder 2026-08-29), the chosen manager must pass the caller's tree check, and every read still runs through RLS.
+  let teamId: string | null = null;
   if (scope === "company" && ctx.isAdmin) {
     // The company's sales-coach members (same set the team roster uses). RLS permits an admin same-company reads.
     const { data: members } = await sb
@@ -83,8 +90,16 @@ export async function GET(req: Request) {
       .select("id")
       .eq("company_id", ctx.companyId)
       .not("sales_coach_role", "is", null);
-    const ids = (members ?? []).map((m) => m.id as string);
-    if (ids.length > 0) {
+    let ids = (members ?? []).map((m) => m.id as string);
+    const picked = await teamFromRequest(req, createAdminClient, ctx.companyId, (id) => (id === ctx.userId ? Promise.resolve(true) : treeAllowsRep(req, id)));
+    if (!picked.ok) return NextResponse.json({ error: picked.error }, { status: picked.status });
+    if (picked.members) {
+      ids = ids.filter((id) => picked.members!.has(id));
+      teamId = new URL(req.url).searchParams.get("team");
+    }
+    // A chosen team with no sales-coach members is an empty team (zero sessions), never a silent widening to the
+    // company or a fall back to the caller's own numbers under the team's name.
+    if (ids.length > 0 || picked.members) {
       agentIds = ids;
       effectiveScope = "company";
     }
@@ -312,6 +327,10 @@ export async function GET(req: Request) {
     sessionCount: rows.length,
     minSessions: MIN_SESSIONS,
     scope: effectiveScope,
+    // F23.8: the team the company numbers were narrowed to (null = the whole company), and whether this caller may
+    // see pooled numbers at all — the page shows its Company switch from this verdict, never from its own guess (§2.2).
+    team: teamId,
+    canPool: ctx.isAdmin,
     // F23.8: which period the outcome numbers (PERIOD_METRICS) are over; null = all time. Sessions in it.
     periodDays,
     periodSessionCount: periodRows.length,
