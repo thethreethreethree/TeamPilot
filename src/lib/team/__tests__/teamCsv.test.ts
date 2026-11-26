@@ -78,3 +78,25 @@ describe("planImport — role changes for existing members (F2.8, 2026-11-25)", 
     expect(plan[0]).toMatchObject({ roleChanges: true, roleFrom: null });
   });
 });
+
+describe("team CSV — remove (2026-11-26, F2.8)", () => {
+  it("action remove names only the email; another action or a role on a remove row is an error", async () => {
+    const { parseTeamCsv } = await import("../teamCsv");
+    const ok = parseTeamCsv("email,action\nbo@x.com,remove\nana@x.com,\n", () => true);
+    expect(ok.errors).toEqual([]);
+    expect(ok.rows.map((r) => [r.email, r.remove === true])).toEqual([["bo@x.com", true], ["ana@x.com", false]]);
+    expect(parseTeamCsv("email,action\nbo@x.com,delete\n", () => true).errors[0]!.message).toMatch(/isn't an action/);
+    expect(parseTeamCsv("email,role,action\nbo@x.com,Manager,remove\n", () => true).errors[0]!.message).toMatch(/only the email/);
+  });
+  it("a remove row never invites: an active member is removed, anyone else is 'not on your team'", async () => {
+    const { planImport } = await import("../teamCsv");
+    const plan = planImport(
+      [{ line: 2, email: "bo@x.com", role: null, managerEmail: null, remove: true }, { line: 3, email: "new@x.com", role: null, managerEmail: null, remove: true }],
+      new Map([["bo@x.com", ["u-bo"]]]),
+      new Map([["u-bo", { id: "u-bo", status: "active", role: "Member" }]]),
+      new Set(),
+    );
+    expect(plan.map((p) => [p.email, p.removal, p.person])).toEqual([["bo@x.com", "remove", "member"], ["new@x.com", "not_member", "pending"]]);
+  });
+});
+

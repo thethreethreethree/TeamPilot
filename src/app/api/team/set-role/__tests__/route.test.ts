@@ -18,7 +18,7 @@ vi.mock("@/lib/supabase/admin", () => ({
     from: () => ({
       select: (_cols?: unknown, opts?: { head?: boolean }) =>
         opts?.head
-          ? { eq: () => ({ in: async () => adminCount() }) } // admin count query
+          ? { eq: () => ({ eq: () => ({ in: async () => adminCount() }) }) } // admin count query (company, active, admin roles)
           : { eq: () => ({ maybeSingle: async () => targetLookup() }) }, // target lookup
       update: () => ({ eq: () => ({ eq: async () => updateResult() }) }),
     }),

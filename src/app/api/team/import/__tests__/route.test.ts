@@ -5,6 +5,8 @@ vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentAuthContext: vi.fn() }
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
 vi.mock("@/lib/team/createInvitation", () => ({ createInvitation: vi.fn(async () => ({ ok: true, invitationId: "i1", code: "CODE" })) }));
 vi.mock("@/lib/team/setMemberRole", () => ({ setMemberRole: vi.fn(async () => ({ ok: true, from: "Member" })) }));
+const calls = vi.hoisted(() => ({ order: [] as string[] }));
+vi.mock("@/lib/team/removeMember", () => ({ removeMember: vi.fn(async (_sb: unknown, _co: string, _actor: string, id: string) => (calls.order.push(`remove:${id}`), id === "u-boss" ? { ok: false, status: 409, error: "This is your company's only admin — make someone else an admin first." } : { ok: true })) }));
 const db = vi.hoisted(() => ({ profiles: [] as unknown[], updates: [] as unknown[] }));
 vi.mock("@/lib/supabase/admin", () => ({
   findAuthUsersByEmails: vi.fn(async () => new Map([["ann@x.com", ["u-ann"]], ["boss@x.com", ["u-boss"]]])),
@@ -27,6 +29,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import { getCurrentAuthContext } from "@/lib/supabase/auth-helpers";
 import { createInvitation } from "@/lib/team/createInvitation";
+import { removeMember } from "@/lib/team/removeMember";
 import { POST } from "../route";
 
 const post = (body: unknown) => new Request("http://x", { method: "POST", body: JSON.stringify(body) }) as never;
@@ -92,5 +95,19 @@ describe("POST /api/team/import", () => {
     const { setMemberRole } = await import("@/lib/team/setMemberRole");
     await POST(post({ csv: "email,role\nann@x.com,Member", apply: true }));
     expect(setMemberRole).not.toHaveBeenCalled();
+  });
+  it("2026-11-26: a remove row previews who reports to them, and removals run last through removeMember", async () => {
+    db.profiles = [P("u-ann", "u-boss"), P("u-boss", null)];
+    const preview = await (await POST(post({ csv: "email,action\nboss@x.com,remove\nnew@x.com,remove", apply: false }))).json();
+    expect(preview.plan.map((p: { email: string; removal: string; reportsTo: number }) => [p.email, p.removal, p.reportsTo])).toEqual([["boss@x.com", "remove", 1], ["new@x.com", "not_member", 0]]);
+    expect(removeMember).not.toHaveBeenCalled();
+    calls.order = [];
+    const body = await (await POST(post({ csv: "email,action,manager_email\nboss@x.com,remove,\nann@x.com,,boss@x.com\nnew@x.com,remove,", apply: true }))).json();
+    expect(createInvitation).not.toHaveBeenCalledWith(expect.anything(), "new@x.com", expect.anything(), expect.anything()); // a remove row never invites
+    expect(calls.order).toEqual(["remove:u-boss"]);
+    expect(body.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ email: "boss@x.com", ok: false, result: expect.stringMatching(/only admin/) }),
+      expect.objectContaining({ email: "new@x.com", ok: false, result: "Not on your team — nothing to remove." }),
+    ]));
   });
 });

@@ -8,10 +8,12 @@
  * A person already on the team whose row names a different role gets that role (2026-11-25, ledger F2.8) — through
  * setMemberRole, the same rules as the Team page (company pin, never the last admin), applied row by row. A blank role
  * leaves an existing person's role as it is.
+ * action (optional, 2026-11-26): "remove" takes an existing person off the team, through removeMember (never yourself,
+ * never the last active admin). A remove row names only the email — not a role or a manager.
  */
 export const MAX_ROWS = 200;
 
-export type CsvRow = { line: number; email: string; role: string | null; managerEmail: string | null };
+export type CsvRow = { line: number; email: string; role: string | null; managerEmail: string | null; remove?: boolean };
 export type ParseResult = { rows: CsvRow[]; errors: Array<{ line: number; message: string }>; warnings: string[] };
 
 const EMAIL = /^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/;
@@ -59,8 +61,9 @@ export function parseTeamCsv(text: string, isInvitableRole: (r: string) => boole
   const iEmail = col("email");
   const iRole = col("role");
   const iMgr = col("manager_email");
+  const iAction = col("action");
   if (iEmail < 0) return { rows: [], errors: [{ line: 1, message: "The first row must name the columns, including email." }], warnings: [] };
-  const unknown = head.filter((h) => h && !["email", "role", "manager_email"].includes(h));
+  const unknown = head.filter((h) => h && !["email", "role", "manager_email", "action"].includes(h));
   const warnings = unknown.length ? [`Ignored column${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}.`] : [];
   if (lines.length - 1 > MAX_ROWS) return { rows: [], errors: [{ line: 1, message: `Up to ${MAX_ROWS} people per file; this one has ${lines.length - 1}.` }], warnings };
 
@@ -71,13 +74,16 @@ export function parseTeamCsv(text: string, isInvitableRole: (r: string) => boole
     const email = (cells[iEmail] ?? "").trim().toLowerCase();
     const role = iRole >= 0 ? (cells[iRole] ?? "").trim() : "";
     const mgr = iMgr >= 0 ? (cells[iMgr] ?? "").trim().toLowerCase() : "";
+    const action = iAction >= 0 ? (cells[iAction] ?? "").trim().toLowerCase() : "";
     if (!EMAIL.test(email)) return void errors.push({ line, message: `"${email || "(blank)"}" isn't an email address.` });
     if (seen.has(email)) return void errors.push({ line, message: `${email} appears more than once.` });
     if (role && !isInvitableRole(role)) return void errors.push({ line, message: `"${role}" isn't a role you can invite with.` });
     if (mgr && !EMAIL.test(mgr)) return void errors.push({ line, message: `The manager "${mgr}" isn't an email address.` });
     if (mgr && mgr === email) return void errors.push({ line, message: `${email} can't be their own manager.` });
+    if (action && action !== "remove") return void errors.push({ line, message: `"${action}" isn't an action — leave it blank, or write remove.` });
+    if (action === "remove" && (role || mgr)) return void errors.push({ line, message: `${email}: a remove row names only the email, not a role or manager.` });
     seen.add(email);
-    rows.push({ line, email, role: role || null, managerEmail: mgr || null });
+    rows.push({ line, email, role: role || null, managerEmail: mgr || null, ...(action === "remove" ? { remove: true } : {}) });
   });
   return { rows, errors, warnings };
 }
@@ -95,6 +101,8 @@ export type RowPlan = {
   /** An existing member whose row names a different role: true, with their role now in roleFrom (may be null). */
   roleChanges: boolean;
   roleFrom: string | null;
+  /** action "remove": "remove" for an active member; "not_member" when the email isn't someone on the team. */
+  removal?: "remove" | "not_member";
 };
 
 /**
@@ -115,10 +123,14 @@ export function planImport(
   const plans = rows.map((r): RowPlan => {
     const who = memberIdFor(r.email);
     const person: RowPlan["person"] = who.ambiguous ? "ambiguous" : who.id ? "member" : pending.has(r.email) ? "pending" : "invite";
-    if (person === "invite") invitedHere.add(r.email);
+    if (person === "invite" && !r.remove) invitedHere.add(r.email);
     const now = who.id ? members.get(who.id)?.role ?? null : null;
     // A separate flag: "no role yet" (null) → a role IS a change (review 2026-11-25).
     const roleChanges = person === "member" && !!r.role && now !== r.role;
+    if (r.remove) {
+      // A remove row never invites anyone: the person must be on the team now.
+      return { line: r.line, email: r.email, person: who.ambiguous ? "ambiguous" : who.id ? "member" : "pending", manager: "none", managerEmail: null, personId: who.id, managerId: null, role: null, roleChanges: false, roleFrom: null, removal: who.id ? "remove" : "not_member" };
+    }
     return { line: r.line, email: r.email, person, manager: "none", managerEmail: r.managerEmail, personId: who.id, managerId: null, role: r.role, roleChanges, roleFrom: roleChanges ? now : null };
   });
   for (const p of plans) {

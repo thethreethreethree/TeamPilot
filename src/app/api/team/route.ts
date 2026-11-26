@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { getCurrentCompanyId, isAdminRole } from "@/lib/supabase/auth-helpers";
+import { removeMember } from "@/lib/team/removeMember";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { byOrgRank } from "@/lib/roles";
 import { createInvitation } from "@/lib/team/createInvitation";
@@ -152,25 +153,10 @@ export async function DELETE(req: NextRequest) {
         { status: 403 }
       );
     }
-    const admin = createAdminClient();
-    const { data: removed, error } = await admin
-      .from("profiles")
-      .update({ status: "removed", removed_at: new Date().toISOString() })
-      .eq("id", memberId)
-      .eq("company_id", c.companyId) // scope to the admin's own company
-      .select("id");
-    if (error) {
-      console.error("[team DELETE] failed to remove member:", error);
-      return NextResponse.json({ error: "Couldn't remove the member." }, { status: 500 });
-    }
-    if (!removed || removed.length === 0) {
-      // 0 rows = the target isn't in this admin's company (or was already removed).
-      // Report honestly instead of a phantom success.
-      return NextResponse.json(
-        { error: "That member isn't in your company, or was already removed." },
-        { status: 404 }
-      );
-    }
+    // The rules live in removeMember (2026-11-26), shared with the team CSV import: company-pinned, never the last
+    // active admin, and a write that touched no row is reported, not claimed.
+    const r = await removeMember(createAdminClient(), c.companyId, c.userId, memberId);
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
     return NextResponse.json({ ok: true });
   }
 

@@ -23,6 +23,7 @@ export async function setMemberRole(sb: SupabaseClient, companyId: string, membe
       .from("profiles")
       .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
+      .eq("status", "active") // a removed admin can't sign in to fix things (2026-11-26)
       .in("role", [...ADMIN_ROLES]);
     if ((count ?? 0) <= 1) {
       return { ok: false, status: 409, error: "This is your company's only admin — promote someone to a C-Suite role first, then change this one." };

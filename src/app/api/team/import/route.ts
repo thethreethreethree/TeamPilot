@@ -8,6 +8,7 @@ import { isSalesCoachManager } from "@/lib/coach/v5/skillAccess";
 import { assertValidManager, TreeError, type Person as TreePerson } from "@/lib/coach/remote/access";
 import { createInvitation } from "@/lib/team/createInvitation";
 import { setMemberRole } from "@/lib/team/setMemberRole";
+import { removeMember } from "@/lib/team/removeMember";
 import { parseTeamCsv, planImport, type RowPlan } from "@/lib/team/teamCsv";
 
 /**
@@ -19,6 +20,9 @@ import { parseTeamCsv, planImport, type RowPlan } from "@/lib/team/teamCsv";
  *     company tree (the rule /api/team/set-manager uses; the 0272 trigger is the database backstop), checked row by
  *     row against the tree as earlier rows change it.
  * A file with any row error imports nothing: the admin fixes the file, so no one is half-imported by accident.
+ *   · action "remove" (2026-11-26) → removeMember, the Team page's own rules (never yourself, never the last active admin),
+ *     applied after every other row, one at a time, so the last-admin check sees the earlier removals. The preview says
+ *     who would be removed and how many people report to them (their manager is then unset on the Team page).
  */
 export const maxDuration = 120;
 
@@ -107,12 +111,16 @@ export async function POST(req: NextRequest) {
     roleChange: p.roleChanges && p.role ? { from: p.roleFrom, to: p.role } : null,
     manager: loops.has(p.line) ? "loop" : p.manager,
     managerEmail: p.managerEmail,
+    // F2.8: "remove" for an active member, "not_member" when the email isn't on the team; reportsTo = people under them.
+    removal: p.removal ?? null,
+    reportsTo: p.removal === "remove" && p.personId ? rows.filter((r) => String(r.manager_id) === p.personId && String(r.status) === "active").length : 0,
   });
   if (!b.apply) return NextResponse.json({ errors: [], warnings: parsed.warnings, plan: plan.map(describe) });
 
   const caller = { supabase: await createClient(), companyId: ctx.companyId, userId: ctx.userId };
   const out: Outcome[] = [];
   for (const p of plan) {
+    if (p.removal) continue; // removals run last, below
     if (p.person === "invite") {
       const r = await createInvitation(caller, p.email, p.role ?? "Member", {
         managerId: p.manager === "on_join" ? p.managerId : null,
@@ -136,6 +144,15 @@ export async function POST(req: NextRequest) {
       out.push(error ? { line: p.line, email: p.email, ok: false, result: "Couldn't set their manager." } : { line: p.line, email: p.email, ok: true, result: `now reports to ${p.managerEmail}` });
       if (error) console.error(`[team/import] manager update failed member=${p.personId}: ${error.message}`);
     }
+  }
+  for (const p of plan) {
+    if (!p.removal) continue;
+    if (p.removal === "not_member" || !p.personId) {
+      out.push({ line: p.line, email: p.email, ok: false, result: p.person === "ambiguous" ? "More than one account uses this email; remove them on the Team page." : "Not on your team — nothing to remove." });
+      continue;
+    }
+    const r = await removeMember(sb, ctx.companyId, ctx.userId, p.personId);
+    out.push(r.ok ? { line: p.line, email: p.email, ok: true, result: "removed from the team" } : { line: p.line, email: p.email, ok: false, result: r.error });
   }
   return NextResponse.json({ errors: [], warnings: parsed.warnings, plan: plan.map(describe), results: out });
 }

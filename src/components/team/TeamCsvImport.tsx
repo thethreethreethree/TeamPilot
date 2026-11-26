@@ -7,7 +7,7 @@ import { FileUp, Loader2 } from "lucide-react";
  * Team page → Import from a CSV (RSS Phase 9; Gong F2.8). Company admins only (the page shows it on amAdmin; the route
  * checks again). Choose a file → see what each row will do → Import. A file with any bad row imports nothing.
  */
-type PlanRow = { line: number; email: string; person: "invite" | "member" | "pending" | "ambiguous"; role: string; roleChange?: { from: string | null; to: string } | null; manager: string; managerEmail: string | null };
+type PlanRow = { line: number; email: string; person: "invite" | "member" | "pending" | "ambiguous"; role: string; roleChange?: { from: string | null; to: string } | null; manager: string; managerEmail: string | null; removal?: "remove" | "not_member" | null; reportsTo?: number };
 type Result = { line: number; email: string; ok: boolean; result: string };
 
 const PERSON: Record<PlanRow["person"], string> = {
@@ -71,7 +71,8 @@ export function TeamCsvImport({ onDone }: { onDone: () => void | Promise<void> }
     await send(text, false);
   };
 
-  const actions = plan ? plan.filter((p) => p.person === "invite" || p.manager === "set" || !!p.roleChange).length : 0; // on_join rides on its invite
+  const actions = plan ? plan.filter((p) => (p.person === "invite" && !p.removal) || p.manager === "set" || !!p.roleChange || p.removal === "remove").length : 0; // on_join rides on its invite
+  const removals = plan ? plan.filter((p) => p.removal === "remove").length : 0;
 
   if (!open) {
     return (
@@ -86,9 +87,10 @@ export function TeamCsvImport({ onDone }: { onDone: () => void | Promise<void> }
         <div>
           <h2 className="text-sm font-semibold text-primary">Import a team from a CSV file</h2>
           <p className="mt-1 text-xs text-secondary">
-            Columns: <code>email</code> (required), <code>role</code>, <code>manager_email</code>. New people are invited, as if you
+            Columns: <code>email</code> (required), <code>role</code>, <code>manager_email</code>, <code>action</code>. New people are invited, as if you
             invited each one; for people already on the team, managers are set and a different role is changed (never leaving the company
-            without an admin). You&apos;ll see what will happen before anything does.
+            without an admin). Write <code>remove</code> under action to take someone off the team — their calls and history stay. You&apos;ll see
+            what will happen before anything does.
           </p>
         </div>
         <button type="button" onClick={() => setOpen(false)} className="ml-auto text-xs text-muted hover:text-primary">Close</button>
@@ -111,18 +113,30 @@ export function TeamCsvImport({ onDone }: { onDone: () => void | Promise<void> }
           <ul className="space-y-1 text-xs">
             {plan.map((p) => (
               <li key={p.line} className="border-b border-default pb-1 last:border-b-0">
-                <span className="text-primary">{p.email}</span> <span className="text-secondary">
-                  · {PERSON[p.person]}
-                  {p.person === "invite" ? ` as ${p.role}` : ""}
-                  {p.roleChange ? ` · role ${p.roleChange.from ?? "none"} → ${p.roleChange.to}` : p.person === "member" ? " (role unchanged)" : ""}
-                </span>
+                <span className="text-primary">{p.email}</span>{" "}
+                {p.removal ? (
+                  <span className={p.removal === "remove" ? "font-semibold text-primary" : "text-muted"}>
+                    · {p.removal === "remove" ? `will be removed from the team${p.reportsTo ? ` — ${p.reportsTo} ${p.reportsTo === 1 ? "person reports" : "people report"} to them; set a new manager after` : ""}` : "isn't on your team — nothing to remove"}
+                  </span>
+                ) : (
+                  <span className="text-secondary">
+                    · {PERSON[p.person]}
+                    {p.person === "invite" ? ` as ${p.role}` : ""}
+                    {p.roleChange ? ` · role ${p.roleChange.from ?? "none"} → ${p.roleChange.to}` : p.person === "member" ? " (role unchanged)" : ""}
+                  </span>
+                )}
                 {managerWords(p) && <span className="block text-muted">{managerWords(p)}</span>}
               </li>
             ))}
           </ul>
-          <button type="button" disabled={busy || actions === 0 || !csv} onClick={() => csv && void send(csv, true)}
+          <button type="button" disabled={busy || actions === 0 || !csv} onClick={() => {
+              if (!csv) return;
+              // Removing people is the one thing here that takes access away: ask once (their calls and history stay).
+              if (removals && !window.confirm(`Remove ${removals} ${removals === 1 ? "person" : "people"} from the team? They'll lose access; their calls and history stay.`)) return;
+              void send(csv, true);
+            }}
             className="rounded-lg bg-ember-400 px-3 py-1.5 text-xs font-semibold text-ink-950 disabled:opacity-50">
-            {actions === 0 ? "Nothing to do" : busy ? "Importing…" : `Import (${actions} change${actions === 1 ? "" : "s"})`}
+            {actions === 0 ? "Nothing to do" : busy ? "Importing…" : `Import (${actions} change${actions === 1 ? "" : "s"}${removals ? `, ${removals} removal${removals === 1 ? "" : "s"}` : ""})`}
           </button>
         </div>
       )}
