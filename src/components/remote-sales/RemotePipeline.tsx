@@ -14,7 +14,7 @@ import { addDays, weekStart } from "@/lib/coach/remote/calendar";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
-import { byCallCount, byDealSize, MIN_CLOSED, overallWinRate, type Band } from "@/lib/coach/remote/winLoss";
+import { byCallCount, byDealSize, byMention, MIN_CLOSED, overallWinRate, type Band } from "@/lib/coach/remote/winLoss";
 import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS, withMovedDates } from "@/lib/coach/remote/dealRisk";
 import { stageFunnel } from "@/lib/coach/remote/pipelineChanges";
 
@@ -185,7 +185,7 @@ export function RemotePipeline() {
       {view === "calendar" ? (
         <RemoteCalendar key={whose} scope={whose} nameOf={nameOf} onOpenProspect={goTo} />
       ) : view === "sources" ? (
-        <SourcesView prospects={data?.prospects ?? null} failed={failed} />
+        <SourcesView key={whose} whose={whose} prospects={data?.prospects ?? null} failed={failed} />
       ) : view === "forecast" ? (
         <>
           <ForecastView prospects={data?.prospects ?? null} failed={failed} onOpen={goTo} />
@@ -774,7 +774,7 @@ function StagePractice({ prospectId }: { prospectId: string }) {
  * Pipeline → Sources (2026-11-23; 0313). Deals by where they came from, for the pipeline in view ("Whose pipeline"):
  * prospects, open value, won and lost, and the win rate on closed deals (none until a source has one).
  */
-function SourcesView({ prospects, failed }: { prospects: Prospect[] | null; failed: boolean }) {
+function SourcesView({ whose, prospects, failed }: { whose: string; prospects: Prospect[] | null; failed: boolean }) {
   if (failed) return <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>;
   if (!prospects)
     return (
@@ -821,7 +821,7 @@ function SourcesView({ prospects, failed }: { prospects: Prospect[] | null; fail
         </table>
       </div>
       <p className="text-[11px] text-muted">Win rate counts closed deals only (won ÷ won + lost); “—” means none have closed yet.</p>
-      <WinLossBreakdown prospects={prospects} />
+      <WinLossBreakdown whose={whose} prospects={prospects} />
     </section>
   );
 }
@@ -830,10 +830,24 @@ function SourcesView({ prospects, failed }: { prospects: Prospect[] | null; fail
  * Win/loss by how deals ran (F20.10, 2026-11-26; winLoss.ts): by how many calls a deal had and by its size, for the
  * pipeline in view. A rate needs MIN_CLOSED closed deals in its row; below that the row shows its counts only.
  */
-function WinLossBreakdown({ prospects }: { prospects: Prospect[] }) {
-  const ps = prospects.map((p) => ({ status: p.status, amount: p.amount, callCount: p.callCount }));
+function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Prospect[] }) {
+  const ps = prospects.map((p) => ({ id: p.id, status: p.status, amount: p.amount, callCount: p.callCount }));
   const all = overallWinRate(ps);
-  if (all.won + all.lost === 0) return null;
+  // What was said on each closed deal's calls — read on demand, through the person's own access (mentions route).
+  const [mentions, setMentions] = useState<Record<string, string[]> | null | "failed">(null);
+  const hasClosed = all.won + all.lost > 0;
+  useEffect(() => {
+    if (!hasClosed) return;
+    let live = true;
+    fetch(`/api/coach/remote/prospects/mentions${whose === "mine" ? "" : `?repId=${encodeURIComponent(whose)}`}`)
+      .then(async (r) => (r.ok ? (((await r.json()) as { mentions?: Record<string, string[]> }).mentions ?? {}) : Promise.reject(new Error(String(r.status)))))
+      .then((m) => live && setMentions(m))
+      .catch(() => live && setMentions("failed"));
+    return () => {
+      live = false;
+    };
+  }, [whose, hasClosed]);
+  if (!hasClosed) return null;
   const table = (title: string, rows: Band[]) => (
     <div className="overflow-x-auto rounded-xl border border-default bg-surface" aria-label={title}>
       <table className="w-full text-left text-xs">
@@ -865,6 +879,39 @@ function WinLossBreakdown({ prospects }: { prospects: Prospect[] }) {
       </p>
       {table("By number of calls", byCallCount(ps))}
       {table("By deal size", byDealSize(ps, money))}
+      {mentions === "failed" ? (
+        <p role="alert" className="text-[11px] text-amber-700 dark:text-amber-300">Couldn&apos;t load what was said on these deals.</p>
+      ) : mentions === null ? (
+        <p className="text-[11px] text-muted">Loading what was said on these deals…</p>
+      ) : (
+        (() => {
+          const rows = byMention(ps, mentions);
+          if (rows.length === 0) return <p className="text-[11px] text-muted">No tracker was heard on these deals&apos; calls yet.</p>;
+          const rate = (b: Band) => (b.winRate === null ? "too few to read" : `${Math.round(b.winRate * 100)}%`);
+          return (
+            <div className="overflow-x-auto rounded-xl border border-default bg-surface" aria-label="By what was said">
+              <table className="w-full text-left text-xs">
+                <thead className="text-[10px] uppercase tracking-wide text-muted">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Tracker heard on the deal&apos;s calls</th>
+                    <th className="px-3 py-2 text-right font-medium">Mentioned</th>
+                    <th className="px-3 py-2 text-right font-medium">Not mentioned</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.tracker} className="border-t border-default">
+                      <td className="px-3 py-2 text-primary">{r.tracker}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.mentioned.won}–{r.mentioned.lost} · {rate(r.mentioned)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.notMentioned.won}–{r.notMentioned.lost} · {rate(r.notMentioned)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()
+      )}
       <p className="text-[11px] text-muted">
         Closed deals only. A rate shows once a row has {MIN_CLOSED} closed deals. Deal sizes are thirds of this pipeline&apos;s own closed deals.
       </p>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { byCallCount, byDealSize, overallWinRate, MIN_CLOSED } from "../winLoss";
+import { byCallCount, byDealSize, byMention, overallWinRate, MIN_CLOSED } from "../winLoss";
 
 /** F20.10 (2026-11-26): win rate by number of calls and by deal size, closed deals only, no rate below MIN_CLOSED. */
 const d = (status: "open" | "won" | "lost", callCount: number, amount: number | null = null) => ({ status, callCount, amount });
@@ -24,4 +24,18 @@ describe("win/loss breakdowns", () => {
     expect(rows.map((r) => [r.label, r.won, r.lost])).toEqual([["Smaller ($100–$200)", 1, 1], ["Middle ($300–$400)", 2, 0], ["Larger ($500–$600)", 1, 1], ["No amount set", 0, 1]]);
     expect(byDealSize([d("won", 1, 100), d("lost", 1, 50)], money).map((r) => r.label)).toEqual(["With an amount"]);
   });
+  it("by what was said: the most-heard trackers, mentioned vs not, closed deals only", () => {
+    const ps = [
+      ...[1, 2, 3, 4, 5].map((i) => ({ id: `a${i}`, ...d(i < 5 ? "won" : "lost", 2) })),
+      ...[1, 2, 3, 4, 5].map((i) => ({ id: `b${i}`, ...d(i < 2 ? "won" : "lost", 2) })),
+      { id: "o1", ...d("open", 2) },
+    ];
+    const mentions: Record<string, string[]> = { a1: ["Pricing"], a2: ["Pricing"], a3: ["Pricing"], a4: ["Pricing"], a5: ["Pricing", "Spectrum"], b1: ["Spectrum"], o1: ["Pricing"] };
+    const rows = byMention(ps, mentions);
+    expect(rows.map((r) => r.tracker)).toEqual(["Pricing", "Spectrum"]); // most closed deals first; the open deal doesn't count
+    expect(rows[0]!.mentioned).toMatchObject({ won: 4, lost: 1, winRate: 0.8 });
+    expect(rows[0]!.notMentioned).toMatchObject({ won: 1, lost: 4, winRate: 0.2 });
+    expect(rows[1]!.mentioned.winRate).toBeNull(); // 2 deals: too few
+  });
 });
+

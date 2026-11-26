@@ -175,5 +175,20 @@ describe("the pipeline", () => {
     expect(screen.getByText(/4 won, 2 lost · 67% overall/)).toBeTruthy();
     expect(screen.getByLabelText("By deal size").textContent).toContain("No amount set");
   });
+  it("Sources shows win rate by what was said: a tracker heard on the deal's calls vs not (F20.10)", async () => {
+    const closed = [
+      ...[1, 2, 3, 4, 5].map((i) => ({ ...P(`w${i}`, `Won ${i}`, "won", 1000), callCount: 2 })),
+      ...[1, 2, 3, 4, 5].map((i) => ({ ...P(`l${i}`, `Lost ${i}`, "lost", 1000), callCount: 2 })),
+    ];
+    const mentions = { w1: ["Pricing"], w2: ["Pricing"], w3: ["Pricing"], w4: ["Pricing"], l1: ["Pricing"] };
+    respond({ "/api/coach/remote/prospects/mentions": { mentions }, "/api/coach/remote/prospects": { ...MINE, prospects: [MINE.prospects[0], ...closed] } });
+    render(<RemotePipeline />);
+    await screen.findByText("Pat Prospect");
+    fireEvent.click(screen.getByRole("button", { name: "Sources" }));
+    const t = await screen.findByLabelText("By what was said");
+    expect(t.textContent).toContain("Pricing");
+    expect(t.textContent).toContain("4–1 · 80%"); // mentioned: 4 won, 1 lost
+    expect(t.textContent).toContain("1–4 · 20%"); // not mentioned
+  });
 });
 

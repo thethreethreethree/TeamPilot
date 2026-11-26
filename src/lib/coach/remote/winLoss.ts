@@ -39,6 +39,26 @@ export function byCallCount(ps: P[]): Band[] {
 }
 
 /**
+ * By what was said on a deal's calls (2026-11-26, F20.10): for each tracker heard on closed deals, the win rate when it
+ * was mentioned on any of the deal's calls against when it wasn't. `mentions` = prospect id → tracker names heard. The
+ * TOP trackers by closed deals mentioned are shown (most first); each side gets a rate only from MIN_CLOSED deals.
+ */
+export type MentionRow = { tracker: string; mentioned: Band; notMentioned: Band };
+export function byMention(ps: Array<P & { id: string }>, mentions: Record<string, string[]>, top = 5): MentionRow[] {
+  const c = closedDeals(ps) as Array<P & { id: string }>;
+  const count = new Map<string, number>();
+  for (const p of c) for (const t of new Set(mentions[p.id] ?? [])) count.set(t, (count.get(t) ?? 0) + 1);
+  return [...count.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, top)
+    .map(([tracker]) => {
+      const heard = c.filter((p) => (mentions[p.id] ?? []).includes(tracker));
+      const not = c.filter((p) => !(mentions[p.id] ?? []).includes(tracker));
+      return { tracker, mentioned: band("Mentioned", heard), notMentioned: band("Not mentioned", not) };
+    });
+}
+
+/**
  * By deal size, in thirds of this pipeline's closed deals that have an amount: smaller, middle, larger — each label
  * carries its range. Needs at least 3 such deals to cut; deals with no amount are their own row.
  */
