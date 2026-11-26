@@ -49,6 +49,8 @@ vi.mock("@/lib/supabase/admin", () => ({
         return b;
       };
       b.then = (res: (v: unknown) => unknown) => res({ data: DATA[table] ?? [], error: null });
+      // Paged reads (2026-11-26: the inbox reads every request, then filters): one page, then empty.
+      b.range = async (from: number) => ({ data: from > 0 ? [] : DATA[table] ?? [], error: null });
       return b;
     },
   }),
@@ -89,3 +91,19 @@ describe("GET coaching-inbox", () => {
     expect((await GET(new Request("http://t/x") as never)).status).toBe(500);
   });
 });
+
+describe("GET coaching-inbox — other teams' requests can't push yours out (2026-11-26)", () => {
+  it("400 newer requests from outside the tree: this manager's rep's older request is still listed", async () => {
+    const saved = DATA.feedback_requests ?? [];
+    const newer = Array.from({ length: 400 }, (_, k) => ({ id: `x${k}`, session_id: "s3", requester_id: "outside", recipient_id: null, message: null, created_at: new Date(Date.now() - k * 1000).toISOString() }));
+    DATA.feedback_requests = [...newer, saved[1]!];
+    try {
+      const body = await (await GET(new Request("http://t/x") as never)).json();
+      expect(body.items.map((i: { id: string }) => i.id)).toEqual(["b"]);
+      expect(body.truncated).toBe(false);
+    } finally {
+      DATA.feedback_requests = saved;
+    }
+  });
+});
+

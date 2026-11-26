@@ -32,7 +32,7 @@ type Item = {
   open: boolean;
   youListenedSeconds: number;
 };
-type Wire = { available: false; reason: string } | { available: true; items: Item[] };
+type Wire = { available: false; reason: string } | { available: true; items: Item[]; truncated?: boolean };
 type Metrics =
   | { decided: false; decision: string; reason: string }
   | {
@@ -204,6 +204,9 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
         </p>
       ) : (
         <div className="overflow-x-auto">
+          {wire.available && wire.truncated && (
+            <p className="mb-1 text-[11px] text-secondary">Showing the {wire.items.length} most recent requests from the last 90 days.</p>
+          )}
           <table className="w-full text-left text-xs">
             <thead className="text-[10px] uppercase tracking-wide text-muted">
               <tr>

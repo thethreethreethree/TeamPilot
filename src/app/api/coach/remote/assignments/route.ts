@@ -1,3 +1,4 @@
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
@@ -19,6 +20,9 @@ const MISSING = new Set(["PGRST205", "42P01"]);
 const NOT_READY = "Training is waiting on database migration 0282.";
 type A = { id: string; scenario_id: string; rep_id: string; assigned_by: string; due_at: string; created_at: string };
 
+/** The newest this many assignments are listed; `truncated` says when there are more. */
+const SHOWN = 500;
+
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "remote-assignments", windowMs: 60_000, max: 60 });
   if (limited) return limited;
@@ -34,9 +38,14 @@ export async function GET(req: NextRequest) {
   let q = admin.from("training_assignments").select("id, scenario_id, rep_id, assigned_by, due_at, created_at").eq("company_id", ctx.companyId);
   if (one) q = q.eq("id", one).eq("rep_id", ctx.userId);
   else if (!team) q = q.eq("rep_id", ctx.userId);
-  const { data, error } = await q.order("created_at", { ascending: false }).limit(500);
+  // A manager's team view reads every assignment, THEN keeps their tree, THEN the newest SHOWN (2026-11-26): capping the
+  // company's newest 500 first let other teams' assignments push this manager's out. A rep's own list is small.
+  const { data, error } = await fetchAllPagedResult<A>(
+    (from, to) => q.order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to),
+    { label: "assignments", maxRows: 50_000 },
+  );
   if (error) {
-    if (MISSING.has(String(error.code))) return NextResponse.json({ available: false, reason: NOT_READY });
+    if (MISSING.has(String((error as { code?: string }).code)) || /PGRST205|42P01|does not exist/.test(error.message)) return NextResponse.json({ available: false, reason: NOT_READY });
     console.error(`[assignments] read failed: ${error.message}`);
     return NextResponse.json({ error: "Couldn't load assignments." }, { status: 500 });
   }
@@ -45,6 +54,8 @@ export async function GET(req: NextRequest) {
     const allowed = new Set(await treeFilterReps(req, [...new Set(rows.map((r) => String(r.rep_id)))]));
     rows = rows.filter((r) => allowed.has(String(r.rep_id)));
   }
+  const truncated = rows.length > SHOWN;
+  rows = rows.slice(0, SHOWN);
   if (rows.length === 0) return NextResponse.json({ available: true, assignments: [] });
 
   const ids = rows.map((r) => r.id);
@@ -79,7 +90,7 @@ export async function GET(req: NextRequest) {
       ...assignmentStatus({ dueAt, attempts: tries, passScore: (scenario?.pass_score as number | null) ?? null }),
     };
   });
-  return NextResponse.json({ available: true, assignments });
+  return NextResponse.json({ available: true, assignments, truncated });
 }
 
 function parseDue(v: unknown): string | null {

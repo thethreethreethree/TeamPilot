@@ -1,3 +1,4 @@
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { NextRequest, NextResponse } from "next/server";
 import { teamFromRequest } from "@/lib/coach/remote/teamScope";
 import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
@@ -17,6 +18,8 @@ import { isRequestOpen, listenedSeconds, loadCoachingEvents } from "@/lib/coach/
  */
 const MISSING = new Set(["PGRST205", "42P01"]);
 const DAY = 86_400_000;
+/** The newest this many requests this manager may see are listed; `truncated` says when there are more. */
+const SHOWN = 300;
 
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { id: "remote-coaching-inbox", windowMs: 60_000, max: 60 });
@@ -29,15 +32,23 @@ export async function GET(req: NextRequest) {
   const inTeam = (id: string) => !scope.members || scope.members.has(id);
 
   const admin = createAdminClient();
-  const { data: reqRows, error } = await admin
-    .from("feedback_requests")
-    .select("id, session_id, requester_id, recipient_id, message, created_at")
-    .eq("company_id", mgr.companyId)
-    .gte("created_at", new Date(Date.now() - 90 * DAY).toISOString())
-    .order("created_at", { ascending: false })
-    .limit(300);
+  // Every request in the 90 days, THEN the tree and hidden filters, THEN the newest SHOWN (2026-11-26). The read used to
+  // stop at the company's newest 300 before keeping this manager's reps, so in a busy company other teams' requests
+  // pushed this manager's out of their own inbox.
+  const { data: reqRows, error } = await fetchAllPagedResult<{ id: string; session_id: string; requester_id: string; recipient_id: string | null; message: string | null; created_at: string }>(
+    (from, to) =>
+      admin
+        .from("feedback_requests")
+        .select("id, session_id, requester_id, recipient_id, message, created_at")
+        .eq("company_id", mgr.companyId)
+        .gte("created_at", new Date(Date.now() - 90 * DAY).toISOString())
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    { label: "coaching inbox", maxRows: 50_000 },
+  );
   if (error) {
-    if (MISSING.has(String(error.code))) {
+    if (MISSING.has(String((error as { code?: string }).code)) || /PGRST205|42P01|does not exist/.test(error.message)) {
       return NextResponse.json({ available: false, reason: "The coaching inbox is waiting on database migration 0278." });
     }
     console.error(`[coaching-inbox] read failed company=${mgr.companyId}: ${error.message}`);
@@ -56,7 +67,9 @@ export async function GET(req: NextRequest) {
     console.error(`[coaching-inbox] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
     return NextResponse.json({ error: "Couldn't load the coaching inbox." }, { status: 500 });
   }
-  const rows = inTree.filter((r) => !hidden.has(String(r.session_id)));
+  const visibleRows = inTree.filter((r) => !hidden.has(String(r.session_id)));
+  const truncated = visibleRows.length > SHOWN;
+  const rows = visibleRows.slice(0, SHOWN);
   if (rows.length === 0) return NextResponse.json({ available: true, items: [] });
 
   const sessionIds = [...new Set(rows.map((r) => String(r.session_id)))];
@@ -107,5 +120,5 @@ export async function GET(req: NextRequest) {
       youListenedSeconds: Math.round(listenedSeconds(rangesBySession.get(String(r.session_id)) ?? [])),
     };
   });
-  return NextResponse.json({ available: true, items });
+  return NextResponse.json({ available: true, items, truncated });
 }
