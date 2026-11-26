@@ -1973,6 +1973,7 @@ st("INV26 reachability is TRANSITIVE, not one hop", (() => {
 // a tenant filter carried by a variable whose name does not contain "company". Those need a human; this
 // catches the common direct shape, which is the one both of today's defects had.
 const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/settings/vocabulary/reapply/route.ts::coaching_transcript_segments_current::session_id", "the session ids come from the coaching_sessions read just above it, pinned to the admin's company (.eq(\"company_id\", ctx.companyId)); the view has no company column."],
   // ── the caller's OWN row, not a tenant read ────────────────────────────────────────────────────────
   ...[
     "care/extension/coach", "care/extension/copilot", "care/extension/dissect", "care/extension/formulate",
@@ -2835,6 +2836,7 @@ const PAGING_UNIQUE_ALLOWLIST = new Map([
 // reads a call table under the hide rules (or events about a call) calls hiddenFrom /
 // hiddenInCompanyFrom / hiddenCallsForCompany, or is listed here with why no hidden call can reach a person.
 const HIDE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/settings/vocabulary/reapply/route.ts", "company admins only (a hide never hides a call from an admin, 0337), and it returns counts only — no call, line or label reaches the person."],
   ["src/app/api/coach/remote/courses/route.ts", "0359: reads library_items ids and folder ids only, to check a lesson's call is in a company folder; returns nothing about the call. The rep opens it in the library, whose route filters hidden calls (hiddenFrom)."],
   ["src/app/api/coach/sales-session/recordings/route.ts", "in-person (door) recordings — the hide is for phone/video calls (0337)."],
   ["src/app/api/coach/sales-session/recording-purge-cron/route.ts", "cron: deletes old audio; returns no call to any person."],

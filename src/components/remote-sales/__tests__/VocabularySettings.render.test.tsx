@@ -81,3 +81,24 @@ describe("transcription vocabulary", () => {
   });
 });
 
+
+describe("transcription vocabulary — past calls (F8.9, founder picker 2026-11-26)", () => {
+  it("an admin checks first (the count and the AI cost), confirms, then fixes", async () => {
+    const posts: Array<{ apply?: boolean }> = [];
+    fetchMock.mockImplementation(async (u: string, init?: { method?: string; body?: string }) => {
+      if (u.endsWith("/reapply")) {
+        const b = JSON.parse(init?.body ?? "{}");
+        posts.push(b);
+        return { ok: true, json: async () => (b.apply ? { fixed: 3, skipped: 0, remaining: 0 } : { calls: 3, lines: 5, scanned: 40, capped: false, batch: 3 }) };
+      }
+      return { ok: true, json: async () => ({ terms: ["Spectrum"], corrections: [{ term: "Spectrum", heard: ["spec trum"] }], canManage: true, max: 100 }) };
+    });
+    vi.stubGlobal("confirm", () => true);
+    render(<VocabularySettings />);
+    fireEvent.click(await screen.findByRole("button", { name: "Check past calls" }));
+    expect(await screen.findByText(/3 calls \(5 lines\) would change.*one AI pass per call/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Fix 3 calls" }));
+    await screen.findByText(/Fixed 3 calls; their notes are being redone now/);
+    expect(posts).toEqual([{ apply: false }, { apply: true }]);
+  });
+});

@@ -23,6 +23,31 @@ export function VocabularySettings() {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Past calls (founder picker 2026-11-26: "On request, with a count"): the count first, then fix on a confirm.
+  const [past, setPast] = useState<{ calls: number; lines: number; scanned: number; capped: boolean; batch: number } | null>(null);
+  const [pastBusy, setPastBusy] = useState(false);
+  const [pastNote, setPastNote] = useState<string | null>(null);
+  const reapply = async (apply: boolean) => {
+    setPastBusy(true);
+    setPastNote(null);
+    try {
+      const r = await fetch("/api/coach/remote/settings/vocabulary/reapply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apply }) });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; calls?: number; lines?: number; scanned?: number; capped?: boolean; batch?: number; fixed?: number; skipped?: number; remaining?: number };
+      if (!r.ok) {
+        setPast(null);
+        return setPastNote(j.error ?? "Couldn't check past calls.");
+      }
+      if (!apply) return setPast({ calls: j.calls ?? 0, lines: j.lines ?? 0, scanned: j.scanned ?? 0, capped: j.capped === true, batch: j.batch ?? 0 });
+      setPast(null);
+      setPastNote(
+        `Fixed ${j.fixed ?? 0} ${j.fixed === 1 ? "call" : "calls"}; their notes are being redone now.${j.skipped ? ` ${j.skipped} changed in the meantime — check again to include them.` : ""}${j.remaining ? ` ${j.remaining} more to fix — check again.` : ""}`,
+      );
+    } catch {
+      setPastNote("Couldn't reach the server.");
+    } finally {
+      setPastBusy(false);
+    }
+  };
 
   const load = useCallback(async () => {
     const r = await fetch("/api/coach/remote/settings/vocabulary").catch(() => null);
@@ -114,7 +139,7 @@ export function VocabularySettings() {
               <p className="text-[11px] text-muted">
                 One per line — up to {v.max}, each at most 5 words and 50 characters. If a name keeps coming out wrong, add
                 what it&apos;s heard as after an equals sign — <span className="font-mono">Spectrum = spec trum, spektrum</span> — and
-                new lines are stored with the right name (whole words only; lines already stored stay as they are).
+                new lines are stored with the right name (whole words only). Calls already transcribed can be fixed below.
               </p>
               {parseError && <p role="alert" className="text-[11px] text-amber-700 dark:text-amber-300">{parseError}</p>}
               <button
@@ -130,6 +155,39 @@ export function VocabularySettings() {
             v.terms.length > 0 && <p className="text-xs text-secondary">{toLines(v).join(" · ")}</p>
           )}
           {note && <p className="text-xs text-secondary" role="status">{note}</p>}
+          {v.canManage && (v.corrections ?? []).length > 0 && (
+            <div className="space-y-1 border-t border-default pt-2" aria-label="Fix past calls">
+              <p className="text-[11px] text-muted">The mis-hearings above fix new lines. You can also fix calls already transcribed.</p>
+              {!past && (
+                <button type="button" disabled={pastBusy || changed} onClick={() => void reapply(false)} className="rounded-lg border border-default px-3 py-1 text-xs text-secondary hover:text-primary disabled:opacity-50">
+                  {pastBusy ? "Checking…" : changed ? "Save first, then check past calls" : "Check past calls"}
+                </button>
+              )}
+              {past && (
+                <div className="space-y-1 text-xs">
+                  <p className="text-primary">
+                    {past.calls === 0
+                      ? `None of the last ${past.scanned} calls would change.`
+                      : `${past.calls} ${past.calls === 1 ? "call" : "calls"} (${past.lines} ${past.lines === 1 ? "line" : "lines"}) would change${past.capped ? ` among the newest ${past.scanned}` : ""}. Each fixed call's notes, summary and review are redone — one AI pass per call.`}
+                  </p>
+                  {past.calls > 0 && (
+                    <button
+                      type="button"
+                      disabled={pastBusy}
+                      onClick={() => {
+                        if (window.confirm(`Fix ${past.batch} ${past.batch === 1 ? "call" : "calls"} now and redo their AI notes (${past.batch} AI ${past.batch === 1 ? "pass" : "passes"})?`)) void reapply(true);
+                      }}
+                      className="rounded-lg bg-ember-400 px-3 py-1 text-xs font-semibold text-ink-950 disabled:opacity-50"
+                    >
+                      {pastBusy ? "Fixing…" : `Fix ${past.batch} ${past.batch === 1 ? "call" : "calls"}`}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setPast(null)} className="ml-2 text-muted hover:text-primary">Not now</button>
+                </div>
+              )}
+              {pastNote && <p className="text-xs text-secondary" role="status">{pastNote}</p>}
+            </div>
+          )}
         </div>
       )}
     </section>

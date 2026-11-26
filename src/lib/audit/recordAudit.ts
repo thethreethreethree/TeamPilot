@@ -22,6 +22,8 @@ export const AUDIT_ACTIONS = [
   "retention.set",
   // A company admin changed the transcription vocabulary (0306, Gong F8.9).
   "vocabulary.set",
+  // ...and fixed past calls with its "heard as" corrections (2026-11-26, founder picker; a new transcript version each).
+  "vocabulary.reapply",
   "erasure.request",
   "webhook.add",
   "webhook.off",
