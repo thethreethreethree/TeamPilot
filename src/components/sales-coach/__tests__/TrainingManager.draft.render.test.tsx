@@ -16,7 +16,7 @@ beforeEach(() => {
     }
     if (url.startsWith("/api/coach/remote/scenarios")) return json({ scenarios: [], tags: [], stages: [], items: [] });
     if (url.startsWith("/api/coach/remote/assignments")) return json({ assignments: [] });
-    if (url === "/api/team") return json({ members: [] });
+    if (url === "/api/coach/remote/assignable-reps") return json({ members: [] });
     return json({}, false);
   }));
 });

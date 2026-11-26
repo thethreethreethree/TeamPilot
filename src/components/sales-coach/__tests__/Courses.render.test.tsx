@@ -98,7 +98,7 @@ describe("review 2026-11-26 — honest outcomes", () => {
   it("assigning says what happened: assigned, already had it, not on your team", async () => {
     vi.stubGlobal("fetch", vi.fn((u: string, init?: { method?: string }) => {
       if (init?.method === "POST") return ok({ assigned: 1, alreadyAssigned: 1, skipped: 2 });
-      if (u === "/api/team") return ok({ members: [{ id: "r1", full_name: "Rae" }] });
+      if (u === "/api/coach/remote/assignable-reps") return ok({ members: [{ id: "r1", full_name: "Rae" }] });
       if (u.startsWith("/api/coach/remote/course-assignments")) return ok({ assignments: [] });
       return ok({ available: true, courses: [{ id: "k1", title: "Discovery", summary: null, retired: false, version: 1, steps: [{ uid: "x", title: "A", body: "a", kind: "lesson", scenarioId: null }, { uid: "y", title: "P", body: "", kind: "practice", scenarioId: "s1", scenarioRetired: true }] }] });
     }));
@@ -122,7 +122,7 @@ describe("CourseManager", () => {
         saved = true;
         return ok({ id: "k1", version: 1 });
       }
-      if (u === "/api/team") return ok({ members: [{ id: "r1", full_name: "Rae" }] });
+      if (u === "/api/coach/remote/assignable-reps") return ok({ members: [{ id: "r1", full_name: "Rae" }] });
       if (u.startsWith("/api/coach/remote/course-assignments")) return ok({ assignments: [] });
       return ok({ available: true, courses: saved ? [{ id: "k1", title: "Discovery", summary: null, retired: false, version: 1, steps: [{ uid: "x", title: "B", body: "b" }, { uid: "y", title: "A", body: "a" }] }] : [] });
     }));

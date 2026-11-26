@@ -80,7 +80,7 @@ export function TrainingManager() {
 
   useEffect(() => {
     void load();
-    fetch("/api/team")
+    fetch("/api/coach/remote/assignable-reps")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { members?: Member[] } | null) => setMembers(j?.members ?? []))
       // The Assign picker is empty without the team; say why (2026-11-23).

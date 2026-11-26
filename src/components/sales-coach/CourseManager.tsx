@@ -79,7 +79,7 @@ export function CourseManager() {
   }, []);
   useEffect(() => {
     void load();
-    fetch("/api/team")
+    fetch("/api/coach/remote/assignable-reps")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: { members?: Member[] } | null) => setMembers(j?.members ?? []))
       .catch(() => setMembersFailed(true));
