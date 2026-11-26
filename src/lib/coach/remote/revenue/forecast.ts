@@ -5,8 +5,8 @@
  * moment ÷ what actually closed by the quarter's end, coloured as Gong's (green 85–115%). Pure, so it is tested.
  */
 export type Category = "commit" | "best_case";
-export type Submission = { userId: string; period: string; category: Category; amount: number; createdAt: string };
-export type FDeal = { repId: string; status: "open" | "won" | "lost"; amount: number | null; closeDate?: string | null; closedAt?: string | null };
+export type Submission = { userId: string; period: string; category: Category; amount: number; createdAt: string; deals?: Array<{ id: string; amount: number | null }> };
+export type FDeal = { id?: string; name?: string | null; repId: string; status: "open" | "won" | "lost"; amount: number | null; closeDate?: string | null; closedAt?: string | null };
 
 /** The quarter a date falls in, 'YYYY-Qn' (UTC calendar quarters). */
 export function periodOf(isoDate: string): string {
@@ -49,6 +49,19 @@ export function latest(subs: Submission[], userId: string, period: string, categ
   let best: Submission | null = null;
   for (const s of subs) if (s.userId === userId && s.period === period && s.category === category && (!best || s.createdAt > best.createdAt)) best = s;
   return best;
+}
+
+/**
+ * How a person's number moved (Gong F22.6): their latest submission against the one before it in the same quarter and
+ * column — the change in amount, and the open deals that came in behind it or dropped out. Null with fewer than two.
+ */
+export function movement(subs: Submission[], userId: string, period: string, category: Category): { change: number; added: string[]; dropped: string[]; since: string } | null {
+  const mine = subs.filter((s) => s.userId === userId && s.period === period && s.category === category).sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+  if (mine.length < 2) return null;
+  const [before, now] = [mine[mine.length - 2]!, mine[mine.length - 1]!];
+  const was = new Set((before.deals ?? []).map((d) => d.id));
+  const is = new Set((now.deals ?? []).map((d) => d.id));
+  return { change: now.amount - before.amount, added: [...is].filter((id) => !was.has(id)), dropped: [...was].filter((id) => !is.has(id)), since: before.createdAt };
 }
 
 /** A team's number: the sum of its people's latest submissions, and how many of them have submitted. */

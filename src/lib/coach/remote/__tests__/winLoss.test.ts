@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { byCallCount, byContactCount, byDealSize, byDuration, byMention, byPower, overallWinRate, powerOnDeal, MIN_CLOSED } from "../winLoss";
+import { byCallCount, byContactCount, byDealSize, byDuration, byMention, byPower, overallWinRate, powerOnDeal, winLossCsv, MIN_CLOSED } from "../winLoss";
 
 /** F20.10 (2026-11-26): win rate by number of calls and by deal size, closed deals only, no rate below MIN_CLOSED. */
 const d = (status: "open" | "won" | "lost", callCount: number, amount: number | null = null) => ({ status, callCount, amount });
@@ -7,7 +7,7 @@ const money = (n: number) => `$${n}`;
 
 describe("win/loss breakdowns", () => {
   it("counts closed deals only and gives no rate below the minimum", () => {
-    expect(overallWinRate([d("won", 1), d("lost", 1), d("open", 3)])).toEqual({ label: "All closed deals", won: 1, lost: 1, winRate: null });
+    expect(overallWinRate([d("won", 1), d("lost", 1), d("open", 3)])).toEqual({ label: "All closed deals", won: 1, lost: 1, winRate: null, ids: [] });
     const five = [d("won", 1), d("won", 1), d("won", 1), d("lost", 1), d("lost", 1)];
     expect(MIN_CLOSED).toBe(5);
     expect(overallWinRate(five).winRate).toBeCloseTo(0.6);
@@ -76,5 +76,21 @@ describe("win/loss by contacts, power and time to close", () => {
   });
   it("a rate still needs the minimum closed deals in its row", () => {
     expect(byContactCount([won({ contacts: 1 }), won({ contacts: 1 })])[0]!.winRate).toBeNull();
+  });
+});
+
+describe("each row opens its deals, and the math as CSV (F20.10, 2026-11-27)", () => {
+  const withId = (id: string, status: "open" | "won" | "lost", callCount: number) => ({ id, status, callCount, amount: null });
+  it("a row carries the ids of its closed deals, never an open one", () => {
+    const rows = byCallCount([withId("a", "won", 1), withId("b", "lost", 1), withId("c", "open", 1), withId("d", "won", 3)]);
+    expect(rows.find((r) => r.label === "1 call")!.ids).toEqual(["a", "b"]);
+    expect(rows.find((r) => r.label === "2–3 calls")!.ids).toEqual(["d"]);
+  });
+  it("CSV: one line per row, empty rate below the minimum, formula-leading labels neutralised", () => {
+    const csv = winLossCsv([{ breakdown: "By x", rows: [{ label: "=cmd", won: 3, lost: 2, winRate: 0.6, ids: [] }, { label: "few", won: 1, lost: 0, winRate: null, ids: [] }] }]);
+    const lines = csv.trim().split("\r\n");
+    expect(lines[0]).toBe("breakdown,group,won,lost,closed,win_rate");
+    expect(lines[1]).toBe("By x,'=cmd,3,2,5,60.0");
+    expect(lines[2]).toBe("By x,few,1,0,1,");
   });
 });

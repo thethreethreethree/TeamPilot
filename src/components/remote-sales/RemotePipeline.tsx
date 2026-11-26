@@ -22,7 +22,7 @@ import { addDays, weekStart } from "@/lib/coach/remote/calendar";
 import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
-import { byCallCount, byContactCount, byDealSize, byDuration, byMention, byPower, MIN_CLOSED, overallWinRate, powerOnDeal, type Band } from "@/lib/coach/remote/winLoss";
+import { byCallCount, byContactCount, byDealSize, byDuration, byMention, byPower, MIN_CLOSED, overallWinRate, powerOnDeal, winLossCsv, type Band } from "@/lib/coach/remote/winLoss";
 import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS, withMovedDates } from "@/lib/coach/remote/dealRisk";
 import { stageFunnel } from "@/lib/coach/remote/pipelineChanges";
 
@@ -244,7 +244,7 @@ export function RemotePipeline() {
       ) : view === "calendar" ? (
         <RemoteCalendar key={whose} scope={whose} nameOf={nameOf} onOpenProspect={goTo} />
       ) : view === "sources" ? (
-        <SourcesView key={whose} whose={whose} prospects={data?.prospects ?? null} failed={failed} />
+        <SourcesView key={whose} whose={whose} prospects={data?.prospects ?? null} failed={failed} onOpen={goTo} />
       ) : view === "forecast" ? (
         <>
           {data && (
@@ -879,7 +879,7 @@ function StagePractice({ prospectId }: { prospectId: string }) {
  * Pipeline → Sources (2026-11-23; 0313). Deals by where they came from, for the pipeline in view ("Whose pipeline"):
  * prospects, open value, won and lost, and the win rate on closed deals (none until a source has one).
  */
-function SourcesView({ whose, prospects, failed }: { whose: string; prospects: Prospect[] | null; failed: boolean }) {
+function SourcesView({ whose, prospects, failed, onOpen }: { whose: string; prospects: Prospect[] | null; failed: boolean; onOpen: (id: string) => void }) {
   if (failed) return <p className="rounded-xl border border-default bg-surface p-6 text-center text-xs text-muted">Couldn&apos;t load the pipeline. Refresh to try again.</p>;
   if (!prospects)
     return (
@@ -926,7 +926,7 @@ function SourcesView({ whose, prospects, failed }: { whose: string; prospects: P
         </table>
       </div>
       <p className="text-[11px] text-muted">Win rate counts closed deals only (won ÷ won + lost); “—” means none have closed yet.</p>
-      <WinLossBreakdown whose={whose} prospects={prospects} />
+      <WinLossBreakdown whose={whose} prospects={prospects} onOpen={onOpen} />
     </section>
   );
 }
@@ -935,7 +935,7 @@ function SourcesView({ whose, prospects, failed }: { whose: string; prospects: P
  * Win/loss by how deals ran (F20.10, 2026-11-26; winLoss.ts): by how many calls a deal had and by its size, for the
  * pipeline in view. A rate needs MIN_CLOSED closed deals in its row; below that the row shows its counts only.
  */
-function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Prospect[] }) {
+function WinLossBreakdown({ whose, prospects, onOpen }: { whose: string; prospects: Prospect[]; onOpen: (id: string) => void }) {
   const ps = prospects.map((p) => ({
     id: p.id, status: p.status, amount: p.amount, callCount: p.callCount,
     // Revenue Phase 4 (Gong F20.10): contacts, power in the deal, time to close.
@@ -962,7 +962,40 @@ function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Pros
       live = false;
     };
   }, [whose, hasClosed, closedKey]);
+  // Each row opens its closed deals (F20.10); one open at a time.
+  const [opened, setOpened] = useState<string | null>(null);
+  const byId = new Map(prospects.map((p) => [p.id, p]));
   if (!hasClosed) return null;
+  const sections = [
+    { breakdown: "By number of calls", rows: byCallCount(ps) },
+    { breakdown: "By deal size", rows: byDealSize(ps, money) },
+    { breakdown: "By contacts on the deal", rows: byContactCount(ps) },
+    { breakdown: "By seniority on the deal", rows: byPower(ps) },
+    { breakdown: "By time to close", rows: byDuration(ps) },
+  ];
+  const download = () => {
+    const blob = new Blob([winLossCsv(sections)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "win-loss.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const dealsOf = (ids: string[]) => (
+    <ul className="flex flex-wrap gap-1.5 py-1">
+      {ids.map((id) => {
+        const p = byId.get(id);
+        return (
+          <li key={id}>
+            <button type="button" onClick={() => onOpen(id)} className="rounded-full border border-default px-2 py-0.5 text-[11px] text-primary hover:border-brand">
+              {p?.name || "Unnamed deal"} · {p?.status === "won" ? "won" : "lost"}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
   const table = (title: string, rows: Band[]) => (
     <div className="overflow-x-auto rounded-xl border border-default bg-surface" aria-label={title}>
       <table className="w-full text-left text-xs">
@@ -975,14 +1008,28 @@ function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Pros
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.label} className="border-t border-default">
-              <td className="px-3 py-2 text-primary">{r.label}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.won}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.lost}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-primary">{r.winRate === null ? <span className="text-muted">too few to read</span> : `${Math.round(r.winRate * 100)}%`}</td>
-            </tr>
-          ))}
+          {rows.map((r) => {
+            const key = `${title}|${r.label}`;
+            return (
+              <Fragment key={r.label}>
+                <tr className="border-t border-default">
+                  <td className="px-3 py-2 text-primary">
+                    <button type="button" aria-expanded={opened === key} onClick={() => setOpened(opened === key ? null : key)} className="text-left underline-offset-2 hover:underline">
+                      {r.label}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.won}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-secondary">{r.lost}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-primary">{r.winRate === null ? <span className="text-muted">too few to read</span> : `${Math.round(r.winRate * 100)}%`}</td>
+                </tr>
+                {opened === key && (
+                  <tr>
+                    <td colSpan={4} className="px-3 pb-2">{dealsOf(r.ids)}</td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -992,11 +1039,10 @@ function WinLossBreakdown({ whose, prospects }: { whose: string; prospects: Pros
       <p className="text-xs font-semibold text-primary">
         Win and loss by how deals ran · {all.won} won, {all.lost} lost{all.winRate !== null ? ` · ${Math.round(all.winRate * 100)}% overall` : ""}
       </p>
-      {table("By number of calls", byCallCount(ps))}
-      {table("By deal size", byDealSize(ps, money))}
-      {table("By contacts on the deal", byContactCount(ps))}
-      {table("By seniority on the deal", byPower(ps))}
-      {table("By time to close", byDuration(ps))}
+      {sections.map((x) => <Fragment key={x.breakdown}>{table(x.breakdown, x.rows)}</Fragment>)}
+      <button type="button" onClick={download} className="rounded-lg border border-default px-2 py-1 text-[11px] text-secondary hover:text-primary">
+        Download the math (CSV)
+      </button>
       {mentions === "failed" ? (
         <p role="alert" className="text-[11px] text-amber-700 dark:text-amber-300">Couldn&apos;t load what was said on these deals.</p>
       ) : mentions === null ? (

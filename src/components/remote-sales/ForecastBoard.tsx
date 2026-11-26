@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { accuracyBand, accuracyOverQuarter, latest, metrics, periodOf, rollUp, shiftPeriod, type FDeal, type Submission } from "@/lib/coach/remote/revenue/forecast";
+import { accuracyBand, accuracyOverQuarter, latest, metrics, movement, periodOf, rollUp, shiftPeriod, type FDeal, type Submission } from "@/lib/coach/remote/revenue/forecast";
 
 /**
  * Pipeline → Forecast → the board (revenue Phase 6, 0376; Gong M22). One row per person in view — you, or your team —
@@ -67,7 +67,6 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
       if (!r.ok) throw new Error(j.error ?? "Couldn't save that.");
       setEditing(null);
       setAmount("");
-     
       await load();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Couldn't save that.");
@@ -87,12 +86,14 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
     const sub = col === "target" ? null : latest(data.submissions, u, period, col);
     const value = col === "target" ? target(u) : sub?.amount ?? null;
     const label = value === null ? (canEdit ? (col === "target" ? "Set" : "Submit") : "—") : money(value);
-    return canEdit ? (
+    // A submitted number anyone may open (the deals behind it, how it moved); only its owner (or, for a target, a
+    // manager) can change it.
+    return canEdit || sub ? (
       <button type="button" onClick={() => { setEditing({ userId: u, col }); setAmount(value === null ? "" : String(value)); setMsg(null); }} title={sub ? `Submitted ${new Date(sub.createdAt).toLocaleString()}` : undefined} className={`rounded px-1.5 py-0.5 tabular-nums underline-offset-2 hover:underline ${value === null ? "text-secondary" : "font-semibold text-primary"}`}>
         {label}
       </button>
     ) : (
-      <span title={sub ? `Submitted ${new Date(sub.createdAt).toLocaleString()}` : undefined} className={`tabular-nums ${value === null ? "text-muted" : "text-primary"}`}>{label}</span>
+      <span className={`tabular-nums ${value === null ? "text-muted" : "text-primary"}`}>{label}</span>
     );
   };
   const team = rows.length > 1;
@@ -174,19 +175,27 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
       {editing && (
         <div className="space-y-1.5 rounded-lg border border-default p-2 text-xs">
           <p className="font-semibold text-primary">
-            {editing.col === "target" ? `Target for ${editing.userId === data.viewerId ? "you" : nameOf(editing.userId) ?? "this rep"}` : `Your ${editing.col === "commit" ? "Commit" : "Best case"}`} · {period.replace("-", " ")}
+            {editing.col === "target" ? `Target for ${editing.userId === data.viewerId ? "you" : nameOf(editing.userId) ?? "this rep"}` : `${editing.userId === data.viewerId ? "Your" : `${nameOf(editing.userId) ?? "This rep"}'s`} ${editing.col === "commit" ? "Commit" : "Best case"}`} · {period.replace("-", " ")}
           </p>
           {editing.col !== "target" && (
-            <p className="text-secondary">
-              Your open deals expected to close this quarter: {money(metrics(deals, period, editing.userId).openClosing)}; closed won so far: {money(metrics(deals, period, editing.userId).closedWon)}.
-              {latest(data.submissions, editing.userId, period, editing.col) ? ` Last submitted ${new Date(latest(data.submissions, editing.userId, period, editing.col)!.createdAt).toLocaleString()}.` : ""}
-            </p>
+            <SubmissionDetail
+              own={editing.userId === data.viewerId}
+              sub={latest(data.submissions, editing.userId, period, editing.col)}
+              moved={movement(data.submissions, editing.userId, period, editing.col)}
+              m={metrics(deals, period, editing.userId)}
+              target={target(editing.userId)}
+              dealName={(id) => deals.find((d) => d.id === id)?.name ?? null}
+            />
           )}
-          <div className="flex flex-wrap gap-2">
-            <input autoFocus value={amount} onChange={(e) => setAmount(e.currentTarget.value)} inputMode="decimal" aria-label="Amount" placeholder="Amount" className="w-32 rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />
-            <button type="button" disabled={busy} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
-            <button type="button" onClick={() => setEditing(null)} className="px-2 text-muted hover:text-primary">Cancel</button>
-          </div>
+          {(editing.col === "target" ? isManager : editing.userId === data.viewerId) ? (
+            <div className="flex flex-wrap gap-2">
+              <input autoFocus value={amount} onChange={(e) => setAmount(e.currentTarget.value)} inputMode="decimal" aria-label="Amount" placeholder="Amount" className="w-32 rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />
+              <button type="button" disabled={busy} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
+              <button type="button" onClick={() => setEditing(null)} className="px-2 text-muted hover:text-primary">Cancel</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setEditing(null)} className="text-muted hover:text-primary">Close</button>
+          )}
           {msg && <p className="text-amber-700 dark:text-amber-300">{msg}</p>}
         </div>
       )}
@@ -195,5 +204,46 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
         kept, so last quarter&apos;s accuracy compares the Commit standing at its end with what actually closed (on target: 85–115%).
       </p>
     </section>
+  );
+}
+
+/**
+ * One submitted number, opened (Gong F22.3, F22.6): when it was submitted, the open deals behind it at that moment, how it
+ * moved since the one before (amount, deals in and out), and progress to target. A deal the reader can't see is counted,
+ * not named.
+ */
+function SubmissionDetail({ own, sub, moved, m, target, dealName }: {
+  own: boolean;
+  sub: Submission | null;
+  moved: ReturnType<typeof movement>;
+  m: ReturnType<typeof metrics>;
+  target: number | null;
+  dealName: (id: string) => string | null;
+}) {
+  const names = (ids: string[]) => {
+    const named = ids.map(dealName).filter((n): n is string => !!n);
+    const rest = ids.length - named.length;
+    return [...named, ...(rest ? [`${rest} more`] : [])].join(", ");
+  };
+  return (
+    <div className="space-y-1 text-secondary">
+      <p>
+        {own ? "Your open" : "Open"} deals expected to close this quarter: {money(m.openClosing)}; closed won so far: {money(m.closedWon)}
+        {target ? ` (${Math.round((m.closedWon / target) * 100)}% of the ${money(target)} target)` : ""}.
+      </p>
+      {sub ? (
+        <>
+          <p>Submitted {new Date(sub.createdAt).toLocaleString()} with {sub.deals?.length ?? 0} open deal{sub.deals?.length === 1 ? "" : "s"} behind it{sub.deals?.length ? `: ${names(sub.deals.map((d) => d.id))}` : ""}.</p>
+          {moved ? (
+            <p>
+              Since {new Date(moved.since).toLocaleDateString()}: {moved.change === 0 ? "no change" : `${moved.change > 0 ? "up" : "down"} ${money(Math.abs(moved.change))}`}
+              {moved.added.length ? `; in: ${names(moved.added)}` : ""}{moved.dropped.length ? `; out: ${names(moved.dropped)}` : ""}.
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p>Not submitted yet.</p>
+      )}
+    </div>
   );
 }

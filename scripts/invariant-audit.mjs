@@ -74,7 +74,8 @@ const CSV_EXPORT_ALLOWLIST = new Map([
 // Extracted + self-tested (guard-integrity 2026-07-31, INV1-6 got no self-test before): the "wired to the
 // safe CSV primitive" matcher is the fragile part — a rename of csvSafe or a regex typo here would make INV1
 // silently pass every export. The self-test at the bottom locks it.
-const CSV_ROUTED_RE = /csvSafe|neutralizeCsvFormula|toCsv|statementsToCsv|gridToCsv/;
+// winLossCsv (src/lib/coach/remote/winLoss.ts) builds its rows through toCsv, like gridToCsv and statementsToCsv.
+const CSV_ROUTED_RE = /csvSafe|neutralizeCsvFormula|toCsv|statementsToCsv|gridToCsv|winLossCsv/;
 
 for (const f of FILES) {
   const producesCsv =

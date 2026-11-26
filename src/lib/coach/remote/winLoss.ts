@@ -9,13 +9,27 @@
  */
 export const MIN_CLOSED = 5;
 
-type P = { status: "open" | "won" | "lost"; amount: number | null; callCount: number };
-export type Band = { label: string; won: number; lost: number; winRate: number | null };
+import { toCsv } from "@/lib/export/toCsv";
+
+type P = { id?: string; status: "open" | "won" | "lost"; amount: number | null; callCount: number };
+/** One row of a breakdown; `ids` are its closed deals, so the row can open them (Gong F20.10: each bar opens its deals). */
+export type Band = { label: string; won: number; lost: number; winRate: number | null; ids: string[] };
 
 function band(label: string, rows: P[]): Band {
   const won = rows.filter((r) => r.status === "won").length;
   const lost = rows.filter((r) => r.status === "lost").length;
-  return { label, won, lost, winRate: won + lost >= MIN_CLOSED ? won / (won + lost) : null };
+  return { label, won, lost, winRate: won + lost >= MIN_CLOSED ? won / (won + lost) : null, ids: rows.flatMap((r) => (r.id ? [r.id] : [])) };
+}
+
+/**
+ * The math behind the breakdowns as CSV (F20.10): one line per row — breakdown, group, won, lost, closed, win rate. A row
+ * below MIN_CLOSED has an empty rate, as on screen. Through the shared toCsv (formula-safe, CWE-1236). Pure.
+ */
+export function winLossCsv(sections: Array<{ breakdown: string; rows: Band[] }>): string {
+  return toCsv(
+    sections.flatMap((s) => s.rows.map((r) => ({ breakdown: s.breakdown, group: r.label, won: r.won, lost: r.lost, closed: r.won + r.lost, win_rate: r.winRate === null ? "" : (Math.round(r.winRate * 1000) / 10).toFixed(1) }))),
+    ["breakdown", "group", "won", "lost", "closed", "win_rate"],
+  );
 }
 
 const closedDeals = (ps: P[]) => ps.filter((p) => p.status === "won" || p.status === "lost");

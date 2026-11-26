@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { ForecastBoard } from "../ForecastBoard";
 
 /** The forecast board (0376): rows, the team roll-up with how many submitted, and a failed read said as one. */
@@ -31,5 +31,21 @@ describe("ForecastBoard", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ prospects: [] }))));
     render(<ForecastBoard deals={deals} people={[]} isManager={false} nameOf={() => null} today="2026-11-27" />);
     expect(await screen.findByText(/Couldn.t load the forecast/)).toBeTruthy();
+  });
+  it("opening a rep's submitted number shows the deals behind it and how it moved, with nothing to edit (F22.3, F22.6)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      period: "2026-Q4", viewerId: "me",
+      submissions: [
+        { userId: "r2", period: "2026-Q4", category: "commit", amount: 300, createdAt: "2026-11-10T00:00:00Z", deals: [{ id: "d1", amount: 300 }] },
+        { userId: "r2", period: "2026-Q4", category: "commit", amount: 700, createdAt: "2026-11-20T00:00:00Z", deals: [{ id: "d2", amount: 400 }, { id: "dx", amount: 300 }] },
+      ],
+      targets: [],
+    }))));
+    const named = [{ id: "d1", name: "Acme", repId: "r2", status: "open" as const, amount: 300, closeDate: "2026-12-01" }, { id: "d2", name: "Globex", repId: "r2", status: "open" as const, amount: 400, closeDate: "2026-12-10" }];
+    render(<ForecastBoard deals={named} people={["me", "r2"]} isManager nameOf={(id) => (id === "r2" ? "Sam" : null)} today="2026-11-27" />);
+    fireEvent.click(await screen.findByRole("button", { name: /700/ }));
+    expect(screen.getByText(/2 open deals behind it: Globex, 1 more/)).toBeTruthy();
+    expect(screen.getByText(/up \$400; in: Globex, 1 more; out: Acme/)).toBeTruthy();
+    expect(screen.queryByLabelText("Amount")).toBeNull();
   });
 });

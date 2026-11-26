@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { accuracyBand, accuracyOverQuarter, latest, metrics, periodOf, periodRange, rollUp, shiftPeriod, type Submission } from "../forecast";
+import { accuracyBand, accuracyOverQuarter, latest, metrics, periodOf, periodRange, rollUp, shiftPeriod, type Submission, movement } from "../forecast";
 
 /** The forecast board (0376; Gong M22): quarters, computed columns, the latest submission, roll-up, accuracy. */
 describe("quarters", () => {
@@ -47,5 +47,15 @@ describe("submissions", () => {
     const weeks = accuracyOverQuarter(subs, "a", "2026-Q4", 150);
     expect(weeks[0]).toEqual({ asOf: "2026-10-07", forecast: 100, accuracy: { ratio: 100 / 150, band: "red" } });
     expect(weeks.at(-1)).toMatchObject({ forecast: 150, accuracy: { band: "green" } });
+  });
+});
+
+describe("movement (F22.6)", () => {
+  const sub = (amount: number, createdAt: string, ids: string[]) => ({ userId: "u", period: "2026-Q4", category: "commit" as const, amount, createdAt, deals: ids.map((id) => ({ id, amount: null })) });
+  it("the latest against the one before: change, deals in and out", () => {
+    expect(movement([sub(700, "2026-11-20", ["b", "c"]), sub(300, "2026-11-10", ["a", "b"])], "u", "2026-Q4", "commit")).toEqual({ change: 400, added: ["c"], dropped: ["a"], since: "2026-11-10" });
+  });
+  it("one submission has no movement", () => {
+    expect(movement([sub(300, "2026-11-10", ["a"])], "u", "2026-Q4", "commit")).toBeNull();
   });
 });

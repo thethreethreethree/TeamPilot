@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   const db = callerScopedDb(req) ?? (await createClient());
   // Every row, oldest first (the latest per person wins below; a capped read would silently drop the newest).
   const [subs, targets] = await Promise.all([
-    fetchAllPagedResult<{ id: number; user_id: string; period: string; category: string; amount: number; created_at: string }>((f, t) => db.from("forecast_submissions").select("id, user_id, period, category, amount, created_at").in("period", periods).order("id").range(f, t), { label: "forecast submissions" }),
+    fetchAllPagedResult<{ id: number; user_id: string; period: string; category: string; amount: number; deals: Array<{ id: string; amount: number | null }> | null; created_at: string }>((f, t) => db.from("forecast_submissions").select("id, user_id, period, category, amount, deals, created_at").in("period", periods).order("id").range(f, t), { label: "forecast submissions" }),
     fetchAllPagedResult<{ id: number; user_id: string; period: string; amount: number; created_at: string }>((f, t) => db.from("forecast_targets").select("id, user_id, period, amount, created_at").in("period", periods).order("id").range(f, t), { label: "forecast targets" }),
   ]);
   if (subs.error || targets.error) {
@@ -52,6 +52,8 @@ export async function GET(req: NextRequest) {
     viewerId: ctx.userId,
     submissions: (subs.data ?? []).map((x) => ({
       userId: x.user_id, period: x.period, category: x.category, amount: Number(x.amount), createdAt: x.created_at,
+      // The open deals behind the number when it was submitted (F22.3); names come from the deals the reader can see.
+      deals: Array.isArray(x.deals) ? x.deals.map((d) => ({ id: String(d.id), amount: d.amount === null ? null : Number(d.amount) })) : [],
     })),
     targets: [...t.values()],
   });
