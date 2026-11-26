@@ -1973,6 +1973,7 @@ st("INV26 reachability is TRANSITIVE, not one hop", (() => {
 // a tenant filter carried by a variable whose name does not contain "company". Those need a human; this
 // catches the common direct shape, which is the one both of today's defects had.
 const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/prospects/[pid]/playbook/route.ts::deal_element_notes::write", "0373: an INSERT whose rows carry company_id from the deal row read just above through the CALLER's client (prospects' RLS + tree); the service role writes only the AI read (ai_suggest), which no person may insert."],
   ["src/app/api/coach/remote/settings/vocabulary/reapply/route.ts::coaching_transcript_segments_current::session_id", "the session ids come from the coaching_sessions read just above it, pinned to the admin's company (.eq(\"company_id\", ctx.companyId)); the view has no company column."],
   // ── the caller's OWN row, not a tenant read ────────────────────────────────────────────────────────
   ...[
@@ -2558,6 +2559,8 @@ for (const f of FILES) {
 // append-only rules yield to it — are not a second door: the function stays single and only the erasure route calls it
 // (checked above). Each is named here WITH what it adds, so a new mention of the flag still fails until reviewed.
 const ERASURE_EXTENSIONS = new Map([
+  ["0373_deal_playbooks.sql",
+    "Playbook notes and the AI reviewer's reads (revenue Phase 3b) can quote the customer: deal_element_notes' append-only rules yield to erasure with 0285's exact pattern; rss_erase_sessions is 0370's exact body plus one step blanking the notes and reads on the erased calls' deals, and rss_erase_prospects is 0323's exact body plus the same step for the confirmed prospects. Same functions, same single caller."],
   ["0370_accounts_and_contacts.sql",
     "Accounts and contacts (revenue Phase 1) hold customer names: their append-only rules yield to erasure with 0285's exact pattern; rss_erasure_contact_matches / rss_erase_contacts show and erase the confirmed ones (0323's pattern, the same route and request, before rss_erase_sessions); rss_erase_sessions is 0369's exact body plus one step renaming the contacts on the erased calls and the accounts only the erased deals were on. Same function, same single caller."],
   ["0323_erasure_prospects.sql",
@@ -2841,6 +2844,7 @@ const PAGING_UNIQUE_ALLOWLIST = new Map([
 // reads a call table under the hide rules (or events about a call) calls hiddenFrom /
 // hiddenInCompanyFrom / hiddenCallsForCompany, or is listed here with why no hidden call can reach a person.
 const HIDE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/prospects/[pid]/playbook/route.ts", "0373: every call and transcript line is read through the CALLER's client (coaching_sessions and transcripts' RLS, rss_not_hidden applies); the service role only inserts the AI's notes afterwards and reads no call."],
   ["src/app/api/coach/remote/settings/vocabulary/reapply/route.ts", "company admins only (a hide never hides a call from an admin, 0337), and it returns counts only — no call, line or label reaches the person."],
   ["src/app/api/coach/remote/courses/route.ts", "0359: reads library_items ids and folder ids only, to check a lesson's call is in a company folder; returns nothing about the call. The rep opens it in the library, whose route filters hidden calls (hiddenFrom)."],
   ["src/app/api/coach/sales-session/recordings/route.ts", "in-person (door) recordings — the hide is for phone/video calls (0337)."],

@@ -23,6 +23,7 @@ export type BoardDeal = {
   accountName?: string | null;
   contacts?: number;
   sentiment?: { last: "warming" | "cooling" | "flat" } | null;
+  playbook?: Array<{ letter: string; name: string; state: "empty" | "ai_found" | "noted" | "validated" }>;
 };
 
 export type ClosePeriod = "overdue" | "this_month" | "next_month" | "this_quarter" | "next_quarter" | "none";

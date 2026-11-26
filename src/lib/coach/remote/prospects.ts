@@ -4,6 +4,7 @@ import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isTaskClosed } from "@/lib/tasks/statusLabels";
 import { rankOf, type Rank } from "./revenue/rank";
+import { replayNotes, type Element, type NoteEvent, type NoteState } from "./revenue/playbook";
 
 /**
  * Remote Sales pipeline reads (0303). Every read goes through the CALLER's client, so remote_prospects' RLS decides
@@ -41,6 +42,8 @@ export type ProspectRow = {
   signals?: { lastTwoWayAt: string | null; pricingMentioned: boolean; stageEnteredAt: string | null; contacts: Array<{ rank: Rank; lastOnCall: string | null }> };
   /** The company's limit for this deal's stage (0372 stall_days), when it has one. */
   stallDays?: number | null;
+  /** Revenue Phase 3b (0373): each playbook element's letter and its note's state on this deal. */
+  playbook?: Array<{ letter: string; name: string; state: NoteState }>;
 };
 
 type CurrentRow = {
@@ -194,6 +197,35 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
       if (st.stall_days) stall.set(st.name.trim().toLowerCase(), st.stall_days);
     }
   }
+  // Revenue Phase 3b (0373): the company's playbook and each deal's note states (the replay is the rule, playbook.ts).
+  const playbookOf = new Map<string, Array<{ letter: string; name: string; state: NoteState }>>();
+  {
+    const { data: pb, error: pbErr } = await db.from("deal_playbook_current").select("id, elements").maybeSingle();
+    if (pbErr) {
+      console.error(`[prospects] playbook failed: ${pbErr.message}`);
+      return null;
+    }
+    if (pb) {
+      const elements = pb.elements as Element[];
+      const evs = new Map<string, NoteEvent[]>();
+      for (let i = 0; i < ids.length; i += 150) {
+        const { data: ns, error: nErr } = await fetchAllPagedResult<{ id: number; prospect_id: string; element: number; action: NoteEvent["action"]; actor_id: string; created_at: string }>(
+          (from, to) => db.from("deal_element_notes").select("id, prospect_id, element, action, actor_id, created_at").eq("playbook_id", pb.id).in("prospect_id", ids.slice(i, i + 150)).order("id").range(from, to),
+          { label: "deal notes", maxRows: 200_000 },
+        );
+        if (nErr) {
+          console.error(`[prospects] deal notes failed: ${nErr.message}`);
+          return null;
+        }
+        // Only the actions matter for the state (text isn't read here); a stand-in note lets 'write' replay.
+        for (const n of ns ?? []) evs.set(String(n.prospect_id), [...(evs.get(String(n.prospect_id)) ?? []), { element: n.element, action: n.action, note: n.action === "write" ? "·" : null, ai: null, actorId: n.actor_id, at: n.created_at }]);
+      }
+      for (const id of ids) {
+        const views = replayNotes(evs.get(String(id)) ?? [], elements.length);
+        playbookOf.set(String(id), elements.map((e, k) => ({ letter: e.letter, name: e.name, state: views[k]!.state })));
+      }
+    }
+  }
   // OFFSET paging can hand back a row twice when a deal changes mid-read; each deal appears once.
   const seen = new Set<string>();
   const unique = rows.filter((r) => (seen.has(String(r.id)) ? false : (seen.add(String(r.id)), true)));
@@ -205,5 +237,6 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
     contacts: contactCount.get(String(r.id)) ?? 0,
     signals: signals.get(String(r.id)),
     stallDays: r.stage_label ? stall.get(r.stage_label.trim().toLowerCase()) ?? null : null,
+    playbook: playbookOf.get(String(r.id)),
   }));
 }

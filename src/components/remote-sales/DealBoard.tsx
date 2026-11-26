@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Bookmark, Plus, Settings2, Trash2, X } from "lucide-react";
+import { AlertCircle, BookOpen, Bookmark, Plus, Settings2, Trash2, X } from "lucide-react";
+import { parseElements, type Element } from "@/lib/coach/remote/revenue/playbook";
 import { byStage, filterDeals, rollUp, type BoardDeal, type BoardFilters, type ClosePeriod, type Stage } from "@/lib/coach/remote/revenue/dealBoard";
 import { dealRisk, RISK_WORDS } from "@/lib/coach/remote/dealRisk";
 
@@ -43,6 +44,7 @@ export function DealBoard({
   const [saving, setSaving] = useState(false);
   const [viewName, setViewName] = useState("");
   const [editStages, setEditStages] = useState(false);
+  const [editPlaybook, setEditPlaybook] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   const loadViews = async () => {
@@ -60,6 +62,8 @@ export function DealBoard({
   }, []);
 
   const shown = useMemo(() => filterDeals(deals, f, today), [deals, f, today]);
+  const withPlaybook = deals.some((d) => d.playbook?.length);
+  const cols = withPlaybook ? 10 : 9;
   const total = rollUp(shown);
   const groups = f.status === "open" || !f.status ? byStage(shown, stages) : [{ name: f.status === "won" ? "Closed Won" : "Closed Lost", listed: false, deals: shown }];
   const stageNames = useMemo(() => {
@@ -136,12 +140,18 @@ export function DealBoard({
         <input value={viewName} onChange={(e) => setViewName(e.currentTarget.value)} maxLength={40} placeholder="Name this view" aria-label="View name" className={`${field} w-36`} />
         <button type="button" disabled={saving || !viewName.trim()} onClick={() => void saveView()} className="rounded-lg border border-default px-2 py-1 text-primary disabled:opacity-50">Save view</button>
         {canEditStages && (
-          <button type="button" onClick={() => setEditStages((v) => !v)} className="ml-auto inline-flex items-center gap-1 text-secondary hover:text-primary">
-            <Settings2 className="h-3.5 w-3.5" aria-hidden /> Stages
-          </button>
+          <span className="ml-auto inline-flex items-center gap-3">
+            <button type="button" onClick={() => setEditPlaybook((v) => !v)} className="inline-flex items-center gap-1 text-secondary hover:text-primary">
+              <BookOpen className="h-3.5 w-3.5" aria-hidden /> Playbook
+            </button>
+            <button type="button" onClick={() => setEditStages((v) => !v)} className="inline-flex items-center gap-1 text-secondary hover:text-primary">
+              <Settings2 className="h-3.5 w-3.5" aria-hidden /> Stages
+            </button>
+          </span>
         )}
       </div>
       {msg && <p className="text-xs text-amber-700 dark:text-amber-300">{msg}</p>}
+      {editPlaybook && canEditStages && <PlaybookPicker onSaved={() => { setEditPlaybook(false); onStagesSaved(); }} />}
       {editStages && canEditStages && <StagesEditor stages={stages} onSaved={() => { setEditStages(false); onStagesSaved(); }} />}
 
       <p className="text-xs text-secondary">
@@ -165,6 +175,7 @@ export function DealBoard({
                 <th className="px-3 py-2 font-medium">Next call</th>
                 <th className="px-3 py-2 text-right font-medium">Contacts</th>
                 <th className="px-3 py-2 font-medium">Risk</th>
+                {withPlaybook && <th className="px-3 py-2 font-medium">Playbook</th>}
                 <th className="px-3 py-2 font-medium">To do</th>
               </tr>
             </thead>
@@ -173,13 +184,13 @@ export function DealBoard({
               return (
                 <tbody key={g.name}>
                   <tr className="border-b border-default bg-base/60">
-                    <th colSpan={9} className="px-3 py-1.5 text-left text-[11px] font-semibold text-primary">
+                    <th colSpan={cols} className="px-3 py-1.5 text-left text-[11px] font-semibold text-primary">
                       {g.name}{g.listed || f.status !== "open" ? "" : " (not on the stage list)"}
                       <span className="ml-2 font-normal text-muted">{r.count} · {money(r.amount)}{r.unpriced ? ` · ${r.unpriced} unpriced` : ""}</span>
                     </th>
                   </tr>
                   {g.deals.length === 0 && (
-                    <tr className="border-b border-default"><td colSpan={9} className="px-3 py-1.5 text-[11px] text-muted">None.</td></tr>
+                    <tr className="border-b border-default"><td colSpan={cols} className="px-3 py-1.5 text-[11px] text-muted">None.</td></tr>
                   )}
                   {g.deals.map((d) => {
                     const risk = dealRisk(d, today);
@@ -205,6 +216,15 @@ export function DealBoard({
                             </span>
                           )}
                         </td>
+                        {withPlaybook && (
+                          <td className="px-3 py-2">
+                            <span className="inline-flex gap-0.5" aria-label={(d.playbook ?? []).map((x) => `${x.name}: ${x.state.replace("_", " ")}`).join(", ")}>
+                              {(d.playbook ?? []).map((x, k) => (
+                                <span key={k} className={`rounded px-1 text-[10px] font-semibold ${x.state === "validated" ? "bg-brand text-black" : x.state === "noted" ? "bg-brand/20 text-primary" : x.state === "ai_found" ? "border border-brand/60 text-primary" : "border border-default text-muted"}`}>{x.letter}</span>
+                              ))}
+                            </span>
+                          </td>
+                        )}
                         <td className="px-3 py-2 text-secondary">{d.nextTodo?.title ? `${d.nextTodo.title}${d.nextTodo.due ? ` (${short(d.nextTodo.due)})` : ""}` : "—"}</td>
                       </tr>
                     );
@@ -284,6 +304,85 @@ function StagesEditor({ stages, onSaved }: { stages: Stage[] | null; onSaved: ()
         <button type="button" disabled={rows.length >= 20} onClick={() => setRows((cur) => [...cur, { name: "", kind: "open" }])} className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-primary disabled:opacity-50"><Plus className="h-3.5 w-3.5" aria-hidden /> Add a stage</button>
         <button type="button" disabled={busy || rows.some((x) => !x.name.trim())} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">{busy ? "Saving…" : "Save stages"}</button>
       </div>
+      {err && <p className="text-amber-700 dark:text-amber-300">{err}</p>}
+    </div>
+  );
+}
+
+/**
+ * The company's playbook (0373; Gong F20.6): MEDDICC, BANT, SPICED or your own. Changing it starts every deal's letters
+ * fresh under the new one; notes written under the old one stay on record with it.
+ */
+function PlaybookPicker({ onSaved }: { onSaved: () => void }) {
+  const [current, setCurrent] = useState<{ key: string; name: string; elements: Element[] } | null | undefined>(undefined);
+  const [builtIns, setBuiltIns] = useState<Record<string, { name: string; elements: Element[] }>>({});
+  const [custom, setCustom] = useState<Element[]>([{ letter: "", name: "", question: "" }]);
+  const [customName, setCustomName] = useState("Our playbook");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/coach/remote/playbooks", { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        const j = (await r.json()) as { playbook: { key: string; name: string; elements: Element[] } | null; builtIns: Record<string, { name: string; elements: Element[] }> };
+        setCurrent(j.playbook);
+        setBuiltIns(j.builtIns);
+        if (j.playbook?.key === "custom") {
+          setCustom(j.playbook.elements);
+          setCustomName(j.playbook.name);
+        }
+      })
+      .catch(() => setErr("Couldn't load the playbook."));
+  }, []);
+  const save = async (body: Record<string, unknown>) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch("/api/coach/remote/playbooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(j.error ?? "Couldn't save the playbook.");
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't save the playbook.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const customCheck = parseElements(custom);
+  return (
+    <div className="space-y-2 rounded-xl border border-default bg-surface p-3 text-xs">
+      <p className="font-semibold text-primary">Your company&apos;s deal playbook</p>
+      <p className="text-secondary">
+        {current === undefined ? "Loading…" : current ? `Now: ${current.name} (${current.elements.map((e) => e.letter).join(" ")}).` : "None chosen yet."} Every deal
+        shows one letter per element; the AI reviewer looks for each in the deal&apos;s calls. Changing it starts the letters fresh;
+        notes written under the old one stay on record.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(builtIns).map(([key, b]) => (
+          <button key={key} type="button" disabled={busy || current?.key === key} onClick={() => void save({ key })} className="rounded-lg border border-default px-2 py-1 text-primary disabled:opacity-50" title={b.elements.map((e) => `${e.letter} — ${e.name}`).join("\n")}>
+            {current?.key === key ? `${b.name} (in use)` : `Use ${b.name}`}
+          </button>
+        ))}
+      </div>
+      <details className="rounded-lg border border-default p-2">
+        <summary className="cursor-pointer text-primary">Or write your own</summary>
+        <div className="mt-2 space-y-1.5">
+          <input value={customName} onChange={(e) => setCustomName(e.currentTarget.value)} maxLength={40} aria-label="Playbook name" className={`${field} w-full`} />
+          {custom.map((el, i) => (
+            <div key={i} className="flex flex-wrap gap-1.5">
+              <input value={el.letter} maxLength={3} placeholder="B" aria-label={`Element ${i + 1} label`} onChange={(e) => { const v = e.currentTarget.value; setCustom((c) => c.map((x, k) => (k === i ? { ...x, letter: v } : x))); }} className={`${field} w-12`} />
+              <input value={el.name} maxLength={40} placeholder="Budget" aria-label={`Element ${i + 1} name`} onChange={(e) => { const v = e.currentTarget.value; setCustom((c) => c.map((x, k) => (k === i ? { ...x, name: v } : x))); }} className={`${field} w-32`} />
+              <input value={el.question} maxLength={200} placeholder="Is there money for this?" aria-label={`Element ${i + 1} question`} onChange={(e) => { const v = e.currentTarget.value; setCustom((c) => c.map((x, k) => (k === i ? { ...x, question: v } : x))); }} className={`${field} min-w-0 flex-1`} />
+              <button type="button" onClick={() => setCustom((c) => c.filter((_, k) => k !== i))} aria-label={`Remove element ${i + 1}`} className="px-1 text-muted hover:text-primary"><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>
+            </div>
+          ))}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={custom.length >= 10} onClick={() => setCustom((c) => [...c, { letter: "", name: "", question: "" }])} className="inline-flex items-center gap-1 rounded-lg border border-default px-2 py-1 text-primary disabled:opacity-50"><Plus className="h-3.5 w-3.5" aria-hidden /> Add an element</button>
+            <button type="button" disabled={busy || !customCheck.ok || !customName.trim()} onClick={() => void save({ key: "custom", name: customName.trim(), elements: custom })} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Use this playbook</button>
+          </div>
+          {!customCheck.ok && custom.some((x) => x.letter || x.name || x.question) && <p className="text-[11px] text-muted">{customCheck.error}</p>}
+        </div>
+      </details>
       {err && <p className="text-amber-700 dark:text-amber-300">{err}</p>}
     </div>
   );

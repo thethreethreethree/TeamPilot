@@ -761,6 +761,23 @@ export async function customBriefCoach(args: { companyId?: string; systemPrompt:
   });
 }
 
+/**
+ * Revenue Phase 3b (0373; Gong F20.7 AI Deal Reviewer): evidence for each playbook element from a deal's calls, run on
+ * click only like a brief (controlExempt, the brief's precedent). Every answer must cite lines (playbook.parseReview).
+ */
+export async function dealReviewCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 2500,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_deal_review",
+    sessionId: args.sessionId,
+  });
+}
+
 /** Remote Sales Macro Mode (0303): a follow-up email or text for the rep to edit and send. Day-1 (controlExempt). */
 export async function followUpDraftCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
   return call({

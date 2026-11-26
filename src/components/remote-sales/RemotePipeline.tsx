@@ -3,6 +3,7 @@
 import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { DealAccountContacts, type DealContact } from "./DealAccountContacts";
 import { DealBoard } from "./DealBoard";
+import { DealPlaybook } from "./DealPlaybook";
 import { kindOf, type Stage } from "@/lib/coach/remote/revenue/dealBoard";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import Link from "next/link";
@@ -561,6 +562,7 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
       </div>
 
       <DealAccountContacts dealId={p.id} account={d.account ?? null} contacts={d.contacts ?? []} busy={busy} post={post} />
+      {!simple && <DealPlaybook dealId={p.id} />}
 
       {(p.next_call_date || d.todos.some((t) => !t.done && t.due)) && (
         <button
