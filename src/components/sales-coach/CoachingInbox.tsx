@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Inbox, Loader2 } from "lucide-react";
 import type { RepCoaching } from "@/lib/coach/remote/feedback";
+import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
 
 /**
  * The manager's coaching inbox on Coach Assessment (RSS Phase 4, Gong F16.4; docs/rss/docs/06-UI-SPEC.md).
@@ -106,6 +107,11 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
   const [names, setNames] = useState<Record<string, string>>({});
   // F16.8 (2026-11-26): the period the manager table covers — the same choices as Team call stats.
   const [days, setDays] = useState<(typeof PERIODS)[number]>(30);
+  // F16.6 (2026-11-26): looking at another manager's team, whose coaching to show — everyone's, only that manager's
+  // (theirs), or only yours. A filter on the rows; the numbers themselves don't change.
+  const me = useCurrentUserId();
+  const [coachedBy, setCoachedBy] = useState<"all" | "theirs" | "mine">("all");
+  useEffect(() => setCoachedBy("all"), [team]);
   // Whether the metrics are decided (D8), kept apart from the numbers so the period buttons stay on screen while a
   // period loads or after it fails (review 2026-11-26: clearing the numbers used to take the buttons with them).
   const [metricsDecided, setMetricsDecided] = useState(false);
@@ -246,6 +252,22 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold text-primary">Coaching in the last {metrics?.days ?? days} days</p>
             <div className="flex items-center gap-3">
+              {/* Another manager's team: whose coaching to show (only shown when a team other than yours is picked). */}
+              {team && team !== me && (
+                <div className="flex gap-1" role="group" aria-label="Coaching by">
+                  {(["all", "theirs", "mine"] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      aria-pressed={coachedBy === k}
+                      onClick={() => setCoachedBy(k)}
+                      className={`rounded px-1.5 py-0.5 text-[11px] ${coachedBy === k ? "bg-surface-raised font-semibold text-primary" : "text-muted hover:text-primary"}`}
+                    >
+                      {k === "all" ? "Everyone" : k === "theirs" ? names[team] ?? "Their manager" : "You"}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-1" role="group" aria-label="Period">
                 {PERIODS.map((p) => (
                   <button
@@ -271,9 +293,12 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
           )}
           {metrics && (() => {
             // A manager who coached in the period before but not now still gets a row — their ▼ is the point (F16.8).
-            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {}), ...Object.keys(metrics.previous?.feedbackGiven ?? {}), ...Object.keys(metrics.previous?.callsListened ?? {}), ...Object.keys(metrics.previous?.responseHours ?? {})])].sort(
-              (a, b) => (metrics.feedbackGiven[b] ?? 0) - (metrics.feedbackGiven[a] ?? 0),
-            );
+            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {}), ...Object.keys(metrics.previous?.feedbackGiven ?? {}), ...Object.keys(metrics.previous?.callsListened ?? {}), ...Object.keys(metrics.previous?.responseHours ?? {})])]
+              .filter((id) => coachedBy === "all" || (coachedBy === "theirs" ? id === team : id === me))
+              .sort((a, b) => (metrics.feedbackGiven[b] ?? 0) - (metrics.feedbackGiven[a] ?? 0));
+            if (ids.length === 0 && coachedBy !== "all") {
+              return <p className="mt-1 text-xs text-secondary">{coachedBy === "mine" ? "You haven't coached this team in this period." : "That manager hasn't coached their team in this period."}</p>;
+            }
             if (ids.length === 0) {
               return (
                 <p className="mt-1 text-xs text-secondary">

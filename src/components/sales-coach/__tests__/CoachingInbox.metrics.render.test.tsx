@@ -6,6 +6,7 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
  * The coaching metrics under the inbox (D8 decided 2026-11-22). Before the decision the route answered 409 and the panel
  * only printed why; the decided shape had nowhere to render, so deciding D8 would have unlocked an empty space.
  */
+vi.mock("@/lib/hooks/useCurrentUserId", () => ({ useCurrentUserId: () => "m1" }));
 import { CoachingInbox } from "../CoachingInbox";
 
 const fetchMock = vi.fn();
@@ -179,6 +180,37 @@ describe("CoachingInbox — change against the 30 days before (F16.8)", () => {
     render(<CoachingInbox />);
     await screen.findByText("Coaching in the last 30 days");
     expect(screen.getAllByRole("row")[1]!.textContent).toContain("3.5 d (2)▲1.5 d");
+  });
+
+  it("F16.6: on another manager's team, coaching can be shown by everyone, only theirs, or only yours", async () => {
+    metrics = { decided: true, days: 30, since: "x", sessions: 4, feedbackGiven: { m1: 2, m2: 5, m3: 1 }, callsListened: {} };
+    fetchMock.mockImplementation((url: string) => {
+      if (url.startsWith("/api/coach/remote/coaching-inbox")) return json({ available: true, items: [] });
+      if (url === "/api/team") return json({ members: [{ id: "m1", full_name: "Max Manager" }, { id: "m2", full_name: "Rae Lead" }, { id: "m3", full_name: "Sam" }] });
+      if (url.startsWith("/api/coach/remote/coaching-metrics")) return json(metrics);
+      return json({}, false);
+    });
+    render(<CoachingInbox team="m2" />);
+    await screen.findByText("Coaching in the last 30 days");
+    const rowNames = () => screen.getAllByRole("row").slice(1).map((r) => r.querySelector("td")?.textContent);
+    expect(rowNames()).toEqual(["Rae Lead", "Max Manager", "Sam"]);
+    fireEvent.click(await screen.findByRole("button", { name: "Rae Lead" }));
+    expect(rowNames()).toEqual(["Rae Lead"]);
+    fireEvent.click(screen.getByRole("button", { name: "You" }));
+    expect(rowNames()).toEqual(["Max Manager"]);
+  });
+
+  it("the filter isn't offered on your own team or with no team picked", async () => {
+    metrics = { decided: true, days: 30, since: "x", sessions: 1, feedbackGiven: { m1: 1 }, callsListened: {} };
+    fetchMock.mockImplementation((url: string) => {
+      if (url.startsWith("/api/coach/remote/coaching-inbox")) return json({ available: true, items: [] });
+      if (url === "/api/team") return json({ members: [{ id: "m1", full_name: "Max Manager" }] });
+      if (url.startsWith("/api/coach/remote/coaching-metrics")) return json(metrics);
+      return json({}, false);
+    });
+    render(<CoachingInbox team="m1" />);
+    await screen.findByText("Coaching in the last 30 days");
+    expect(screen.queryByRole("group", { name: "Coaching by" })).toBeNull();
   });
 });
 
