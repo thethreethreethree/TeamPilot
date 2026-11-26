@@ -1,3 +1,4 @@
+import { treeFilterReps } from "@/lib/api/treeAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -56,10 +57,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load team activity." }, { status: 500 });
   }
 
+  // 0273 (2026-11-26): only reps in this manager's reporting tree — the database's rule (treeFilterReps), which RLS
+  // applies everywhere else; this read uses the service role. Before, a manager saw every rep's activity company-wide.
+  const allowed = new Set(await treeFilterReps(req, [...new Set(rows.map((r) => r.agent_id).filter((x): x is string => !!x))]));
   const byAgent: Record<string, { count: number; lastActiveAt: string; withAudio: number }> = {};
   for (const r of rows) {
     const id = r.agent_id;
-    if (!id) continue;
+    if (!id || !allowed.has(id)) continue;
     const cur = byAgent[id] ?? { count: 0, lastActiveAt: "", withAudio: 0 };
     cur.count += 1;
     if (r.audio_asset_url) cur.withAudio += 1;

@@ -2429,6 +2429,7 @@ for (const f of FILES) {
 // THE RULE: a route that calls requireSalesCoachManager AND createAdminClient must call treeAllowsRep or
 // treeFilterReps (src/lib/api/treeAccess.ts), or be allowlisted here WITH the reason its service-role use
 // cannot reach another rep's data.
+const MANAGER_CHECK_RE = /requireSalesCoachManager\(|isSalesCoachManager\(|canManagerViewRepSkills\(/;
 const TREE_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/coach/remote/market/topic-groups/route.ts",
     "0319 topic groups are a COMPANY setting (how the company's topic labels are counted), not a rep's data. The service role only inserts a group or a retirement pinned to the manager's company and reads one group id of that company; no rep is read or acted on. The topics a manager may group are read through the CALLER's client (readMarketInputs), so they are already limited by the reporting tree."],
@@ -2446,12 +2447,36 @@ const TREE_ROUTE_ALLOWLIST = new Map([
     "0326: the service role reads and writes only company-wide objects — scenario rubric-item tags and the scenario row being tagged, pinned to the manager's company, exactly like the stages route. No rep data is read here (the rubric items come from code)."],
   ["src/app/api/coach/remote/scenarios/stages/route.ts",
     "The service role reads and writes only company-wide objects — scenario stage tags and the scenario row being tagged (0310), both pinned to the manager's company, like the scenarios route. The one read of rep data (stage names on prospects) goes through the caller's own client, so the reporting tree applies."],
+  // Added 2026-11-26 when the check was widened to every manager check (isSalesCoachManager / canManagerViewRepSkills):
+  ["src/app/api/coach/sales-session/[id]/retranscribe/route.ts",
+    "Opens the call through the caller's client (getSession — RLS, which applies the reporting tree) before any service-role work on it."],
+  ["src/app/api/coach/sales-session/[id]/upload-recording/route.ts",
+    "Opens the call through the caller's client (getSession — RLS applies the tree) before the service-role write of its audio pointer."],
+  ["src/app/api/coach/sales-session/[id]/why/route.ts",
+    "Opens the call through the caller's client (getSession — RLS applies the tree) before reading or writing its why-events."],
+  ["src/app/api/coach/sales-session/team-analytics/route.ts",
+    "Company aggregates only — anonymous totals and a count of active coaches, no per-rep row (A18); nothing names a rep."],
+  ["src/app/api/coach/sales-session/team/route.ts",
+    "The roster (names, roles, invitations) of the company — who is on the team, not their calls or coaching; managers assign and invite from it."],
+  ["src/app/api/coach/sales-session/corpus/route.ts",
+    "A company setting (the coaching corpus); the service role reads profiles only to check the caller's role. No rep data."],
+  ["src/app/api/coach/sales-session/product/route.ts",
+    "A company setting (the product description); the service role reads profiles only to check the caller's role. No rep data."],
+  ["src/app/api/coach/sales-session/voice/route.ts",
+    "A company setting (care_tenant_config voice); no rep data."],
+  ["src/app/api/team/import/route.ts",
+    "Company admins only (ctx.isAdmin): building the team itself, including who reports to whom."],
+  ["src/app/api/team/set-manager/route.ts",
+    "Company admins only (ctx.isAdmin): setting who reports to whom is what defines the tree."],
   ["src/app/api/coach/sales-session/pitch-score/leaderboard/route.ts",
     "The Scoreboard is a company-wide ranking shown to reps as well as managers, by product design; it returns standings and names, not sessions, scores' evidence or transcripts."],
 ]);
 for (const f of FILES) {
   if (!/^src\/app\/api\/.*\/route\.ts$/.test(f.path)) continue;
-  if (!/requireSalesCoachManager\(/.test(f.sql) || !/createAdminClient\(/.test(f.sql)) continue;
+  // WIDENED 2026-11-26: any manager check, not only requireSalesCoachManager — six routes (session list, recordings, rep
+  // and team activity, skills, ELO) decided "manager" with isSalesCoachManager / canManagerViewRepSkills and so were never
+  // checked, and none asked the tree.
+  if (!MANAGER_CHECK_RE.test(f.sql) || !/createAdminClient\(/.test(f.sql)) continue;
   if (/treeAllowsRep\(|treeFilterReps\(/.test(f.sql)) continue;
   if (TREE_ROUTE_ALLOWLIST.has(f.path)) continue;
   findings.push({
@@ -2465,7 +2490,7 @@ for (const f of FILES) {
 }
 for (const key of TREE_ROUTE_ALLOWLIST.keys()) {
   const f = FILES.find((x) => x.path === key);
-  if (f && /requireSalesCoachManager\(/.test(f.sql) && /createAdminClient\(/.test(f.sql)) continue;
+  if (f && MANAGER_CHECK_RE.test(f.sql) && /createAdminClient\(/.test(f.sql)) continue;
   findings.push({
     rule: "stale reporting-tree route exception",
     file: key,

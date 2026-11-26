@@ -16,6 +16,9 @@ vi.mock("@/lib/coach/v5/salesElo", () => ({ getAgentEloRating: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAgentEloRating } from "@/lib/coach/v5/salesElo";
+// 0273 (2026-11-26): the reporting tree — allowed unless a test says the rep is outside it.
+const tree = vi.hoisted(() => ({ allowed: true }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => (tree.allowed ? ids : [])) }));
 import { GET } from "../route";
 
 const setCaller = (userId: string | null, profile: unknown) =>
@@ -82,5 +85,13 @@ describe("GET /elo — access + exposure", () => {
     setCaller("boss", MANAGER);
     setTarget("coOTHER");
     expect((await GET(req("repX"))).status).toBe(404);
+  });
+  it("404 when the rep is outside the manager's reporting tree (0273)", async () => {
+    setCaller("boss", MANAGER);
+    setTarget("co1");
+    tree.allowed = false;
+    const res = await GET(req("rep2"));
+    tree.allowed = true;
+    expect(res.status).toBe(404);
   });
 });

@@ -20,6 +20,9 @@ vi.mock("@/lib/claude", () => ({ dissectCoachV5: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { getRecentAfterPitchSummariesAdmin } from "@/lib/data/salesCoach";
+// 0273 (2026-11-26): the reporting tree — allowed unless a test says the rep is outside it.
+const tree = vi.hoisted(() => ({ allowed: true }));
+vi.mock("@/lib/api/treeAccess", () => ({ treeAllowsRep: vi.fn(async () => tree.allowed), treeFilterReps: vi.fn(async (_r: unknown, ids: string[]) => (tree.allowed ? ids : [])) }));
 import { GET } from "../route";
 
 /** profiles read is keyed by the eq'd id: caller (auth.user.id) then target (requestedAgentId). */
@@ -74,5 +77,13 @@ describe("GET /skills — ?agentId manager-access gate (A18)", () => {
     const res = await GET(req("rep2"));
     expect(res.status).toBe(200);
     expect(recentMock).toHaveBeenCalledWith("rep2", expect.any(Number)); // the REQUESTED rep, not the caller
+  });
+  it("404 when the rep is outside the manager's reporting tree (0273)", async () => {
+    setup("boss", { boss: MANAGER, rep2: { company_id: "co1" } });
+    tree.allowed = false;
+    const res = await GET(req("rep2"));
+    tree.allowed = true;
+    expect(res.status).toBe(404);
+    expect(recentMock).not.toHaveBeenCalledWith("rep2", expect.any(Number));
   });
 });
