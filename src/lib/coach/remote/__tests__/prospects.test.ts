@@ -99,3 +99,19 @@ describe("listProspects", () => {
     expect(await listProspects(db({ prospects: [P], links: [{ prospect_id: "p1", task_id: "t1" }], tasks: [], fail: "tasks" }).client)).toBeNull();
   });
 });
+
+describe("listProspects for a scheduled job (companyId, 2026-11-27)", () => {
+  const tables = ["remote_prospects_current", "remote_prospect_tasks", "tasks", "accounts_current", "deal_contacts_current", "deal_stage_list_current", "deal_playbook_current"];
+  const run = (companyId?: string) => {
+    const r = db({ prospects: [{ ...P, account_id: "a1" }], links: [{ prospect_id: "p1", task_id: "t1" }], tasks: [{ id: "t1", title: "x", status: "To Do", due_date: null }], accounts: [{ id: "a1", name: "Acme" }], dealContacts: [{ prospect_id: "p1", contact_id: "c1" }] });
+    return listProspects(r.client, undefined, companyId ? { companyId } : {}).then(() => r.seen);
+  };
+  it("pins every table read to the company: the service role has no RLS to do it", async () => {
+    const seen = await run("co1");
+    for (const t of tables) expect(seen[t], t).toContainEqual(["eq", "company_id", "co1"]);
+  });
+  it("a user's call adds no pin (RLS is its boundary)", async () => {
+    const seen = await run();
+    for (const t of tables) expect((seen[t] ?? []).some((c) => c[0] === "eq" && c[1] === "company_id"), t).toBe(false);
+  });
+});

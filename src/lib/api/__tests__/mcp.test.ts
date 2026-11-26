@@ -16,7 +16,7 @@ vi.mock("@/lib/api/publicApi", () => ({
   OUTSIDE_READER: "00000000-0000-0000-0000-000000000000",
 }));
 vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenInCompanyFrom: vi.fn(async () => st.hidden) }));
-vi.mock("@/lib/coach/remote/revenue/dealCalls", () => ({ DEAL_CALLS: 5, DEAL_LINES: 900, loadDealCalls: vi.fn(async () => st.dealCalls), loadCallsByIds: vi.fn(async (_d: unknown, ids: string[]) => ((st.loadedIds = ids), [])) }));
+vi.mock("@/lib/coach/remote/revenue/dealCalls", () => ({ DEAL_CALLS: 5, DEAL_LINES: 900, loadDealCalls: vi.fn(async () => st.dealCalls), loadCallsByIds: vi.fn(async (_d: unknown, ids: string[]) => ((st.loadedIds = ids), (st.dealCalls.calls as Array<{ sessionId: string }>).filter((c) => ids.includes(c.sessionId)))) }));
 vi.mock("@/lib/coach/remote/revenue/dealBriefRun", () => ({ writeDealBrief: vi.fn(async (_a: unknown, args: unknown) => ((st.briefArgs = args), { brief: { standing: "x", happened: [], risks: [], next: [] }, createdAt: "t", stored: false })) }));
 vi.mock("@/lib/claude", () => ({ mcpAskCoach: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({
@@ -78,8 +78,8 @@ describe("MCP server", () => {
 describe("ask_account, generate_brief, find_calls (E4, completed 2026-11-27)", () => {
   const D = "11111111-1111-4111-8111-111111111111";
   const call = (id: string, startedAt: string, n = 3) => ({ sessionId: id, startedAt, version: 1, lines: Array.from({ length: n }, (_, i) => ({ seq: i + 1, speaker: "customer", text: "x", atMs: null })) });
-  it("find_calls is pinned to the company and leaves out hidden calls", async () => {
-    st.sessions = [{ id: "s1", agent_id: "r", context: "phone", started_at: "2026-11-20T00:00:00Z" }, { id: "s2", agent_id: "r", context: "video", started_at: "2026-11-19T00:00:00Z" }];
+  it("find_calls is pinned to the company and leaves out hidden calls and non-sales sessions", async () => {
+    st.sessions = [{ id: "s1", agent_id: "r", context: "phone", started_at: "2026-11-20T00:00:00Z" }, { id: "s2", agent_id: "r", context: "video", started_at: "2026-11-19T00:00:00Z" }, { id: "s3", agent_id: "r", context: "phone", session_kind: "meeting", started_at: "2026-11-18T00:00:00Z" }];
     st.hidden = new Set(["s2"]);
     const j = await (await rpc("tools/call", { name: "find_calls", arguments: {} })).json();
     expect(JSON.parse(j.result.content[0].text).calls.map((c: { id: string }) => c.id)).toEqual(["s1"]);
@@ -89,17 +89,20 @@ describe("ask_account, generate_brief, find_calls (E4, completed 2026-11-27)", (
     const j = await (await rpc("tools/call", { name: "find_calls", arguments: { since: "last week" } })).json();
     expect(j.result.isError).toBe(true);
   });
-  it("generate_brief briefs from the calls with no hide, recorded as the key's creator", async () => {
+  it("generate_brief briefs from the calls with no hide (left out before the newest are chosen), recorded as the key's creator", async () => {
     st.deal = { id: D, name: "Acme", status: "open" };
     st.dealCalls = { calls: [call("s1", "2026-11-20"), call("s2", "2026-11-19")], linked: 2 };
+    st.links = [{ session_id: "s1" }, { session_id: "s2" }];
     st.hidden = new Set(["s2"]);
     const j = await (await rpc("tools/call", { name: "generate_brief", arguments: { deal_id: D } })).json();
     expect(JSON.parse(j.result.content[0].text).brief.standing).toBe("x");
+    expect(st.loadedIds).toEqual(["s1"]);
     expect(st.briefArgs).toMatchObject({ companyId: "co1", actorId: "a", calls: [{ sessionId: "s1" }] });
   });
   it("generate_brief on a deal whose only call is hidden writes nothing", async () => {
     st.deal = { id: D, name: "Acme", status: "open" };
     st.dealCalls = { calls: [call("s2", "2026-11-19")], linked: 1 };
+    st.links = [{ session_id: "s2" }];
     st.hidden = new Set(["s2"]);
     const j = await (await rpc("tools/call", { name: "generate_brief", arguments: { deal_id: D } })).json();
     expect(j.result.isError).toBe(true);

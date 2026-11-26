@@ -1,7 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
-import { DEAL_CALLS, DEAL_LINES, loadCallsByIds, loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
+import { DEAL_CALLS, DEAL_LINES, loadCallsByIds } from "@/lib/coach/remote/revenue/dealCalls";
+import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { writeDealBrief } from "@/lib/coach/remote/revenue/dealBriefRun";
 import { basisSessions } from "@/lib/coach/remote/revenue/dealBrief";
 import { callsBlock, type CallLines } from "@/lib/coach/remote/revenue/playbook";
@@ -49,7 +50,7 @@ export const MCP_TOOLS = [
   },
   {
     name: "find_calls",
-    description: "Find calls, newest first: all of them, or those on one deal or account, optionally since a date (YYYY-MM-DD). Returns ids, dates, channel, rep and outcome — no transcripts.",
+    description: "Find sales calls, newest first: all of them, or those on one deal or account, optionally since a date (YYYY-MM-DD). Returns ids, dates, channel, rep and outcome — no transcripts.",
     inputSchema: { type: "object", properties: { deal_id: { type: "string" }, account_id: { type: "string" }, since: { type: "string" }, limit: { type: "number", minimum: 1, maximum: 50 } } },
   },
 ] as const;
@@ -82,12 +83,17 @@ async function dealInCompany(admin: SupabaseClient, companyId: string, dealId: s
   return data;
 }
 
-/** A deal's calls for an AI read, minus any call with an active hide (an outside reader is exempt from none). */
-async function dealCallsForCompany(admin: SupabaseClient, companyId: string, dealId: string): Promise<CallLines[]> {
-  const dc = await loadDealCalls(admin, dealId);
-  if (dc === "failed") throw new Error("deal calls");
+/**
+ * A deal's calls for an AI read: the newest DEAL_CALLS of its calls with no active hide (hidden calls are left out
+ * BEFORE the newest are chosen, as RLS does on the deal page, so a brief written here has the same basis as one written
+ * there and is found again instead of paid for twice; review 2026-11-27).
+ */
+async function dealCallsForCompany(admin: SupabaseClient, companyId: string, dealId: string): Promise<Array<CallLines & { version: number }>> {
   const hidden = await hiddenInCompanyFrom(admin, companyId, OUTSIDE_READER);
-  return dc.calls.filter((c) => !hidden.has(c.sessionId));
+  const ids = (await callIdsOfDeals(admin, companyId, [dealId])).filter((id) => !hidden.has(id));
+  const calls = await loadCallsByIds(admin, ids, { maxCalls: DEAL_CALLS, maxLines: DEAL_LINES });
+  if (calls === "failed") throw new Error("deal calls");
+  return calls;
 }
 
 async function accountInCompany(admin: SupabaseClient, companyId: string, accountId: string) {
@@ -195,10 +201,7 @@ export async function runTool(admin: SupabaseClient, companyId: string, name: st
   }
   if (name === "generate_brief") {
     const deal = await dealInCompany(admin, companyId, String(args.deal_id ?? ""));
-    const dc = await loadDealCalls(admin, String(deal.id));
-    if (dc === "failed") throw new Error("deal calls");
-    const hidden = await hiddenInCompanyFrom(admin, companyId, OUTSIDE_READER);
-    const calls = dc.calls.filter((c) => !hidden.has(c.sessionId));
+    const calls = await dealCallsForCompany(admin, companyId, String(deal.id));
     if (!calls.length) throw new ToolError("This deal has no call transcripts to brief from yet.");
     const r = await writeDealBrief(admin, { companyId, prospectId: String(deal.id), actorId, aiCompanyId: companyId, calls });
     if (r === "suppressed") throw new ToolError("EloState's AI isn't answering for this company right now.");
@@ -228,7 +231,7 @@ export async function runTool(admin: SupabaseClient, companyId: string, name: st
     if (since) q = q.gte("started_at", `${since}T00:00:00Z`);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    const rows = ((data ?? []) as Array<{ id: string; agent_id: string; context: string; session_kind: string | null; started_at: string; ended_at: string | null; outcome: string | null }>).filter((c) => !hidden.has(String(c.id))).slice(0, limit);
+    const rows = ((data ?? []) as Array<{ id: string; agent_id: string; context: string; session_kind: string | null; started_at: string; ended_at: string | null; outcome: string | null }>).filter((c) => !hidden.has(String(c.id)) && isSalesCall(c.session_kind ?? "sales")).slice(0, limit);
     const links = await admin.from("remote_prospect_calls").select("session_id, prospect_id").eq("company_id", companyId).in("session_id", rows.map((r) => r.id)).limit(ID_CAP);
     if (links.error) throw new Error(links.error.message);
     const dealOf = new Map(((links.data ?? []) as Array<{ session_id: string; prospect_id: string }>).map((l) => [String(l.session_id), String(l.prospect_id)]));

@@ -81,15 +81,23 @@ function toRow(r: CurrentRow, todos: TaskRow[]): ProspectRow {
   };
 }
 
-/** The prospects the caller may see, optionally one rep's. Null on a failed read (never an empty pipeline). */
-export async function listProspects(db: SupabaseClient, repId?: string, opts: { sentiment?: boolean } = {}): Promise<ProspectRow[] | null> {
+/**
+ * The prospects the caller may see, optionally one rep's. Null on a failed read (never an empty pipeline).
+ *
+ * `companyId` (2026-11-27) is for a service-role caller (a scheduled job): RLS doesn't apply there, so every table read
+ * below is pinned to that company. The reads keyed only by deal ids (signals, sentiment) are pinned through those ids,
+ * which all come from the pinned deal list. A user's client never passes it; RLS is its boundary.
+ */
+export async function listProspects(db: SupabaseClient, repId?: string, opts: { sentiment?: boolean; companyId?: string } = {}): Promise<ProspectRow[] | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pin = <Q,>(q: Q): Q => (opts.companyId ? ((q as any).eq("company_id", opts.companyId) as Q) : q);
   // Every prospect, paged (2026-11-26): the read stopped at 500, so a pipeline past 500 deals lost its oldest without a
   // word — and every page, total, forecast and win rate built on it with them. Ordered by a unique key last.
   const { data, error } = await fetchAllPagedResult<CurrentRow>(
     (from, to) => {
-      let q = db
+      let q = pin(db
         .from("remote_prospects_current")
-        .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source, close_date, next_call_time, account_id")
+        .select("id, rep_id, name, organization, status, stage_label, amount, next_call_date, last_call_at, call_count, created_at, source, close_date, next_call_time, account_id"))
         .order("created_at", { ascending: false })
         .order("id", { ascending: false });
       if (repId) q = q.eq("rep_id", repId);
@@ -109,7 +117,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
   for (let i = 0; i < ids.length; i += 150) {
     // Paged too (review 2026-11-26): 150 deals with many to-dos each can pass the 1000-row reply cap.
     const { data: links, error: lErr } = await fetchAllPagedResult<{ prospect_id: string; task_id: string; id: number }>(
-      (from, to) => db.from("remote_prospect_tasks").select("prospect_id, task_id, id").in("prospect_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      (from, to) => pin(db.from("remote_prospect_tasks").select("prospect_id, task_id, id")).in("prospect_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
       { label: "prospect to-do links", maxRows: 200_000 },
     );
     if (lErr) {
@@ -122,7 +130,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
   const taskIds = linkRows.map((l) => l.task_id);
   for (let i = 0; i < taskIds.length; i += 150) {
     // A task deleted on the Tasks board is soft-deleted (deleted_at): it is not an open to-do any more.
-    const { data: t, error: tErr } = await db.from("tasks").select("id, title, status, due_date").in("id", taskIds.slice(i, i + 150)).is("deleted_at", null);
+    const { data: t, error: tErr } = await pin(db.from("tasks").select("id, title, status, due_date")).in("id", taskIds.slice(i, i + 150)).is("deleted_at", null);
     if (tErr) {
       console.error(`[prospects] to-dos failed: ${tErr.message}`);
       return null;
@@ -148,7 +156,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
   const accountIds = [...new Set(rows.map((r) => r.account_id).filter((x): x is string => !!x))];
   const accountName = new Map<string, string>();
   for (let i = 0; i < accountIds.length; i += 150) {
-    const { data: a, error: aErr } = await db.from("accounts_current").select("id, name").in("id", accountIds.slice(i, i + 150));
+    const { data: a, error: aErr } = await pin(db.from("accounts_current").select("id, name")).in("id", accountIds.slice(i, i + 150));
     if (aErr) {
       console.error(`[prospects] accounts failed: ${aErr.message}`);
       return null;
@@ -158,7 +166,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
   const contactCount = new Map<string, number>();
   for (let i = 0; i < ids.length; i += 150) {
     const { data: dc, error: dErr } = await fetchAllPagedResult<{ prospect_id: string; contact_id: string }>(
-      (from, to) => db.from("deal_contacts_current").select("prospect_id, contact_id").in("prospect_id", ids.slice(i, i + 150)).neq("role", "removed").order("prospect_id").order("contact_id").range(from, to),
+      (from, to) => pin(db.from("deal_contacts_current").select("prospect_id, contact_id")).in("prospect_id", ids.slice(i, i + 150)).neq("role", "removed").order("prospect_id").order("contact_id").range(from, to),
       { label: "deal contacts", maxRows: 200_000 },
     );
     if (dErr) {
@@ -193,7 +201,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
   // Each stage's own limit (0372 stall_days) from the company's list; a stage with none never stalls.
   const stall = new Map<string, number>();
   {
-    const { data: list, error: lErr } = await db.from("deal_stage_list_current").select("stages").maybeSingle();
+    const { data: list, error: lErr } = await pin(db.from("deal_stage_list_current").select("stages")).maybeSingle();
     if (lErr) {
       console.error(`[prospects] stage list failed: ${lErr.message}`);
       return null;
@@ -205,7 +213,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
   // Revenue Phase 3b (0373): the company's playbook and each deal's note states (the replay is the rule, playbook.ts).
   const playbookOf = new Map<string, Array<{ letter: string; name: string; state: NoteState }>>();
   {
-    const { data: pb, error: pbErr } = await db.from("deal_playbook_current").select("id, elements").maybeSingle();
+    const { data: pb, error: pbErr } = await pin(db.from("deal_playbook_current").select("id, elements")).maybeSingle();
     if (pbErr) {
       console.error(`[prospects] playbook failed: ${pbErr.message}`);
       return null;
@@ -215,7 +223,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
       const evs = new Map<string, NoteEvent[]>();
       for (let i = 0; i < ids.length; i += 150) {
         const { data: ns, error: nErr } = await fetchAllPagedResult<{ id: number; prospect_id: string; element: number; action: NoteEvent["action"]; actor_id: string; created_at: string }>(
-          (from, to) => db.from("deal_element_notes").select("id, prospect_id, element, action, actor_id, created_at").eq("playbook_id", pb.id).in("prospect_id", ids.slice(i, i + 150)).order("id").range(from, to),
+          (from, to) => pin(db.from("deal_element_notes").select("id, prospect_id, element, action, actor_id, created_at")).eq("playbook_id", pb.id).in("prospect_id", ids.slice(i, i + 150)).order("id").range(from, to),
           { label: "deal notes", maxRows: 200_000 },
         );
         if (nErr) {

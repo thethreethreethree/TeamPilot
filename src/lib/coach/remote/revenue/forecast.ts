@@ -47,7 +47,7 @@ export function metrics(deals: FDeal[], period: string, repId?: string) {
 /** A person's current number in a column: their latest submission for the quarter (null = not submitted). */
 export function latest(subs: Submission[], userId: string, period: string, category: Category): Submission | null {
   let best: Submission | null = null;
-  for (const s of subs) if (s.userId === userId && s.period === period && s.category === category && (!best || s.createdAt > best.createdAt)) best = s;
+  for (const s of subs) if (s.userId === userId && s.period === period && s.category === category && (!best || s.createdAt >= best.createdAt)) best = s; // ties: the later row wins, as in movement()
   return best;
 }
 

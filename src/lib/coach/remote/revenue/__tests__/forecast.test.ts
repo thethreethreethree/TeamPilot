@@ -59,3 +59,12 @@ describe("movement (F22.6)", () => {
     expect(movement([sub(300, "2026-11-10", ["a"])], "u", "2026-Q4", "commit")).toBeNull();
   });
 });
+
+describe("ties (review 2026-11-27)", () => {
+  it("latest and movement agree on which of two same-moment submissions is current", () => {
+    const a = { userId: "u", period: "2026-Q4", category: "commit" as const, amount: 100, createdAt: "2026-11-20T00:00:00Z", deals: [] };
+    const b = { ...a, amount: 200 };
+    expect(latest([a, b], "u", "2026-Q4", "commit")!.amount).toBe(200);
+    expect(movement([a, b], "u", "2026-Q4", "commit")!.change).toBe(100);
+  });
+});
