@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Building2, Loader2, Search } from "lucide-react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
+import { nearMatches } from "@/lib/coach/remote/revenue/accountMatch";
 
 /**
  * Remote Sales → Accounts (revenue Phase 1, 0370; Gong F21.1 account boards). Every account the caller can see: their
@@ -81,6 +82,27 @@ export function RemoteAccounts() {
           )}
         </div>
       ) : (
+        <>
+        {/* Near matches are a suggestion for a person, never merged automatically (revenue plan: "Acme" and "Acme Inc"
+            can be two companies). Moving a deal to the other account is done from the deal. */}
+        {nearMatches(rows ?? []).length > 0 && (
+          <div aria-label="Possible duplicates" className="rounded-xl border border-default bg-surface p-3 text-xs text-secondary">
+            <p className="font-semibold text-primary">These may be the same company</p>
+            <ul className="mt-1 space-y-0.5">
+              {nearMatches(rows ?? []).map((g) => (
+                <li key={g.map((a) => a.id).join("-")}>
+                  {g.map((a, i) => (
+                    <span key={a.id}>
+                      {i > 0 ? " · " : ""}
+                      <Link href={`/dashboard/remote-sales/accounts/${a.id}`} className="text-primary underline-offset-2 hover:underline">{a.name}</Link>
+                    </span>
+                  ))}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-[11px] text-muted">If they are, open each deal on one of them and set its account to the other.</p>
+          </div>
+        )}
         <div className="overflow-x-auto rounded-xl border border-default bg-surface">
           <table className="w-full text-xs">
             <thead>
@@ -116,6 +138,7 @@ export function RemoteAccounts() {
           </table>
           {capped && <p className="border-t border-default px-3 py-2 text-[11px] text-muted">Showing the most recent 1,000. Search to find older accounts.</p>}
         </div>
+        </>
       )}
     </section>
   );

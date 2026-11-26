@@ -42,6 +42,22 @@ export const RISK_WORDS: Record<RiskReason, string> = {
   no_amount: "No deal amount",
 };
 
+/** What to do about each warning (the deal panel's Warnings tab; Gong F20.5 pairs each warning with a mitigation). */
+export const RISK_FIX: Record<RiskReason, string> = {
+  no_next_call: "Book the next call while you still have them: a deal with no date drifts.",
+  missed_next_call: "Call today, or move the date to when you'll really call.",
+  gone_quiet: "Reach out with something new for them: a question, a resource or a proposed date.",
+  overdue_todo: "Do it or give it a new date: an overdue promise costs trust.",
+  cooled: "Open the last call, find where it turned, and start the next one there.",
+  past_close_date: "Ask the customer what changed, then set a close date you both believe.",
+  ghosted: "Try another contact on the account, or another way to reach them.",
+  few_contacts: "Ask your contact who else is involved, and bring them to the next call.",
+  no_power: "Ask who signs off, and get them on a call before the close date.",
+  no_pricing: "Bring up price on the next call, so it doesn't surprise anyone at close.",
+  stalled: "Agree the step that moves it to the next stage, with a date.",
+  no_amount: "Add the amount so the forecast counts this deal.",
+};
+
 type P = {
   id: string;
   name: string | null;

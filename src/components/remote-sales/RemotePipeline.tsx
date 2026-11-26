@@ -23,7 +23,7 @@ import { RemoteCalendar } from "./RemoteCalendar";
 import { PromptLibrary } from "./PromptLibrary";
 import { NO_SOURCE, sourceBreakdown, sourcesInUse } from "@/lib/coach/remote/leadSource";
 import { byCallCount, byContactCount, byDealSize, byDuration, byMention, byPower, MIN_CLOSED, overallWinRate, powerOnDeal, winLossCsv, type Band } from "@/lib/coach/remote/winLoss";
-import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_WORDS, withMovedDates } from "@/lib/coach/remote/dealRisk";
+import { byQuarter, dealRisk, forecast, forecastByMonth, MIN_CLOSED_FOR_FORECAST, RISK_FIX, RISK_WORDS, withMovedDates } from "@/lib/coach/remote/dealRisk";
 import { stageFunnel } from "@/lib/coach/remote/pipelineChanges";
 
 /**
@@ -340,7 +340,7 @@ export function RemotePipeline() {
                   {!simple && <SentimentLine s={p.sentiment ?? null} />}
                   {!simple && <RiskLine p={p} />}
                 </button>
-                {selected === p.id && <ProspectDetail id={p.id} onChanged={() => void load()} onClose={() => open(null)} />}
+                {selected === p.id && <ProspectDetail id={p.id} listed={p} onChanged={() => void load()} onClose={() => open(null)} />}
               </li>
             );
           })}
@@ -422,8 +422,14 @@ type Detail = {
   todos: Array<{ id: string; title: string; due: string | null; status: string; done: boolean }>;
 };
 
-function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () => void; onClose: () => void }) {
+/** The deal panel's tabs (revenue UI spec, Gong F20.3). Simple view keeps the working ones. */
+const PANEL_TABS = ["Overview", "Warnings", "Contacts", "Activity", "Playbook", "Brief"] as const;
+type PanelTab = (typeof PANEL_TABS)[number];
+const SIMPLE_TABS: ReadonlySet<PanelTab> = new Set(["Overview", "Contacts", "Activity"]);
+
+function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed?: Prospect; onChanged: () => void; onClose: () => void }) {
   const simple = useContext(SimpleView);
+  const [tab, setTab] = useState<PanelTab>("Overview");
   const stageList = useContext(StageList);
   const [d, setD] = useState<Detail | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -494,6 +500,9 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
   if (!d) return <p className="mt-1 px-3 py-2 text-xs text-muted">{err ?? "Loading…"}</p>;
   const p = d.prospect;
   const field = "rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary";
+  const tabs = PANEL_TABS.filter((t) => !simple || SIMPLE_TABS.has(t));
+  const shown: PanelTab = tabs.includes(tab) ? tab : "Overview";
+  const risk = listed ? dealRisk(listed, today()) : null;
   return (
     <div className="mt-1 space-y-3 rounded-xl border border-default bg-base/40 p-3">
       <div className="flex items-center justify-between">
@@ -502,6 +511,15 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
           <X className="h-4 w-4" aria-hidden />
         </button>
       </div>
+      <div role="tablist" aria-label="Deal" className="flex flex-wrap gap-1 border-b border-default pb-1">
+        {tabs.map((t) => (
+          <button key={t} type="button" role="tab" aria-selected={shown === t} onClick={() => setTab(t)} className={`rounded-md px-2 py-1 text-[11px] ${shown === t ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>
+            {t}
+            {t === "Warnings" && risk && risk.reasons.length > 0 ? ` (${risk.reasons.length})` : ""}
+          </button>
+        ))}
+      </div>
+      {shown === "Overview" && (<>
       <div className="grid grid-cols-1 gap-2 text-xs text-secondary sm:grid-cols-2">
         {stageList?.length ? (
           <label className="flex items-center gap-2">
@@ -588,17 +606,6 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
         </label>}
       </div>
 
-      <DealAccountContacts dealId={p.id} account={d.account ?? null} contacts={d.contacts ?? []} busy={busy} post={post} />
-      {!simple && <DealBrief dealId={p.id} addTodo={(title) => post({ action: "todo", title, due: null })} />}
-      {!simple && (
-        <AskCalls
-          title="Ask about this deal"
-          calls={d.calls.map((c) => ({ sessionId: c.id, label: `${shortDate(c.startedAt)}${c.label ? ` · ${c.label}` : ""}` }))}
-          starters={["What's blocking this deal?", "Who decides, and what do they care about?", "What did we promise to do?"]}
-        />
-      )}
-      {!simple && <DealPlaybook dealId={p.id} />}
-
       {(p.next_call_date || d.todos.some((t) => !t.done && t.due)) && (
         <button
           type="button"
@@ -653,8 +660,23 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
       </div>
 
       {!simple && d.prospect.status === "open" && d.prospect.stage_label && <StagePractice key={d.prospect.stage_label} prospectId={id} />}
+      </>)}
 
-      <div>
+      {shown === "Warnings" && <DealWarnings risk={risk} />}
+      {shown === "Contacts" && <DealAccountContacts dealId={p.id} account={d.account ?? null} contacts={d.contacts ?? []} busy={busy} post={post} />}
+      {shown === "Playbook" && <DealPlaybook dealId={p.id} />}
+      {shown === "Brief" && (
+        <>
+          <DealBrief dealId={p.id} addTodo={(title) => post({ action: "todo", title, due: null })} />
+          <AskCalls
+            title="Ask about this deal"
+            calls={d.calls.map((c) => ({ sessionId: c.id, label: `${shortDate(c.startedAt)}${c.label ? ` · ${c.label}` : ""}` }))}
+            starters={["What's blocking this deal?", "Who decides, and what do they care about?", "What did we promise to do?"]}
+          />
+        </>
+      )}
+
+      {shown === "Activity" && <div>
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Calls</p>
         {d.calls.length === 0 ? (
           <p className="text-xs text-secondary">No calls linked yet. Open a call and choose “Add to pipeline”.</p>
@@ -671,7 +693,7 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
             ))}
           </ul>
         )}
-      </div>
+      </div>}
       {err && <p className="text-xs text-amber-700 dark:text-amber-300">{err}</p>}
     </div>
   );
@@ -1080,6 +1102,27 @@ function WinLossBreakdown({ whose, prospects, onOpen }: { whose: string; prospec
         Closed deals only. A rate shows once a row has {MIN_CLOSED} closed deals. Deal sizes are thirds of this pipeline&apos;s own closed deals.
         &ldquo;By what was said&rdquo; compares only deals with a call you can listen to.
       </p>
+    </div>
+  );
+}
+
+/** The deal panel's Warnings tab: each warning in words, with what to do about it (RISK_FIX). */
+function DealWarnings({ risk }: { risk: ReturnType<typeof dealRisk> | null }) {
+  if (!risk) return <p className="text-xs text-secondary">Open this deal from the pipeline list to see its warnings.</p>;
+  if (risk.reasons.length === 0) return <p className="text-xs text-secondary">No warnings on this deal.</p>;
+  return (
+    <div className="space-y-1.5">
+      <p className={`text-xs font-semibold ${risk.level === "at_risk" ? "text-amber-700 dark:text-amber-300" : "text-secondary"}`}>
+        {risk.level === "at_risk" ? "At risk" : risk.level === "watch" ? "Watch" : "Missing information"}
+      </p>
+      <ul className="space-y-1.5">
+        {risk.reasons.map((r) => (
+          <li key={r} className="rounded-lg border border-default p-2 text-xs">
+            <p className="font-semibold text-primary">{RISK_WORDS[r]}</p>
+            <p className="text-secondary">{RISK_FIX[r]}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -1501,7 +1544,7 @@ function SimpleTable({
                 {isOpen && (
                   <tr className="block sm:table-row">
                     <td colSpan={6} className="block p-2 sm:table-cell">
-                      <ProspectDetail id={p.id} onChanged={onChanged} onClose={() => onOpen(null)} />
+                      <ProspectDetail id={p.id} listed={p} onChanged={onChanged} onClose={() => onOpen(null)} />
                     </td>
                   </tr>
                 )}
