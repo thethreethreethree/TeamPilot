@@ -7,6 +7,7 @@ import { DealPlaybook } from "./DealPlaybook";
 import { DealBrief } from "./DealBrief";
 import { DealDrivers } from "./DealDrivers";
 import { AskCalls } from "./AskCalls";
+import { ForecastBoard } from "./ForecastBoard";
 import { kindOf, type Stage } from "@/lib/coach/remote/revenue/dealBoard";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import Link from "next/link";
@@ -246,6 +247,16 @@ export function RemotePipeline() {
         <SourcesView key={whose} whose={whose} prospects={data?.prospects ?? null} failed={failed} />
       ) : view === "forecast" ? (
         <>
+          {data && (
+            <ForecastBoard
+              key={whose}
+              deals={data.prospects}
+              people={whose === "mine" ? [] : [...new Set(data.prospects.map((p) => p.repId))]}
+              isManager={isManager}
+              nameOf={nameOf}
+              today={today()}
+            />
+          )}
           <ForecastView prospects={data?.prospects ?? null} failed={failed} onOpen={goTo} />
           {data && <PipelineChanges key={whose} whose={whose} onOpen={goTo} />}
         </>
