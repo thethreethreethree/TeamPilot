@@ -29,7 +29,7 @@ async function stepsFor(admin: Admin, companyId: string, courseIds: string[]) {
   const by = new Map<string, StepRow[]>();
   for (let i = 0; i < courseIds.length; i += 150) {
     const { data, error } = await fetchAllPagedResult<StepRow & { course_id: string; id: number }>(
-      (from, to) => admin.from("training_course_steps").select("course_id, version, position, step_uid, title, body, kind, scenario_id, id").eq("company_id", companyId).in("course_id", courseIds.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      (from, to) => admin.from("training_course_steps").select("course_id, version, position, step_uid, title, body, kind, scenario_id, library_item_id, link_url, id").eq("company_id", companyId).in("course_id", courseIds.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
       { label: "course steps", maxRows: 200_000 },
     );
     if (error) return null;

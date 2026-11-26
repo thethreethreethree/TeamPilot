@@ -90,4 +90,17 @@ describe("courses", () => {
     const given = st.inserts.find(([t]) => t === "training_assignments");
     expect(given?.[1]).toEqual([{ company_id: "co1", scenario_id: SC, rep_id: "rep1", assigned_by: "mgr9", due_at: "2999-01-01T00:00:00Z" }]);
   });
+  it("a lesson's library call must be in a company folder and not removed (0359)", async () => {
+    const LI = "00000000-0000-4000-8000-0000000000bb";
+    st.data.library_items = [{ id: LI, folder_id: "f1" }];
+    st.data.library_item_removals = [];
+    st.data.library_folders = [{ id: "f1", is_company: false }];
+    expect((await call(PUT, { courseId: "k1", steps: [{ title: "Watch", body: "b", libraryItemId: LI }] })).status).toBe(400);
+    st.data.library_folders = [{ id: "f1", is_company: true }];
+    const r = await call(PUT, { courseId: "k1", steps: [{ title: "Watch", body: "b", libraryItemId: LI, linkUrl: "https://loom.com/x" }] });
+    expect(r.status).toBe(200);
+    expect(st.inserts.find(([t]) => t === "training_course_steps")?.[1]).toMatchObject([{ library_item_id: LI, link_url: "https://loom.com/x" }]);
+    st.data.library_item_removals = [{ item_id: LI }];
+    expect((await call(PUT, { courseId: "k1", steps: [{ title: "Watch", body: "b", libraryItemId: LI }] })).status).toBe(400);
+  });
 });

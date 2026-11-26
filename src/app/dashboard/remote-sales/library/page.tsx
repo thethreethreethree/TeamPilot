@@ -128,21 +128,40 @@ function ItemPlayer({ item }: { item: Item }) {
 
 export default function LibraryPage() {
   const [scope, setScope] = useState<"mine" | "company">("mine");
+  // 0359: a course lesson links here with ?scope=company&item=<id>&from=training — open on that item, say plainly when
+  // it isn't one this person may hear, and offer the way back to the course.
+  const [focus, setFocus] = useState<{ item: string; fromTraining: boolean } | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("scope") === "company") setScope("company");
+    const item = q.get("item");
+    if (item) setFocus({ item, fromTraining: q.get("from") === "training" });
+  }, []);
   const [wire, setWire] = useState<Wire | null>(null);
   const [failed, setFailed] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
+  // Only the newest load writes (2026-11-26): switching tabs, or opening on ?scope=company, starts a second load, and an
+  // older answer arriving last must not put the other tab's calls on screen.
+  const loadSeq = useRef(0);
   const load = useCallback(async (s: "mine" | "company") => {
+    const seq = ++loadSeq.current;
     setWire(null);
     setFailed(false);
     try {
       const r = await fetch(`/api/coach/remote/library?scope=${s}`);
       if (!r.ok) throw new Error(String(r.status));
-      setWire((await r.json()) as Wire);
+      const w = (await r.json()) as Wire;
+      if (seq === loadSeq.current) setWire(w);
     } catch {
-      setFailed(true);
+      if (seq === loadSeq.current) setFailed(true);
     }
   }, []);
+  // The linked item (0359): scrolled to once the list is in; null = not here for this person.
+  const focusFound = focus && wire && wire.available ? wire.items.some((i) => i.id === focus.item) : null;
+  useEffect(() => {
+    if (focus && focusFound) document.getElementById(`library-item-${focus.item}`)?.scrollIntoView?.({ block: "center" });
+  }, [focus, focusFound]);
   useEffect(() => {
     void load(scope);
   }, [scope, load]);
@@ -197,6 +216,19 @@ export default function LibraryPage() {
     <>
       <TopBar title="Library" subtitle="Calls and clips worth hearing again" />
       <div className="flex-1 overflow-y-auto bg-base px-4 md:px-8 py-4 space-y-4">
+        {focus && (focus.fromTraining || focusFound === false) && (
+          <div className="rounded-2xl border border-default bg-surface p-3 text-xs" role="status">
+            {focusFound === false && wire && wire.available && wire.truncated && (
+              <p className="text-secondary">That call is older than the newest ones shown here — find it in Search.</p>
+            )}
+            {focusFound === false && !(wire && wire.available && wire.truncated) && (
+              <p className="text-secondary">That call isn&apos;t in the library for you — it may be waiting on the rep&apos;s approval, or it was taken out. Ask your manager.</p>
+            )}
+            {focus.fromTraining && (
+              <Link href="/dashboard/remote-sales/training" className="font-semibold text-brand hover:underline">Back to Training</Link>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2" role="tablist" aria-label="Library">
           {(["mine", "company"] as const).map((s) => (
             <button key={s} role="tab" aria-selected={scope === s} type="button" onClick={() => setScope(s)}
@@ -237,7 +269,7 @@ export default function LibraryPage() {
             {items.length > 0 && items.every((i) => i.canOpenCall) && <AskFolder name={folder} items={items} />}
             <ul className="space-y-2">
               {items.map((i) => (
-                <li key={i.id} className="flex items-start gap-3 rounded-2xl border border-default bg-surface p-3">
+                <li key={i.id} id={`library-item-${i.id}`} className={`flex items-start gap-3 rounded-2xl border bg-surface p-3 ${focus?.item === i.id ? "border-strong" : "border-default"}`}>
                   <ItemPlayer item={i} />
                   <div className="min-w-0 flex-1 text-xs">
                     <p className="font-semibold text-primary">

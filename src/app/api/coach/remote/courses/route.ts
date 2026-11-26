@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   const ids = list.map((c) => c.id);
   for (let i = 0; i < ids.length; i += 150) {
     const { data, error: sErr } = await fetchAllPagedResult<StepRow & { course_id: string; id: number }>(
-      (from, to) => admin.from("training_course_steps").select("course_id, version, position, step_uid, title, body, kind, scenario_id, id").eq("company_id", mgr.companyId).in("course_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      (from, to) => admin.from("training_course_steps").select("course_id, version, position, step_uid, title, body, kind, scenario_id, library_item_id, link_url, id").eq("company_id", mgr.companyId).in("course_id", ids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
       { label: "course steps", maxRows: 200_000 },
     );
     if (sErr) {
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 
 async function insertVersion(admin: ReturnType<typeof createAdminClient>, companyId: string, courseId: string, version: number, steps: Step[], by: string) {
   return admin.from("training_course_steps").insert(
-    steps.map((s, i) => ({ company_id: companyId, course_id: courseId, version, position: i + 1, step_uid: s.uid, kind: s.kind, scenario_id: s.scenarioId, title: s.title, body: s.body, created_by: by })),
+    steps.map((s, i) => ({ company_id: companyId, course_id: courseId, version, position: i + 1, step_uid: s.uid, kind: s.kind, scenario_id: s.scenarioId, library_item_id: s.libraryItemId ?? null, link_url: s.linkUrl ?? null, title: s.title, body: s.body, created_by: by })),
   );
 }
 
@@ -83,6 +83,19 @@ async function badScenarios(admin: ReturnType<typeof createAdminClient>, company
   const ok = await scenariosUsable(admin, companyId, steps.flatMap((s) => (s.scenarioId ? [s.scenarioId] : [])));
   if (ok === null) return NextResponse.json({ error: "Couldn't save the course." }, { status: 500 });
   if (!ok) return NextResponse.json({ error: "One of the practice scenarios isn't available any more. Pick another." }, { status: 400 });
+  // A lesson's library call must be in a COMPANY folder and not removed (0359), or no rep could reach it.
+  const items = [...new Set(steps.flatMap((s) => (s.libraryItemId ? [s.libraryItemId] : [])))];
+  if (items.length) {
+    const { data: rows, error } = await admin.from("library_items").select("id, folder_id").eq("company_id", companyId).in("id", items);
+    const { data: gone, error: gErr } = await admin.from("library_item_removals").select("item_id").eq("company_id", companyId).in("item_id", items);
+    const folderIds = [...new Set(((rows ?? []) as Array<{ folder_id: string }>).map((r) => String(r.folder_id)))];
+    const { data: folders, error: fErr } = folderIds.length ? await admin.from("library_folders").select("id, is_company").eq("company_id", companyId).in("id", folderIds) : { data: [], error: null };
+    if (error || gErr || fErr) return NextResponse.json({ error: "Couldn't save the course." }, { status: 500 });
+    const companyFolder = new Set(((folders ?? []) as Array<{ id: string; is_company: boolean }>).filter((f) => f.is_company).map((f) => String(f.id)));
+    const removed = new Set(((gone ?? []) as Array<{ item_id: string }>).map((g) => String(g.item_id)));
+    const usable = new Set(((rows ?? []) as Array<{ id: string; folder_id: string }>).filter((r) => companyFolder.has(String(r.folder_id)) && !removed.has(String(r.id))).map((r) => String(r.id)));
+    if (!items.every((id) => usable.has(id))) return NextResponse.json({ error: "A lesson's library call must be in a company folder. Pick one from the company library." }, { status: 400 });
+  }
   return null;
 }
 

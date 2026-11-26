@@ -8,8 +8,9 @@ import { ArrowDown, ArrowUp, BookOpen, Trash2 } from "lucide-react";
  * (each save is a new version — reps keep the lessons they've done), assign it with a due date, retire it, and see each
  * rep's progress. Saving a new course opens its Assign step (§1.5.1: the next action is in front of the manager).
  */
-type Step = { uid?: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null };
-type Course = { id: string; title: string; summary: string | null; retired: boolean; version: number; steps: Array<{ uid: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null }> };
+type Step = { uid?: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null; libraryItemId?: string | null; linkUrl?: string | null };
+type LibItem = { id: string; label: string };
+type Course = { id: string; title: string; summary: string | null; retired: boolean; version: number; steps: Array<{ uid: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null; libraryItemId?: string | null; linkUrl?: string | null }> };
 type Scenario = { id: string; title: string; retired_at: string | null };
 type Progress = { id: string; title: string; repName: string | null; dueAt: string; done: number; total: number; state: string };
 type Member = { id: string; full_name: string | null };
@@ -30,6 +31,9 @@ export function CourseManager() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   // A failed scenarios read is said — never "write a scenario first" when there are scenarios we couldn't load.
   const [scenariosFailed, setScenariosFailed] = useState(false);
+  // A lesson can point at a call or clip in the COMPANY library (0359) — the only place every rep can reach it.
+  const [libItems, setLibItems] = useState<LibItem[]>([]);
+  const [libFailed, setLibFailed] = useState(false);
   const [membersFailed, setMembersFailed] = useState(false);
   // The editor: null = closed; id null = a new course.
   const [editing, setEditing] = useState<{ id: string | null; title: string; summary: string; steps: Step[] } | null>(null);
@@ -79,6 +83,13 @@ export function CourseManager() {
         setScenariosFailed(false);
       })
       .catch(() => setScenariosFailed(true));
+    fetch("/api/coach/remote/library?scope=company")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: { available?: boolean; items?: Array<{ id: string; folderName: string; callLabel: string | null; clip: { title: string } | null }> }) => {
+        setLibItems((j.items ?? []).map((i) => ({ id: i.id, label: `${i.folderName} — ${i.clip?.title ?? i.callLabel ?? "Untitled call"}` })));
+        setLibFailed(false);
+      })
+      .catch(() => setLibFailed(true));
   }, [editorOpen]);
 
   const send = async (method: string, url: string, body: unknown, ok: string): Promise<Record<string, unknown> | null> => {
@@ -167,6 +178,17 @@ export function CourseManager() {
                       ))}
                     </select>
                   )}
+                  {s.kind === "lesson" && (
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      <input aria-label={`Lesson ${i + 1} link`} placeholder="Link to a video or page (optional, https://)" value={s.linkUrl ?? ""} maxLength={500} onChange={(e) => setStep(i, { linkUrl: e.target.value })} className={input} />
+                      <select aria-label={`Lesson ${i + 1} library call`} value={s.libraryItemId ?? ""} onChange={(e) => setStep(i, { libraryItemId: e.target.value || null })} className={input}>
+                        <option value="">{libFailed ? "Couldn't load the company library" : libItems.length ? "A call from the company library (optional)" : "No calls in the company library yet"}</option>
+                        {libItems.map((x) => (
+                          <option key={x.id} value={x.id}>{x.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <textarea aria-label={`Lesson ${i + 1} text`} placeholder={s.kind === "practice" ? "A note before they practice (optional)" : "What the rep reads"} value={s.body} maxLength={4000} rows={s.kind === "practice" ? 2 : 4} onChange={(e) => setStep(i, { body: e.target.value })} className={input} />
                 </li>
               ))}
@@ -179,7 +201,7 @@ export function CourseManager() {
                 type="button"
                 disabled={busy || !editing.title.trim() || !editing.steps.every(ready)}
                 onClick={async () => {
-                  const steps = editing.steps.map((s) => ({ uid: s.uid, title: s.title, body: s.body, kind: s.kind, scenarioId: s.scenarioId }));
+                  const steps = editing.steps.map((s) => ({ uid: s.uid, title: s.title, body: s.body, kind: s.kind, scenarioId: s.scenarioId, libraryItemId: s.kind === "lesson" ? s.libraryItemId ?? null : null, linkUrl: s.kind === "lesson" ? s.linkUrl ?? null : null }));
                   const j = editing.id
                     ? await send("PUT", "/api/coach/remote/courses", { courseId: editing.id, steps }, "Saved. Reps keep the steps they've already done.")
                     : await send("POST", "/api/coach/remote/courses", { title: editing.title, summary: editing.summary, steps }, "Course saved — now pick who takes it.");

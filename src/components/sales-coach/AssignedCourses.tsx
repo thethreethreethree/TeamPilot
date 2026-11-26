@@ -14,6 +14,8 @@ type Step = {
   uid: string; title: string; body: string; done: boolean; kind?: "lesson" | "practice";
   /** Practice steps (0357): the practice to open, and its state in words. */
   practiceAssignmentId?: string | null; practiceState?: string | null;
+  /** 0359: a call in the company library, and/or an outside page. */
+  libraryItemId?: string | null; linkUrl?: string | null;
 };
 const PRACTICE: Record<string, string> = { due: "Not practiced yet", overdue: "Not practiced yet — overdue", attempted: "Practiced", passed: "Passed", not_passed_yet: "Not passed yet — try again" };
 type Course = { id: string; title: string; summary: string | null; assignedByName: string | null; dueAt: string; done: number; total: number; state: "not_started" | "in_progress" | "done" | "overdue"; steps?: Step[] };
@@ -121,6 +123,20 @@ export function AssignedCourses() {
                       {openStep === s.uid && (
                         <div className="space-y-2 border-t border-default px-2 py-2">
                           {s.body && <p className="whitespace-pre-wrap text-xs leading-relaxed text-primary">{s.body}</p>}
+                          {(s.libraryItemId || s.linkUrl) && (
+                            <p className="flex flex-wrap gap-3 text-xs">
+                              {s.libraryItemId && (
+                                <Link href={`/dashboard/remote-sales/library?scope=company&item=${s.libraryItemId}&from=training`} className="font-semibold text-brand hover:underline">
+                                  Listen in the library
+                                </Link>
+                              )}
+                              {s.linkUrl && (
+                                <a href={s.linkUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand hover:underline">
+                                  Open link
+                                </a>
+                              )}
+                            </p>
+                          )}
                           {s.kind === "practice" && (
                             <p className="flex flex-wrap items-center gap-2 text-xs">
                               <span className="text-secondary">{s.practiceState ? PRACTICE[s.practiceState] ?? s.practiceState : "Not assigned to you yet — ask your manager."}</span>

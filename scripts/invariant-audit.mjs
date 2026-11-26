@@ -2827,6 +2827,7 @@ const PAGING_UNIQUE_ALLOWLIST = new Map([
 // reads a call table under the hide rules (or events about a call) calls hiddenFrom /
 // hiddenInCompanyFrom / hiddenCallsForCompany, or is listed here with why no hidden call can reach a person.
 const HIDE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/remote/courses/route.ts", "0359: reads library_items ids and folder ids only, to check a lesson's call is in a company folder; returns nothing about the call. The rep opens it in the library, whose route filters hidden calls (hiddenFrom)."],
   ["src/app/api/coach/sales-session/recordings/route.ts", "in-person (door) recordings — the hide is for phone/video calls (0337)."],
   ["src/app/api/coach/sales-session/recording-purge-cron/route.ts", "cron: deletes old audio; returns no call to any person."],
   ["src/app/api/coach/sales-session/team-activity/route.ts", "in-person team activity — the hide is for phone/video calls."],

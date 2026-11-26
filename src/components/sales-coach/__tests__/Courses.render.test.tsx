@@ -67,6 +67,19 @@ describe("AssignedCourses — practice steps (0357)", () => {
   });
 });
 
+describe("AssignedCourses — lesson content (0359)", () => {
+  it("a lesson links to its library call (company tab, with the way back) and opens an outside link in a new tab", async () => {
+    const steps = [{ uid: "u1", title: "Watch first", body: "Listen to how she opens.", done: false, kind: "lesson", libraryItemId: "li1", linkUrl: "https://loom.com/share/x" }];
+    vi.stubGlobal("fetch", vi.fn(() => ok({ available: true, assignments: [{ id: "a1", title: "Discovery", summary: null, assignedByName: null, dueAt: "2999-01-01T00:00:00Z", done: 0, total: 1, state: "not_started", steps }] })));
+    render(<AssignedCourses />);
+    fireEvent.click(await screen.findByText("Discovery"));
+    expect(screen.getByRole("link", { name: "Listen in the library" }).getAttribute("href")).toBe("/dashboard/remote-sales/library?scope=company&item=li1&from=training");
+    const out = screen.getByRole("link", { name: "Open link" });
+    expect(out.getAttribute("href")).toBe("https://loom.com/share/x");
+    expect(out.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+});
+
 describe("CourseManager", () => {
   it("a new course is saved with its lessons in order, then Assign opens for it", async () => {
     const posts: Array<[string, unknown]> = [];

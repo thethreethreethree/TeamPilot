@@ -11,9 +11,27 @@ export const TITLE_MAX = 120;
 export const BODY_MAX = 4000;
 export const SUMMARY_MAX = 600;
 
-export type StepRow = { version: number; position: number; step_uid: string; title: string; body: string; kind?: string | null; scenario_id?: string | null };
+export type StepRow = { version: number; position: number; step_uid: string; title: string; body: string; kind?: string | null; scenario_id?: string | null; library_item_id?: string | null; link_url?: string | null };
 /** A lesson (text the rep marks done) or a practice (a scenario; done when its practice counts as done — 0357). */
-export type Step = { uid: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null };
+export type Step = {
+  uid: string; title: string; body: string; kind: "lesson" | "practice"; scenarioId: string | null;
+  /** A lesson may point at a call or clip in the company library, and/or an outside https page (0359). */
+  libraryItemId?: string | null; linkUrl?: string | null;
+};
+export const LINK_MAX = 500;
+/** An outside link a lesson may carry: https only, no spaces, at most LINK_MAX. Null when absent; false when bad. */
+export function cleanLink(v: unknown): string | null | false {
+  if (v === null || v === undefined || (typeof v === "string" && !v.trim())) return null;
+  if (typeof v !== "string") return false;
+  const t = v.trim();
+  if (t.length > LINK_MAX || /\s/.test(t)) return false;
+  try {
+    const u = new URL(t);
+    return u.protocol === "https:" && u.hostname ? u.toString() : false;
+  } catch {
+    return false;
+  }
+}
 
 /** The current version's lessons, in order. */
 export function currentSteps(rows: StepRow[]): Step[] {
@@ -22,7 +40,7 @@ export function currentSteps(rows: StepRow[]): Step[] {
   return rows
     .filter((r) => Number(r.version) === v)
     .sort((a, b) => a.position - b.position)
-    .map((r) => ({ uid: String(r.step_uid), title: r.title, body: r.body, kind: r.kind === "practice" ? "practice" : "lesson", scenarioId: r.scenario_id ? String(r.scenario_id) : null }));
+    .map((r) => ({ uid: String(r.step_uid), title: r.title, body: r.body, kind: r.kind === "practice" ? "practice" : "lesson", scenarioId: r.scenario_id ? String(r.scenario_id) : null, libraryItemId: r.library_item_id ? String(r.library_item_id) : null, linkUrl: r.link_url ?? null }));
 }
 
 export function currentVersion(rows: Array<{ version: number }>): number {
@@ -53,7 +71,7 @@ export function parseSteps(raw: unknown, newUid: () => string): { ok: true; step
   const steps: Step[] = [];
   const seen = new Set<string>();
   for (const [i, r] of raw.entries()) {
-    const o = (r ?? {}) as { uid?: unknown; title?: unknown; body?: unknown; kind?: unknown; scenarioId?: unknown };
+    const o = (r ?? {}) as { uid?: unknown; title?: unknown; body?: unknown; kind?: unknown; scenarioId?: unknown; libraryItemId?: unknown; linkUrl?: unknown };
     const kind = o.kind === "practice" ? "practice" : "lesson";
     const title = typeof o.title === "string" ? o.title.trim() : "";
     const body = typeof o.body === "string" ? o.body.trim() : "";
@@ -62,10 +80,13 @@ export function parseSteps(raw: unknown, newUid: () => string): { ok: true; step
     if (kind === "lesson" && (!body || body.length > BODY_MAX)) return { ok: false, error: `Lesson ${i + 1} needs text of up to ${BODY_MAX} characters.` };
     if (kind === "practice" && !scenarioId) return { ok: false, error: `Step ${i + 1} needs a practice scenario.` };
     if (body.length > BODY_MAX) return { ok: false, error: `Step ${i + 1}'s note is over ${BODY_MAX} characters.` };
+    const linkUrl = kind === "lesson" ? cleanLink(o.linkUrl) : null;
+    if (linkUrl === false) return { ok: false, error: `Lesson ${i + 1}'s link must be a full https:// address.` };
+    const libraryItemId = kind === "lesson" && typeof o.libraryItemId === "string" && UUID.test(o.libraryItemId) ? o.libraryItemId.toLowerCase() : null;
     let uid = typeof o.uid === "string" && UUID.test(o.uid) ? o.uid.toLowerCase() : newUid();
     if (seen.has(uid)) uid = newUid(); // a duplicated lesson is a new lesson, not the same one twice
     seen.add(uid);
-    steps.push({ uid, title, body, kind, scenarioId });
+    steps.push({ uid, title, body, kind, scenarioId, libraryItemId, linkUrl });
   }
   return { ok: true, steps };
 }

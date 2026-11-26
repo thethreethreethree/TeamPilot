@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { courseProgress, currentSteps, currentVersion, parseSteps, MAX_STEPS } from "../courses";
+import { cleanLink, courseProgress, currentSteps, currentVersion, parseSteps, MAX_STEPS } from "../courses";
 
 /** F17.1 (2026-11-26): courses are versions of ordered lessons; progress is derived from the current version. */
 const row = (version: number, position: number, uid: string, title = uid) => ({ version, position, step_uid: uid, title, body: "text" });
@@ -29,7 +29,7 @@ describe("training courses", () => {
     expect(parseSteps([{ title: " ", body: "b" }], fresh)).toEqual({ ok: false, error: "Step 1 needs a title of up to 120 characters." });
     const r = parseSteps([{ uid: U(1), title: " Open ", body: " Ask first " }, { uid: U(1), title: "Copy", body: "b" }, { uid: "nope", title: "New", body: "b" }], fresh);
     expect(r.ok && r.steps.map((s) => s.uid)).toEqual([U(1), U(100), U(101)]);
-    expect(r.ok && r.steps[0]).toEqual({ uid: U(1), title: "Open", body: "Ask first", kind: "lesson", scenarioId: null });
+    expect(r.ok && r.steps[0]).toEqual({ uid: U(1), title: "Open", body: "Ask first", kind: "lesson", scenarioId: null, libraryItemId: null, linkUrl: null });
   });
   it("a practice step needs a scenario; its note is optional (0357)", () => {
     let n = 200;
@@ -38,5 +38,17 @@ describe("training courses", () => {
     const r = parseSteps([{ kind: "practice", title: "Try it", body: "", scenarioId: U(7) }], fresh);
     expect(r.ok && r.steps[0]).toMatchObject({ kind: "practice", scenarioId: U(7), body: "" });
     expect(currentSteps([{ version: 1, position: 1, step_uid: "p", title: "Try", body: "", kind: "practice", scenario_id: "s1" }])[0]).toMatchObject({ kind: "practice", scenarioId: "s1" });
+  });
+  it("a lesson may carry an https link and a library item; a practice carries neither (0359)", () => {
+    expect(cleanLink("https://www.youtube.com/watch?v=x")).toBe("https://www.youtube.com/watch?v=x");
+    expect(cleanLink("http://example.com")).toBe(false);
+    expect(cleanLink("javascript:alert(1)")).toBe(false);
+    expect(cleanLink("https://a b")).toBe(false);
+    expect(cleanLink("")).toBeNull();
+    let n = 300;
+    const fresh = () => U(n++);
+    expect(parseSteps([{ title: "Watch", body: "b", linkUrl: "ftp://x" }], fresh)).toEqual({ ok: false, error: "Lesson 1's link must be a full https:// address." });
+    const r = parseSteps([{ title: "Watch", body: "b", linkUrl: "https://loom.com/share/1", libraryItemId: U(9) }, { kind: "practice", title: "Try", scenarioId: U(8), linkUrl: "https://x.com", libraryItemId: U(9) }], fresh);
+    expect(r.ok && r.steps.map((s) => [s.linkUrl, s.libraryItemId])).toEqual([["https://loom.com/share/1", U(9)], [null, null]]);
   });
 });
