@@ -577,3 +577,9 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
       note [INFERRED]: no seed script writes these kinds; the actor of every row is the call's own rep, and record_event() stamps the actor's company at write time — so the likelier cause is that account moving between companies during 9–17 Aug (e.g. testing pilot codes). If so, any account that changes company leaves its earlier events readable by the old company; 0348 now closes that for call events.
       2026-11-26: forward fix — 0349 stamps every new call / score event with the call's own company (a writer from another company is refused). Only the 233 existing rows remain, a founder decision.
       2026-11-26: 0350 — legal erasure now deletes a call's events by subject wherever they were filed, so the 233 rows can't outlive a customer's erasure.
+- [ ] 2026-11-26 · erasure · score notes (pitch:<id> events: a rep's dispute, a manager's answer) are not erased by rss_erase_sessions, before or after 0350, and can quote the customer (independent review of 181b459f..19d07354; docs/tbc/2026-11-26-review3-fixes R1)
+      why-unresolved: founder decision — 0285 excluded notes a person retyped. Picker failed three times on 2026-11-26 ("Stream closed").
+      next-action: recommended — erasure blanks the typed text of those events and keeps that the dispute happened, who wrote it and the score (the callback-task rule); alternatives: leave them, or delete those events.
+- [ ] 2026-11-26 · call-categories · F10.10 / F10.9: phone/video calls have no category to filter by
+      why-unresolved: founder decision. Picker failed three times on 2026-11-26.
+      next-action: recommended — the rep picks one at close from a fixed list the company admin sets (no AI guess); alternatives: AI suggests and the rep confirms, or not now.
