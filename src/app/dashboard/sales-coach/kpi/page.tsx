@@ -187,9 +187,17 @@ export default function KpiAnalyticsPage() {
       const body = res.ok ? await res.json() : null;
       if (seq !== loadSeq.current) return;
       if (body) setData(body);
-      else setLoadError(true); // 401/500/etc — an error, NOT "no data yet"
+      else {
+        // 401/404/500 — an error, NOT "no data yet". The last answer is dropped too (review 2026-11-26): a refused
+        // team must not leave the whole company's cards under the picker; the error banner says what happened.
+        setData(null);
+        setLoadError(true);
+      }
     } catch {
-      if (seq === loadSeq.current) setLoadError(true); // network — an error, NOT "no data yet"
+      if (seq === loadSeq.current) {
+        setData(null); // as above: never the last answer under a newer choice
+        setLoadError(true); // network — an error, NOT "no data yet"
+      }
     } finally {
       if (seq === loadSeq.current) setLoading(false);
     }
@@ -382,6 +390,9 @@ export default function KpiAnalyticsPage() {
         </span>
       );
     if (!m.apiKey) return <span className="text-[10px] font-mono text-muted shrink-0 mt-0.5">building…</span>;
+    // A team view: the quota target is the company's, so there is nothing to measure one team against (2026-11-26).
+    if (isTeam && m.apiKey === "quotaAttainment")
+      return <span className="text-[10px] font-mono text-muted shrink-0 mt-0.5" title="The monthly target is set for the whole company.">company target only</span>;
     const r = data?.metrics?.[m.apiKey];
     if (!r || r.value === null) {
       return <span className="text-[10px] font-mono text-muted shrink-0 mt-0.5">building…</span>;

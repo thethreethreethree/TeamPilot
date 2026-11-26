@@ -183,7 +183,9 @@ export async function GET(req: Request) {
   const dealsWonThisMonth = rows.filter(
     (r) => r.outcome === "sold" && r.startedAt.slice(0, 7) === monthPrefix
   ).length;
-  metrics.quotaAttainment = quotaAttainment(dealsWonThisMonth, monthlyTarget);
+  // The target is the company's: measured against one team's deals it would always read as far behind (review
+  // 2026-11-26). In a team view quota has no target, and the page says the target is company-wide.
+  metrics.quotaAttainment = quotaAttainment(dealsWonThisMonth, teamId ? null : monthlyTarget);
 
   // Self-comparison deltas (recent half − prior half) for the session-based metrics — spec principle #1.
   // These follow the period too (recent half vs prior half OF THE PERIOD), so a card never pairs a 30-day number with

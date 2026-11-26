@@ -91,6 +91,9 @@ function Delta({ now, before, days, unit = "" }: { now: number | undefined; befo
 
 const PERIODS = [7, 30, 90] as const;
 const hoursText = (h: number) => (h < 24 ? `${h} h` : `${Math.round((h / 24) * 10) / 10} d`);
+/** The response-time change in the unit shown beside it: hours under a day, else days (review 2026-11-26). */
+const responseDelta = (now: number, before: number, days: number) =>
+  now < 24 ? <Delta now={now} before={before} days={days} unit=" h" /> : <Delta now={Math.round((now / 24) * 10) / 10} before={Math.round((before / 24) * 10) / 10} days={days} unit=" d" />;
 
 export function CoachingInbox({ team }: { team?: string } = {}) {
   // F16.6: which rep's uncoached calls are listed (one at a time).
@@ -103,6 +106,10 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
   const [names, setNames] = useState<Record<string, string>>({});
   // F16.8 (2026-11-26): the period the manager table covers — the same choices as Team call stats.
   const [days, setDays] = useState<(typeof PERIODS)[number]>(30);
+  // Whether the metrics are decided (D8), kept apart from the numbers so the period buttons stay on screen while a
+  // period loads or after it fails (review 2026-11-26: clearing the numbers used to take the buttons with them).
+  const [metricsDecided, setMetricsDecided] = useState(false);
+  const [metricsFailed, setMetricsFailed] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -135,10 +142,15 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
   useEffect(() => {
     let live = true;
     setMetrics(null);
+    setMetricsFailed(false);
     fetch(withTeam(`/api/coach/remote/coaching-metrics?days=${days}`, team))
-      .then(async (r) => (r.status === 409 || r.ok ? ((await r.json()) as Metrics) : null))
-      .then((m) => live && m && setMetrics(m))
-      .catch(() => {});
+      .then(async (r) => (r.status === 409 || r.ok ? ((await r.json()) as Metrics) : Promise.reject(new Error(String(r.status)))))
+      .then((m) => {
+        if (!live) return;
+        setMetrics(m);
+        setMetricsDecided(!!m.decided);
+      })
+      .catch(() => live && setMetricsFailed(true));
     return () => {
       live = false;
     };
@@ -229,10 +241,10 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
       {/* Coaching metrics (D8 decided 2026-11-22): per manager, over the last 30 days of phone/video calls they may see.
           Feedback = deliberate coaching (a comment sent, a correction, a dispute answer, a pattern coached); listened =
           played at least half the call. */}
-      {metrics?.decided && (
+      {(metrics?.decided || (metricsDecided && !metrics)) && (
         <div className="rounded-xl border border-default bg-base/40 p-3" aria-label="Coaching metrics">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-semibold text-primary">Coaching in the last {metrics.days ?? 30} days</p>
+            <p className="text-xs font-semibold text-primary">Coaching in the last {metrics?.days ?? days} days</p>
             <div className="flex items-center gap-3">
               <div className="flex gap-1" role="group" aria-label="Period">
                 {PERIODS.map((p) => (
@@ -252,9 +264,14 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
               <a href={withTeam(`/api/coach/remote/coaching-metrics?format=csv&days=${days}`, team)} className="text-[11px] text-brand hover:underline">Download CSV</a>
             </div>
           </div>
-          {(() => {
+          {!metrics && (
+            <p className="mt-1 text-xs text-secondary" role={metricsFailed ? "alert" : undefined}>
+              {metricsFailed ? `Couldn't load coaching for the last ${days} days. Pick a period to try again.` : "Loading…"}
+            </p>
+          )}
+          {metrics && (() => {
             // A manager who coached in the period before but not now still gets a row — their ▼ is the point (F16.8).
-            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {}), ...Object.keys(metrics.previous?.feedbackGiven ?? {}), ...Object.keys(metrics.previous?.callsListened ?? {})])].sort(
+            const ids = [...new Set([...Object.keys(metrics.feedbackGiven), ...Object.keys(metrics.callsListened), ...Object.keys(metrics.responseHours ?? {}), ...Object.keys(metrics.previous?.feedbackGiven ?? {}), ...Object.keys(metrics.previous?.callsListened ?? {}), ...Object.keys(metrics.previous?.responseHours ?? {})])].sort(
               (a, b) => (metrics.feedbackGiven[b] ?? 0) - (metrics.feedbackGiven[a] ?? 0),
             );
             if (ids.length === 0) {
@@ -300,7 +317,7 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
                         {metrics.responseHours?.[id] ? `${hoursText(metrics.responseHours[id]!.medianHours)} (${metrics.responseHours[id]!.answered})` : "—"}
                         {/* Only when both periods have answers: "no answers" is not zero hours. */}
                         {metrics.responseHours?.[id] && metrics.previous?.responseHours?.[id] && (
-                          <Delta now={metrics.responseHours[id]!.medianHours} before={metrics.previous.responseHours[id]!.medianHours} days={metrics.days ?? 30} unit=" h" />
+                          responseDelta(metrics.responseHours[id]!.medianHours, metrics.previous.responseHours[id]!.medianHours, metrics.days ?? 30)
                         )}
                       </td>
                     </tr>
@@ -312,7 +329,7 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
           <p className="mt-1 text-[11px] text-muted">
             Feedback counts a comment sent to the rep, a score correction, a dispute answer or a pattern marked coached. A call
             counts as listened once at least half of it was played. Typical response: the middle time from a rep&apos;s request
-            to that manager&apos;s answer (how many answers in brackets). ▲/▼ compare with the {metrics.days ?? 30} days just before.
+            to that manager&apos;s answer (how many answers in brackets). ▲/▼ compare with the {metrics?.days ?? days} days just before.
           </p>
         </div>
       )}

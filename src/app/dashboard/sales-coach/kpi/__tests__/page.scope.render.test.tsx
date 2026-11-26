@@ -57,4 +57,17 @@ describe("KPI page — what the headline cards cover", () => {
     expect(screen.queryByText(/pooled/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Company" })).toBeNull();
   });
+
+  it("a refused team shows the error, never the whole company's cards under the picker", async () => {
+    render(<KpiAnalyticsPage />);
+    await screen.findByText(/the business as a whole, across every rep/);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string) => (url.startsWith("/api/coach/kpi/me") && url.includes("team=") ? json({ error: "Team not found." }, false, 404) : base(url)));
+    const picker = await screen.findByRole("combobox", { name: "Team" });
+    await waitFor(() => expect(screen.getByRole("option", { name: /Max Manager/ })).toBeTruthy());
+    fireEvent.change(picker, { target: { value: MGR } });
+    await waitFor(() => expect(screen.queryByText(/the business as a whole, across every rep/)).toBeNull());
+    expect(screen.queryByText(/One team's results, pooled/)).toBeNull();
+  });
 });
+

@@ -55,8 +55,9 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - days * DAY).toISOString();
   // The comparison period: the same number of days just before (F16.8).
   const prevSince = new Date(Date.now() - 2 * days * DAY).toISOString();
-  // 180 + the period, not 180 (review 2026-11-26): the period before must reach the same call ages as this one.
-  const callsSince = new Date(Date.now() - (180 + days) * DAY).toISOString();
+  // 180 + 2 × the period (review 2026-11-26): the period before starts 2 × days ago, and on its first day must still
+  // see calls up to 180 days old, as this period does — or its counts come out low and every arrow leans upward.
+  const callsSince = new Date(Date.now() - (180 + 2 * days) * DAY).toISOString();
   // The by-rep rows keep their own 30 days (overdue is defined on 30), so requests are read from whichever is earlier.
   const requestsSince = new Date(Date.now() - Math.max(2 * days, 30) * DAY).toISOString();
   type S = { id: string; agent_id: string; started_at: string; ended_at: string | null; audio_duration_seconds: number | null; client_label: string | null };

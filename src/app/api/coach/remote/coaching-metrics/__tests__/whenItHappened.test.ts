@@ -33,7 +33,11 @@ vi.mock("@/lib/supabase/admin", () => ({
         if (table === "coaching_sessions") {
           // The calls window reaches back far enough for a 45-day-old call.
           const since = String(filters.find(([c]) => c === "started_at")?.[1]);
-          const rows = [{ id: "old", agent_id: "r1", started_at: iso(45), ended_at: iso(45), audio_duration_seconds: 600 }].filter((r) => r.started_at >= since);
+          const rows = [
+            { id: "old", agent_id: "r1", started_at: iso(45), ended_at: iso(45), audio_duration_seconds: 600 },
+            // 300 days old: outside 30 days' reach (180 + 2×30 = 240), inside 90 days' (180 + 2×90 = 360).
+            { id: "older", agent_id: "r1", started_at: iso(300), ended_at: iso(300), audio_duration_seconds: 600 },
+          ].filter((r) => r.started_at >= since);
           return Promise.resolve(res({ data: rows, error: null }));
         }
         // A request from the last 30 days about a call outside the 180-day calls read (review 2026-11-25).
@@ -83,4 +87,10 @@ describe("coaching metrics count when coaching happened (F16.9)", () => {
   it("refuses a period that isn't 7, 30 or 90 days", async () => {
     expect((await GET(new Request("http://t/x?days=12") as never)).status).toBe(400);
   });
+
+  it("the period before sees calls as old as this period does (review 2026-11-26): 90 days reads calls back 360 days", async () => {
+    const body = await (await GET(new Request("http://t/x?days=90") as never)).json();
+    expect(body.sessions).toBe(2); // the 300-day-old call is in view for a 90-day comparison
+  });
 });
+

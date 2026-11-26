@@ -148,4 +148,37 @@ describe("CoachingInbox — change against the 30 days before (F16.8)", () => {
     expect(rows[1]!.textContent).not.toMatch(/10 h \(1\)[▲▼]/); // m2 had no answer before: no arrow
     expect(screen.getByTitle("2 in the 30 days before")).toBeTruthy();
   });
+
+  it("a period that fails to load keeps the period buttons and says so, instead of the panel vanishing", async () => {
+    let fail = false;
+    metrics = { decided: true, days: 30, since: "x", sessions: 1, feedbackGiven: { m1: 1 }, callsListened: {} };
+    fetchMock.mockImplementation((url: string) => {
+      if (url.startsWith("/api/coach/remote/coaching-inbox")) return json({ available: true, items: [] });
+      if (url === "/api/team") return json({ members: [] });
+      if (url.startsWith("/api/coach/remote/coaching-metrics")) return fail ? json({ error: "x" }, false) : json(metrics);
+      return json({}, false);
+    });
+    render(<CoachingInbox />);
+    await screen.findByText("Coaching in the last 30 days");
+    fail = true;
+    fireEvent.click(screen.getByRole("button", { name: "90 days" }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByText(/Couldn't load coaching for the last 90 days/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "30 days" })).toBeTruthy(); // still there to try again
+    fail = false;
+    fireEvent.click(screen.getByRole("button", { name: "30 days" }));
+    expect(await screen.findByText("Coaching in the last 30 days")).toBeTruthy();
+  });
+
+  it("response time's change is in the unit shown beside it", async () => {
+    metrics = {
+      decided: true, days: 30, since: "x", sessions: 2, feedbackGiven: { m1: 1 }, callsListened: {},
+      responseHours: { m1: { medianHours: 84, answered: 2 } },
+      previous: { feedbackGiven: { m1: 1 }, callsWithFeedback: {}, callsWithComments: {}, callsListened: {}, responseHours: { m1: { medianHours: 48, answered: 1 } } },
+    };
+    render(<CoachingInbox />);
+    await screen.findByText("Coaching in the last 30 days");
+    expect(screen.getAllByRole("row")[1]!.textContent).toContain("3.5 d (2)▲1.5 d");
+  });
 });
+
