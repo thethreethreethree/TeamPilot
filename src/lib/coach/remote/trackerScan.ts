@@ -32,10 +32,10 @@ export async function scanSessionTrackers(sessionId: string, client?: SupabaseCl
     const companyId = String(s.company_id);
 
     const { data: trackerRows, error: tErr } = await admin
-      .from("keyword_trackers")
+      // 0352: live trackers only — on, and not a draft (the view is the one definition of "live").
+      .from("keyword_trackers_live")
       .select("id, name, phrases, side, kind, within_first_seconds, starts_on, ends_on")
-      .eq("company_id", companyId)
-      .eq("active", true);
+      .eq("company_id", companyId);
     if (tErr) {
       console.error(`[trackerScan] trackers read failed company=${companyId}: ${tErr.message}`);
       return null;

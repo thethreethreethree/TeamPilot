@@ -114,7 +114,8 @@ export default function SearchCallsPage() {
       .catch(() => setListFailed((x) => ({ ...x, saved: true })));
     fetch("/api/coach/remote/trackers")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j: { trackers?: Array<{ id: string; name: string }> } | null) => setTrackers(j?.trackers ?? []))
+      // A draft tracker (0352) has never been checked on a call, so it can't find any: not offered as a filter.
+      .then((j: { trackers?: Array<{ id: string; name: string; draft?: boolean }> } | null) => setTrackers((j?.trackers ?? []).filter((t) => !t.draft)))
       .catch(() => setListFailed((x) => ({ ...x, trackers: true })));
   }, [run]);
 

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't build the adoption board." }, { status: 500 });
   };
 
-  const { data: trackers, error: tErr } = await db.from("keyword_trackers").select("id, name, created_at").eq("active", true).order("name").limit(200);
+  const { data: trackers, error: tErr } = await db.from("keyword_trackers_live").select("id, name, created_at") /* 0352: live only */.order("name").limit(200);
   if (tErr) {
     if (["PGRST205", "42P01"].includes(String(tErr.code))) return NextResponse.json({ days, rows: [] });
     return fail("trackers", tErr.message);

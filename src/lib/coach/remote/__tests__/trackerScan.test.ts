@@ -15,7 +15,7 @@ function fake(session: Record<string, unknown> | null, segs: Array<Record<string
     if (table === "tracker_hits") b.upsert = () => { throw new Error("ON CONFLICT is refused on a rule table"); };
     b.maybeSingle = async () => ({ data: session, error: null });
     b.then = (res: (v: unknown) => unknown) =>
-      res({ data: table === "keyword_trackers" ? trackers : table === "tracker_hits" ? stored : segs, error: null });
+      res({ data: table === "keyword_trackers_live" ? trackers : table === "tracker_hits" ? stored : segs, error: null });
     b.insert = async (rows: unknown) => (inserts.push({ rows }), { error: null });
     return b;
   };

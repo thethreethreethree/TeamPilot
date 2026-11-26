@@ -23,7 +23,7 @@ const ago = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
 
 beforeEach(() => {
   st.reads = {
-    keyword_trackers: { data: [{ id: "t-old", name: "Bundle", created_at: ago(60) }, { id: "t-new", name: "Decision date", created_at: ago(3) }], error: null },
+    keyword_trackers_live: { data: [{ id: "t-old", name: "Bundle", created_at: ago(60) }, { id: "t-new", name: "Decision date", created_at: ago(3) }], error: null },
     coaching_sessions: { data: [{ id: "s1", agent_id: "r", started_at: ago(10) }, { id: "s2", agent_id: "r", started_at: ago(1) }], error: null },
     session_interaction_stats: { data: [{ session_id: "s1", transcript_version: 1 }, { session_id: "s2", transcript_version: 1 }], error: null },
     tracker_hits: { data: [{ tracker_id: "t-old", session_id: "s1", transcript_version: 1, id: 1 }, { tracker_id: "t-new", session_id: "s2", transcript_version: 1, id: 2 }], error: null },

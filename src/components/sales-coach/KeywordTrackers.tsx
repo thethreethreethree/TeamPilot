@@ -16,7 +16,7 @@ import { AdoptionBoard } from "./AdoptionBoard";
  * any words. Saving one reads the last calls for it in the background (the route), so there is no preview or scan.
  */
 type Kind = "keyword" | "smart";
-type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; kind?: Kind; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null };
+type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "customer" | "any"; active: boolean; draft?: boolean; kind?: Kind; within_first_seconds?: number | null; starts_on?: string | null; ends_on?: string | null };
 /** 0344 (F11.5): "from 1 Dec" / "until 31 Dec" / "1–31 Dec"; future start = scheduled. */
 const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 function datesLabel(t: Tracker): string {
@@ -106,7 +106,7 @@ export function KeywordTrackers() {
     return { ok: r.ok, j };
   };
 
-  const create = async () => {
+  const create = async (draft = false) => {
     const list = phrases.split("\n").map((p) => p.trim()).filter(Boolean);
     if (!name.trim() || list.length === 0) {
       setMsg(kind === "smart" ? "Give the tracker a name and at least one example sentence." : "Give the tracker a name and at least one word or phrase.");
@@ -124,7 +124,7 @@ export function KeywordTrackers() {
     setBusy(true);
     setMsg(null);
     try {
-      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind, withinFirstMinutes: w, startsOn: startsOn || null, endsOn: endsOn || null });
+      const { ok, j } = await send("POST", { name: name.trim(), phrases: list, side, kind, withinFirstMinutes: w, startsOn: startsOn || null, endsOn: endsOn || null, ...(draft ? { draft: true } : {}) });
       if (!ok) return setMsg(j.error ?? "Couldn't save the tracker.");
       setName("");
       setPhrases("");
@@ -134,7 +134,9 @@ export function KeywordTrackers() {
       setEndsOn("");
       setPreview(null);
       setMsg(
-        kind === "smart"
+        draft
+          ? "Saved as a draft. It isn't checked on any call until you put it live."
+          : kind === "smart"
           ? j.backfilling
             ? `Saved. Reading your last ${j.backfilling} ${j.backfilling === 1 ? "call" : "calls"} for it now — mentions show on those calls within a few minutes. New calls are checked as they land.`
             : "Saved. New phone and video calls will be checked for it."
@@ -155,6 +157,36 @@ export function KeywordTrackers() {
     } finally {
       setBusy(false);
     }
+  };
+
+  // 0352 (F11.4): a draft goes live once; a smart one then reads back recent calls, as a new one does.
+  const goLive = async (t: Tracker) => {
+    setBusy(true);
+    try {
+      const { ok, j } = await send("PATCH", { id: t.id, action: "publish" });
+      setMsg(
+        !ok
+          ? j.error ?? "Couldn't put it live."
+          : j.backfilling
+            ? `"${t.name}" is live. Reading your last ${j.backfilling} ${j.backfilling === 1 ? "call" : "calls"} for it now.`
+            : `"${t.name}" is live. New phone and video calls will be checked for it.`,
+      );
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+  // A tracker's words never change (0276), a draft's included: to adjust one, copy it into the form, preview, save anew.
+  const copyToForm = (t: Tracker) => {
+    setName(t.name);
+    setPhrases(t.phrases.join("\n"));
+    setSide(t.side);
+    setKind(t.kind ?? "keyword");
+    setWindowMin(t.within_first_seconds ? String(Math.round((t.within_first_seconds / 60) * 10) / 10) : "");
+    setStartsOn(t.starts_on ?? "");
+    setEndsOn(t.ends_on ?? "");
+    setPreview(null);
+    setMsg(`Copied "${t.name}" into the form below — change it, preview it, then save it as a new draft or put it live. Switch the old draft off when you're done.`);
   };
 
   const switchOff = async (t: Tracker) => {
@@ -191,6 +223,11 @@ export function KeywordTrackers() {
               {read.trackers.map((t) => (
                 <li key={t.id} className="flex flex-wrap items-center gap-2 text-sm">
                   <span className={t.active ? "font-medium text-primary" : "text-muted line-through"}>{t.name}</span>
+                  {t.active && t.draft && (
+                    <span className="rounded-full border border-dashed border-default px-1.5 py-px text-[10px] text-secondary" title="Not checked on any call until it goes live">
+                      Draft
+                    </span>
+                  )}
                   {t.kind === "smart" && (
                     <span className="rounded-full border border-default px-1.5 py-px text-[10px] text-secondary" title="Finds the same idea in any words">
                       Smart
@@ -210,6 +247,26 @@ export function KeywordTrackers() {
                   >
                     Adoption
                   </button>
+                  {read.canManage && t.active && t.draft && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void goLive(t)}
+                        className="rounded-lg bg-ember-400 px-2 py-0.5 text-xs font-semibold text-ink-950 disabled:opacity-50"
+                      >
+                        Go live
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => copyToForm(t)}
+                        className="rounded-lg border border-default px-2 py-0.5 text-xs text-secondary hover:text-primary disabled:opacity-50"
+                      >
+                        Copy to form
+                      </button>
+                    </>
+                  )}
                   {read.canManage && t.active && (
                     <button
                       type="button"
@@ -320,6 +377,15 @@ export function KeywordTrackers() {
                   className="rounded-lg bg-ember-400 px-3 py-2 text-xs font-semibold text-ink-950 disabled:opacity-50"
                 >
                   Add tracker
+                </button>
+                {/* F11.4: save without switching it on — preview, come back, put it live when it's right. */}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void create(true)}
+                  className="rounded-lg border border-default px-3 py-2 text-xs text-primary hover:border-ember-400 disabled:opacity-50"
+                >
+                  Save as draft
                 </button>
                 {kind === "keyword" && (
                 <button

@@ -84,7 +84,7 @@ describe("POST /api/coach/remote/trackers", () => {
     const res = await POST(req({ name: "Competitors", phrases: ["  Spectrum ", "spectrum", "XFINITY"], side: "customer", company_id: "evil" }));
     expect(res.status).toBe(201);
     expect(db.inserts).toEqual([
-      { company_id: "co1", name: "Competitors", phrases: ["spectrum", "xfinity"], side: "customer", kind: "keyword", within_first_seconds: null, starts_on: null, ends_on: null, created_by: "mgr1" },
+      { company_id: "co1", name: "Competitors", phrases: ["spectrum", "xfinity"], side: "customer", kind: "keyword", within_first_seconds: null, starts_on: null, ends_on: null, draft: false, created_by: "mgr1" },
     ]);
   });
 
@@ -125,7 +125,7 @@ describe("POST — smart trackers (0329)", () => {
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ id: "t-new", backfilling: 2 });
     expect(db.inserts).toEqual([
-      { company_id: "co1", name: "Locked in", phrases: ["We're locked into a contract", "Our deal ends in June"], side: "customer", kind: "smart", within_first_seconds: null, starts_on: null, ends_on: null, created_by: "mgr1" },
+      { company_id: "co1", name: "Locked in", phrases: ["We're locked into a contract", "Our deal ends in June"], side: "customer", kind: "smart", within_first_seconds: null, starts_on: null, ends_on: null, draft: false, created_by: "mgr1" },
     ]);
     expect(scanSmartTrackers).not.toHaveBeenCalled(); // nothing before the response
     for (const f of later.fns) await f();
@@ -184,3 +184,38 @@ describe("POST — start and end dates (0344, F11.5)", () => {
     ]);
   });
 });
+
+describe("draft trackers (0352, F11.4)", () => {
+  beforeEach(() => mock(requireSalesCoachManager).mockResolvedValue(MGR));
+
+  it("a draft is saved as a draft, and a smart draft reads no calls and isn't held to the cap", async () => {
+    db.smartOn = 99; // over the cap: a draft doesn't count against it
+    db.sessions = [{ id: "c1", agent_id: "r1" }];
+    const res = await POST(req({ name: "Locked in", phrases: ["We're locked into a contract"], side: "customer", kind: "smart", draft: true }));
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ id: "t-new", draft: true });
+    expect(db.inserts[0]).toMatchObject({ draft: true, kind: "smart" });
+    expect(later.fns).toHaveLength(0); // no backfill
+  });
+
+  it("going live updates only a draft that is still on, in the manager's company", async () => {
+    const res = await PATCH(req({ id: "11111111-1111-4111-8111-111111111111", action: "publish" }, "PATCH"));
+    expect(res.status).toBe(200);
+    const u = db.updates.at(-1)!;
+    expect(u.patch).toEqual({ draft: false });
+    expect(u.filters).toEqual(expect.arrayContaining([["company_id", "co1"], ["draft", true], ["active", true]]));
+  });
+
+  it("going live on something that isn't a live-able draft is a 404, not a silent success", async () => {
+    db.updateFound = false;
+    const res = await PATCH(req({ id: "11111111-1111-4111-8111-111111111111", action: "publish" }, "PATCH"));
+    db.updateFound = true;
+    expect(res.status).toBe(404);
+  });
+
+  it("switching off is still the default PATCH", async () => {
+    await PATCH(req({ id: "11111111-1111-4111-8111-111111111111" }, "PATCH"));
+    expect(db.updates.at(-1)!.patch).toEqual({ active: false });
+  });
+});
+

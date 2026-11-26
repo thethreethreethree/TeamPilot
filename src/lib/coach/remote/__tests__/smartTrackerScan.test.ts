@@ -24,7 +24,7 @@ function fake(opts: { session?: Record<string, unknown> | null; trackers?: unkno
     b.eq = (k: string, v: unknown) => (filters.push([table, k, v]), b);
     b.maybeSingle = async () => ({ data: opts.session ?? null, error: null });
     b.then = (res: (v: unknown) => unknown) =>
-      res({ data: table === "keyword_trackers" ? opts.trackers ?? [] : table === "tracker_hits" ? opts.stored ?? [] : opts.segs ?? [], error: null });
+      res({ data: table === "keyword_trackers_live" ? opts.trackers ?? [] : table === "tracker_hits" ? opts.stored ?? [] : opts.segs ?? [], error: null });
     b.insert = async (rows: unknown) => (inserts.push(rows), { error: null });
     return b;
   };
@@ -78,8 +78,8 @@ describe("scanSmartTrackers", () => {
     ai.text = '{"hits":[]}';
     const { db, filters } = fake({ session: S, trackers: [T[0]], segs: SEGS });
     expect(await scanSmartTrackers("s1", db, { onlyTrackerId: "t1" })).toBe(0);
-    expect(filters).toContainEqual(["keyword_trackers", "id", "t1"]);
-    expect(filters).toContainEqual(["keyword_trackers", "company_id", "co1"]);
+    expect(filters).toContainEqual(["keyword_trackers_live", "id", "t1"]);
+    expect(filters).toContainEqual(["keyword_trackers_live", "company_id", "co1"]);
   });
 
   it("an unreadable answer writes nothing and reports it couldn't run (null)", async () => {

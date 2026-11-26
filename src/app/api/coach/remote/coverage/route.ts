@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
   if (error) return fail("calls", error.message);
   const callIds = (calls ?? []).filter((c) => inTeam(String(c.agent_id))).map((c) => String(c.id));
 
-  const { data: trackers, error: tErr } = await db.from("keyword_trackers").select("id, name, active").eq("company_id", mgr.companyId);
+  const { data: trackers, error: tErr } = await db.from("keyword_trackers").select("id, name, active").eq("company_id", mgr.companyId).eq("draft", false); // 0352: a draft never ran, so it has no coverage to show (switched-off ones keep their past hits)
   if (tErr) return fail("trackers", tErr.message);
 
   const hits: Array<{ trackerId: string; sessionId: string }> = [];
