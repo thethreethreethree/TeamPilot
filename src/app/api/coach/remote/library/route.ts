@@ -36,6 +36,8 @@ import { assetUrlToStoragePath, signAssetUrl } from "@/lib/storage/assets";
  */
 const MISSING = new Set(["PGRST205", "42P01"]);
 const NOT_READY = "The library is waiting on database migration 0280.";
+/** The newest this many items are shown (each is signed for playback); the page says when there are more. */
+const SHOWN_ITEMS = 300;
 
 type Folder = { id: string; owner_id: string; is_company: boolean; name: string; parent_id: string | null };
 type Item = { id: string; folder_id: string; session_id: string; snippet_id: string | null; rep_id: string; note: string | null; added_by: string; created_at: string };
@@ -111,24 +113,48 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => a.name.localeCompare(b.name));
   if (folders.length === 0) return NextResponse.json({ available: true, scope, isManager, folders: folderList, items: [] });
 
-  const { data: itemRows, error: iErr } = await admin
-    .from("library_items")
-    .select("id, folder_id, session_id, snippet_id, rep_id, note, added_by, created_at")
-    .eq("company_id", ctx.companyId)
-    .in("folder_id", folders.map((f) => f.id))
-    .order("created_at", { ascending: false })
-    .limit(300);
-  if (iErr) {
-    console.error(`[library] item read failed: ${iErr.message}`);
-    return NextResponse.json({ error: "Couldn't load the library." }, { status: 500 });
+  // Every item, then removals, THEN the newest SHOWN_ITEMS (2026-11-26). The read used to stop at 300 before removals
+  // were taken out, so a library with more items lost its older ones without a word, and one with many removals showed
+  // fewer than it holds; a failed removals read was ignored, which would show removed items as present.
+  const folderIds = folders.map((f) => f.id);
+  const itemRows: Item[] = [];
+  for (let i = 0; i < folderIds.length; i += 150) {
+    const { data, error: iErr } = await fetchAllPagedResult<Item>(
+      (from, to) =>
+        admin
+          .from("library_items")
+          .select("id, folder_id, session_id, snippet_id, rep_id, note, added_by, created_at")
+          .eq("company_id", ctx.companyId)
+          .in("folder_id", folderIds.slice(i, i + 150))
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to),
+      { label: "library items", maxRows: 50_000 },
+    );
+    if (iErr) {
+      console.error(`[library] item read failed: ${iErr.message}`);
+      return NextResponse.json({ error: "Couldn't load the library." }, { status: 500 });
+    }
+    itemRows.push(...(data ?? []));
   }
-  const { data: removed } = await admin
-    .from("library_item_removals")
-    .select("item_id")
-    .eq("company_id", ctx.companyId)
-    .in("item_id", ((itemRows ?? []) as Item[]).map((i) => i.id));
-  const gone = new Set(((removed ?? []) as Array<{ item_id: string }>).map((r) => String(r.item_id)));
-  const items = ((itemRows ?? []) as Item[]).filter((i) => !gone.has(String(i.id)));
+  const gone = new Set<string>();
+  const allIds = itemRows.map((i) => i.id);
+  for (let i = 0; i < allIds.length; i += 150) {
+    const { data, error: rErr } = await fetchAllPagedResult<{ item_id: string; id: number }>(
+      (from, to) => admin.from("library_item_removals").select("item_id, id").eq("company_id", ctx.companyId).in("item_id", allIds.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+      { label: "library removals", maxRows: 50_000 },
+    );
+    if (rErr) {
+      console.error(`[library] removals read failed: ${rErr.message}`);
+      return NextResponse.json({ error: "Couldn't load the library." }, { status: 500 });
+    }
+    for (const r of data ?? []) gone.add(String(r.item_id));
+  }
+  const remaining = itemRows
+    .filter((i) => !gone.has(String(i.id)))
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : String(b.id).localeCompare(String(a.id))));
+  const items = remaining.slice(0, SHOWN_ITEMS);
+  const truncated = remaining.length > SHOWN_ITEMS;
 
   const repIds = [...new Set(items.map((i) => String(i.rep_id)))];
   const sessionIds = [...new Set(items.map((i) => String(i.session_id)))];
@@ -197,6 +223,8 @@ export async function GET(req: NextRequest) {
     isManager,
     folders: folderList,
     items: out,
+    // More items than shown (SHOWN_ITEMS, newest first): the page says so rather than implying it's the whole library.
+    truncated,
   });
 }
 

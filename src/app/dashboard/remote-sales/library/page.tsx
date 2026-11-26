@@ -32,7 +32,7 @@ type Item = {
 };
 // name is the folder's full path ("Objections / Pricing", 0353); insideArchived = a folder above it is archived.
 type Folder = { id: string; name: string; parentId?: string | null; archived?: boolean; insideArchived?: boolean; canArchive?: boolean };
-type Wire = { available: false; reason: string } | { available: true; isManager: boolean; items: Item[]; folders?: Folder[] };
+type Wire = { available: false; reason: string } | { available: true; isManager: boolean; items: Item[]; folders?: Folder[]; truncated?: boolean };
 
 const mmss = (ms: number) => {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -171,6 +171,9 @@ export default function LibraryPage() {
           </p>
         )}
 
+        {wire && wire.available && wire.truncated && (
+          <p className="text-xs text-secondary">Showing the {wire.items.length} most recently saved. Older ones are still here — find them in Search.</p>
+        )}
         {sortedGroups.map(([folderKey, { name: folder, items }]) => (
           <section key={folderKey} className="space-y-2" aria-label={folder}>
             <div className="flex items-center gap-2">

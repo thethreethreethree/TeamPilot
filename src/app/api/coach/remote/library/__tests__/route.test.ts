@@ -105,3 +105,35 @@ describe("GET — an archived folder (0346, F12.6)", () => {
     expect(body.folders).toEqual([{ id: "f1", name: "Team examples", parentId: null, archived: true, insideArchived: false, canArchive: true }]);
   });
 });
+
+describe("GET — every item is read; removals before the cap (2026-11-26)", () => {
+  const many = (n: number) =>
+    Array.from({ length: n }, (_, k) => ({ id: `m${String(k).padStart(3, "0")}`, folder_id: "f1", session_id: "s2", snippet_id: null, rep_id: "rep2", note: null, added_by: "mgr1", created_at: new Date(Date.UTC(2026, 10, 20, 0, 0, k)).toISOString() }));
+  const run = async (n: number, removed: string[]) => {
+    const saved = { items: DATA.library_items ?? [], removals: DATA.library_item_removals ?? [] };
+    DATA.library_items = many(n);
+    DATA.library_item_removals = removed.map((item_id) => ({ item_id }));
+    who.userId = "mgr1";
+    who.manager = true;
+    who.tree = ["rep2"];
+    try {
+      return await get();
+    } finally {
+      DATA.library_items = saved.items;
+      DATA.library_item_removals = saved.removals;
+    }
+  };
+  it("302 items with the 2 newest removed: all 300 others shown, nothing said to be missing", async () => {
+    const body = await run(302, ["m301", "m300"]);
+    expect(body.items).toHaveLength(300);
+    expect(body.items.map((i: { id: string }) => i.id)).not.toContain("m301");
+    expect(body.truncated).toBe(false);
+  });
+  it("more than 300 remaining: the newest 300 are shown and the page is told there are more", async () => {
+    const body = await run(305, ["m304"]);
+    expect(body.items).toHaveLength(300);
+    expect(body.items[0].id).toBe("m303"); // newest remaining first
+    expect(body.truncated).toBe(true);
+  });
+});
+
