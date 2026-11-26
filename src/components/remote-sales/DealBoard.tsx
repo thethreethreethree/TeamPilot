@@ -228,7 +228,7 @@ function StagesEditor({ stages, onSaved }: { stages: Stage[] | null; onSaved: ()
     setBusy(true);
     setErr(null);
     try {
-      const r = await fetch("/api/coach/remote/deal-stages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stages: rows.map((x) => ({ name: x.name.trim(), kind: x.kind })) }) });
+      const r = await fetch("/api/coach/remote/deal-stages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stages: rows.map((x) => ({ name: x.name.trim(), kind: x.kind, ...(x.kind === "open" && x.stall_days ? { stall_days: x.stall_days } : {}) })) }) });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
       if (!r.ok) throw new Error(j.error ?? "Couldn't save the stages.");
       onSaved();
@@ -248,7 +248,7 @@ function StagesEditor({ stages, onSaved }: { stages: Stage[] | null; onSaved: ()
   return (
     <div className="space-y-2 rounded-xl border border-default bg-surface p-3 text-xs">
       <p className="font-semibold text-primary">Your company&apos;s deal stages</p>
-      <p className="text-secondary">In the order a deal moves through them. Everyone picks from this list on a deal; names already on deals that aren&apos;t on it are kept as they are.</p>
+      <p className="text-secondary">In the order a deal moves through them. Everyone picks from this list on a deal; names already on deals that aren&apos;t on it are kept as they are. A limit on an open stage flags a deal that sits there longer (leave it empty for no limit).</p>
       <ol className="space-y-1">
         {rows.map((s, i) => (
           <li key={i} className="flex flex-wrap items-center gap-2">
@@ -259,6 +259,21 @@ function StagesEditor({ stages, onSaved }: { stages: Stage[] | null; onSaved: ()
               <option value="won">Won</option>
               <option value="lost">Lost</option>
             </select>
+            {s.kind === "open" && (
+              <label className="flex items-center gap-1 text-[11px] text-secondary">
+                stalls after
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={s.stall_days ?? ""}
+                  aria-label={`Days before a deal stalls in stage ${i + 1}`}
+                  onChange={(e) => { const v = e.currentTarget.value ? Math.min(365, Math.max(1, Math.round(Number(e.currentTarget.value)))) : null; setRows((cur) => cur.map((x, k) => (k === i ? { ...x, stall_days: v } : x))); }}
+                  className={`${field} w-16`}
+                />
+                days
+              </label>
+            )}
             <button type="button" onClick={() => move(i, -1)} aria-label={`Move stage ${i + 1} up`} className="px-1 text-muted hover:text-primary">↑</button>
             <button type="button" onClick={() => move(i, 1)} aria-label={`Move stage ${i + 1} down`} className="px-1 text-muted hover:text-primary">↓</button>
             <button type="button" onClick={() => setRows((cur) => cur.filter((_, k) => k !== i))} aria-label={`Remove stage ${i + 1}`} className="px-1 text-muted hover:text-primary"><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>

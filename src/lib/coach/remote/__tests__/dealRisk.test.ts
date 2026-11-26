@@ -99,3 +99,46 @@ describe("withMovedDates (what-if)", () => {
     expect(ps.map((x) => x.closeDate)).toEqual(["2026-12-01", "2026-12-05"]);
   });
 });
+
+/** Revenue Phase 3a (0372; Gong F20.5): each reason fires on its fact and stays silent when the fact wasn't read. */
+describe("dealRisk — Gong's warnings from rss_deal_signals", () => {
+  const sig = (o: Partial<NonNullable<Parameters<typeof dealRisk>[0]["signals"]>> = {}) => ({
+    lastTwoWayAt: "2026-11-20T15:00:00Z", pricingMentioned: true, stageEnteredAt: "2026-11-15T00:00:00Z",
+    contacts: [{ rank: "vp" as const, lastOnCall: "2026-11-20T15:00:00Z" }, { rank: "manager" as const, lastOnCall: "2026-11-20T15:00:00Z" }], ...o,
+  });
+  it("no signals read → none of them fire", () => {
+    expect(dealRisk(p({ closeDate: "2026-11-30" }), TODAY).reasons).toEqual([]);
+  });
+  it("healthy signals → none fire", () => {
+    expect(dealRisk(p({ closeDate: "2026-11-30", signals: sig(), callCount: 2 }), TODAY).reasons).toEqual([]);
+  });
+  it("ghosted: calls happen but the customer hasn't spoken in 7+ days; no calls at all is not ghosted", () => {
+    expect(dealRisk(p({ signals: sig({ lastTwoWayAt: "2026-11-10T00:00:00Z" }), callCount: 3 }), TODAY).reasons).toContain("ghosted");
+    expect(dealRisk(p({ signals: sig({ lastTwoWayAt: null }), callCount: 1 }), TODAY).reasons).toContain("ghosted");
+    expect(dealRisk(p({ signals: sig({ lastTwoWayAt: null }), callCount: 0 }), TODAY).reasons).not.toContain("ghosted");
+  });
+  it("few contacts once the deal has been open 14+ days", () => {
+    const one = sig({ contacts: [{ rank: "vp", lastOnCall: null }] });
+    expect(dealRisk(p({ signals: one }), TODAY).reasons).toContain("few_contacts");
+    expect(dealRisk(p({ signals: one, createdAt: "2026-11-15T00:00:00Z" }), TODAY).reasons).not.toContain("few_contacts");
+  });
+  it("no power near close; an active VP prevents it; unknown titles never fire it", () => {
+    const juniors = sig({ contacts: [{ rank: "manager", lastOnCall: "2026-11-20T00:00:00Z" }, { rank: "individual", lastOnCall: null }] });
+    expect(dealRisk(p({ closeDate: "2026-12-10", signals: juniors }), TODAY).reasons).toContain("no_power");
+    expect(dealRisk(p({ closeDate: "2026-12-10", signals: sig() }), TODAY).reasons).not.toContain("no_power");
+    expect(dealRisk(p({ closeDate: "2026-12-10", signals: sig({ contacts: [{ rank: "unknown", lastOnCall: null }, { rank: "unknown", lastOnCall: null }] }) }), TODAY).reasons).not.toContain("no_power");
+    expect(dealRisk(p({ closeDate: "2027-03-01", signals: juniors }), TODAY).reasons).not.toContain("no_power");
+  });
+  it("no pricing only within 30 days of close", () => {
+    expect(dealRisk(p({ closeDate: "2026-12-10", signals: sig({ pricingMentioned: false }) }), TODAY).reasons).toContain("no_pricing");
+    expect(dealRisk(p({ closeDate: "2027-03-01", signals: sig({ pricingMentioned: false }) }), TODAY).reasons).not.toContain("no_pricing");
+  });
+  it("stalled only past the stage's own limit", () => {
+    expect(dealRisk(p({ signals: sig(), stallDays: 5 }), TODAY).reasons).toContain("stalled");
+    expect(dealRisk(p({ signals: sig(), stallDays: 10 }), TODAY).reasons).not.toContain("stalled");
+    expect(dealRisk(p({ signals: sig(), stallDays: null }), TODAY).reasons).not.toContain("stalled");
+  });
+  it("two of them make the deal at risk, like any two reasons", () => {
+    expect(dealRisk(p({ closeDate: "2026-12-10", signals: sig({ pricingMentioned: false }), stallDays: 5 }), TODAY).level).toBe("at_risk");
+  });
+});

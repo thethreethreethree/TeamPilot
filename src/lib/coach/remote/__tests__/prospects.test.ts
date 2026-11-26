@@ -7,7 +7,7 @@ import { listProspects } from "../prospects";
  * The pipeline list (0303). A to-do is a Task; Tasks are soft-deleted (deleted_at). A to-do deleted on the Tasks
  * board must not keep showing as the prospect's open "To do" — and a failed read is null, never an empty pipeline.
  */
-function db(opts: { prospects: unknown[]; links: unknown[]; tasks: unknown[]; accounts?: unknown[]; dealContacts?: unknown[]; fail?: "prospects" | "tasks" | "accounts_current" | "deal_contacts_current" }) {
+function db(opts: { prospects: unknown[]; links: unknown[]; tasks: unknown[]; accounts?: unknown[]; dealContacts?: unknown[]; signals?: unknown[]; stageList?: unknown; fail?: "prospects" | "tasks" | "accounts_current" | "deal_contacts_current" | "signals" }) {
   const seen: Record<string, Array<[string, ...unknown[]]>> = {};
   const from = (table: string) => {
     const calls: Array<[string, ...unknown[]]> = (seen[table] = []);
@@ -23,6 +23,7 @@ function db(opts: { prospects: unknown[]; links: unknown[]; tasks: unknown[]; ac
         : opts.tasks;
       return Promise.resolve(res({ data, error: null }));
     };
+    q.maybeSingle = async () => (table === "deal_stage_list_current" ? { data: opts.stageList ?? null, error: null } : { data: null, error: null });
     // Paged reads (2026-11-26: the prospect list is paged, no longer capped at 500): one page, then empty.
     q.range = (fromRow: number, ...rest: unknown[]) => {
       calls.push(["range", fromRow, ...rest]);
@@ -31,7 +32,12 @@ function db(opts: { prospects: unknown[]; links: unknown[]; tasks: unknown[]; ac
     };
     return q;
   };
-  return { client: { from } as never, seen };
+  const rpc = async (fn: string, args: { p_ids: string[] }) => {
+    (seen[`rpc:${fn}`] ??= []).push(["rpc", args]);
+    if (opts.fail === "signals") return { data: null, error: { message: "boom" } };
+    return { data: (opts.signals ?? []).filter((x) => args.p_ids.includes((x as { prospect_id: string }).prospect_id)), error: null };
+  };
+  return { client: { from, rpc } as never, seen };
 }
 
 const P = { id: "p1", rep_id: "r1", name: "Betty", organization: null, status: "open", stage_label: null, amount: "1500", next_call_date: null, last_call_at: null, call_count: 1, created_at: "2026-11-22T00:00:00Z" };
@@ -61,6 +67,21 @@ describe("listProspects", () => {
     expect(rows[0]).toMatchObject({ accountId: "a1", accountName: "Acme", contacts: 2 });
     expect(await listProspects(db({ prospects: [withAcc], links: [], tasks: [], fail: "accounts_current" }).client)).toBeNull();
     expect(await listProspects(db({ prospects: [withAcc], links: [], tasks: [], fail: "deal_contacts_current" }).client)).toBeNull();
+  });
+
+  it("carries Gong's warning facts for open deals and each stage's limit (0372); a failed signal read fails the list", async () => {
+    const won = { ...P, id: "p2", status: "won" };
+    const staged = { ...P, stage_label: "Demo" };
+    const { client, seen } = db({
+      prospects: [staged, won], links: [], tasks: [],
+      signals: [{ prospect_id: "p1", last_two_way_at: "2026-11-20T00:00:00Z", pricing_mentioned: true, stage_entered_at: "2026-11-10T00:00:00Z", contacts: [{ title: "VP Sales", last_on_call: null }] }],
+      stageList: { stages: [{ name: "demo", kind: "open", stall_days: 7 }] },
+    });
+    const rows = (await listProspects(client))!;
+    expect(seen["rpc:rss_deal_signals"]).toEqual([["rpc", { p_ids: ["p1"] }]]); // open deals only
+    expect(rows[0]).toMatchObject({ stallDays: 7, signals: { pricingMentioned: true, contacts: [{ rank: "vp", lastOnCall: null }] } });
+    expect(rows[1]!.signals).toBeUndefined();
+    expect(await listProspects(db({ prospects: [P], links: [], tasks: [], fail: "signals" }).client)).toBeNull();
   });
 
   it("reads every prospect, paged by a unique order — no 500 cap (2026-11-26)", async () => {

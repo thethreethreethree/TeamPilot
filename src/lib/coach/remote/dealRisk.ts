@@ -8,7 +8,12 @@
  * day-one behavior claiming understanding it cannot have). Pure, so every rule is tested.
  */
 
-export type RiskReason = "no_next_call" | "missed_next_call" | "gone_quiet" | "overdue_todo" | "cooled" | "past_close_date" | "no_amount";
+export type RiskReason =
+  | "no_next_call" | "missed_next_call" | "gone_quiet" | "overdue_todo" | "cooled" | "past_close_date"
+  // Revenue Phase 3a (0372; Gong F20.5): raised only when the fact behind it was read (rss_deal_signals) — an absent
+  // fact never raises a warning.
+  | "ghosted" | "few_contacts" | "no_power" | "no_pricing" | "stalled"
+  | "no_amount";
 export type RiskLevel = "at_risk" | "watch" | "ok";
 
 export const QUIET_DAYS = 21;
@@ -16,6 +21,11 @@ export const QUIET_DAYS = 21;
 export const NEW_GRACE_DAYS = 14;
 /** Closed deals needed before the pipeline's own win rate is used for a forecast. */
 export const MIN_CLOSED_FOR_FORECAST = 5;
+/** Gong F20.5 defaults (docs/ELOSTATE-REVENUE-BUILD-PLAN/docs/04-REVENUE-RULES.md; plan R4). */
+export const GHOSTED_DAYS = 7; // calls kept happening, but the customer hasn't spoken on one in this long
+export const MIN_CONTACTS = 2; // fewer people than this on a deal ...
+export const FEW_CONTACTS_AFTER_DAYS = 14; // ... once it has been open this long
+export const CLOSE_WINDOW_DAYS = 30; // "no power" and "no pricing" look at deals closing within this many days
 
 export const RISK_WORDS: Record<RiskReason, string> = {
   no_next_call: "No next call booked",
@@ -24,6 +34,11 @@ export const RISK_WORDS: Record<RiskReason, string> = {
   overdue_todo: "Overdue to-do",
   cooled: "Customer cooled on the last call",
   past_close_date: "Expected close date passed",
+  ghosted: `Customer hasn't spoken on a call in ${GHOSTED_DAYS}+ days`,
+  few_contacts: `Fewer than ${MIN_CONTACTS} contacts on the deal`,
+  no_power: "No director, VP or C-level contact active near close",
+  no_pricing: "Price hasn't come up and close is near",
+  stalled: "Longer in this stage than its limit",
   no_amount: "No deal amount",
 };
 
@@ -40,6 +55,17 @@ type P = {
   nextTodo: { due: string | null } | null;
   /** dealSentiment.ts — the last call's net customer sentiment, when read. */
   sentiment?: { last: "warming" | "cooling" | "flat" } | null;
+  /** rss_deal_signals (0372). Undefined = not read; each reason below needs its fact. */
+  signals?: {
+    lastTwoWayAt: string | null;
+    pricingMentioned: boolean;
+    stageEnteredAt: string | null;
+    contacts: Array<{ rank: "c_level" | "vp" | "director" | "manager" | "individual" | "unknown"; lastOnCall: string | null }>;
+  };
+  /** The company's limit for the deal's current stage (0372 stall_days), when it has one. */
+  stallDays?: number | null;
+  /** Calls linked to the deal (ghosted needs at least one). */
+  callCount?: number;
 };
 
 const DAY = 86_400_000;
@@ -62,6 +88,24 @@ export function dealRisk(p: P, today: string): { level: RiskLevel; reasons: Risk
   if (p.sentiment?.last === "cooling") reasons.push("cooled");
   // The rep's own expected close date passed with the deal still open (0320).
   if (p.closeDate && p.closeDate < today) reasons.push("past_close_date");
+  // Revenue Phase 3a (Gong F20.5), from rss_deal_signals.
+  const sig = p.signals;
+  if (sig) {
+    const daysSince = (iso: string) => (todayMs - Date.parse(iso)) / DAY;
+    if ((p.callCount ?? 0) > 0 && (!sig.lastTwoWayAt || daysSince(sig.lastTwoWayAt) > GHOSTED_DAYS)) reasons.push("ghosted");
+    if (daysSince(p.createdAt) > FEW_CONTACTS_AFTER_DAYS && sig.contacts.length < MIN_CONTACTS) reasons.push("few_contacts");
+    const closeIn = p.closeDate ? (Date.parse(`${p.closeDate}T12:00:00Z`) - todayMs) / DAY : null;
+    if (closeIn !== null && closeIn >= 0 && closeIn <= CLOSE_WINDOW_DAYS) {
+      // Gong: no Director/VP/C-level active in the window, and at least 75% of the contacts with a known title rank
+      // below. Contacts with no known title can't fire it.
+      const power = ["c_level", "vp", "director"];
+      const known = sig.contacts.filter((c) => c.rank !== "unknown");
+      const activePower = sig.contacts.some((c) => power.includes(c.rank) && c.lastOnCall && daysSince(c.lastOnCall) <= CLOSE_WINDOW_DAYS);
+      if (!activePower && known.length > 0 && known.filter((c) => !power.includes(c.rank)).length / known.length >= 0.75) reasons.push("no_power");
+      if (!sig.pricingMentioned) reasons.push("no_pricing");
+    }
+    if (p.stallDays && sig.stageEnteredAt && daysSince(sig.stageEnteredAt) > p.stallDays) reasons.push("stalled");
+  }
   const serious = reasons.length;
   if (p.amount === null) reasons.push("no_amount");
   return { level: serious >= 2 ? "at_risk" : serious === 1 ? "watch" : "ok", reasons };

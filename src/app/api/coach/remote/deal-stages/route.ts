@@ -14,7 +14,12 @@ import { readBody } from "@/lib/api/validate";
  *        list (1–20 stages, names once, at least one open) — this route does not re-derive it (§2.2).
  */
 const Body = z.object({
-  stages: z.array(z.object({ name: z.string().trim().min(1).max(60), kind: z.enum(["open", "won", "lost"]) })).min(1).max(20),
+  stages: z.array(z.object({
+    name: z.string().trim().min(1).max(60),
+    kind: z.enum(["open", "won", "lost"]),
+    // 0372: how many days a deal may sit in this stage before it counts as stalled (optional).
+    stall_days: z.number().int().min(1).max(365).nullable().optional(),
+  })).min(1).max(20),
 });
 
 export async function GET(req: NextRequest) {

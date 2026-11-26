@@ -5,7 +5,7 @@ import { dealRisk, type RiskLevel } from "../dealRisk";
  * warnings). Pure, so every filter is tested. Risk is dealRisk's verdict, consumed, never re-derived (§2.2).
  */
 export type StageKind = "open" | "won" | "lost";
-export type Stage = { name: string; kind: StageKind };
+export type Stage = { name: string; kind: StageKind; stall_days?: number | null };
 
 export type BoardDeal = {
   id: string;
