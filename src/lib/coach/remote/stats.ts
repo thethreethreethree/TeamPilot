@@ -207,7 +207,8 @@ export function questionMarkers(segments: Segment[]): Array<{ atMs: number; text
  * Speech-to-text keeps these words in our transcripts (production 2026-11-26: 168 of 186 calls have them), but it may
  * miss some, so the page says the count is from the transcript. Pure.
  */
-export const FILLER_RE = /\b(u+m+|u+h+|uhm+|e+r+m+)\b/gi;
+// Not part of a hyphenated word (review 2026-11-26): "uh-huh" and "uh-oh" are listening noises, not fillers.
+export const FILLER_RE = /(?<![\w-])(u+m+|u+h+|uhm+|e+r+m+)(?![\w-])/gi;
 export function fillerMarkers(segments: Segment[]): { moments: Array<{ atMs: number; count: number; text: string }>; total: number; perRepMinute: number | null } {
   const valid = validateSegments(segments);
   const moments: Array<{ atMs: number; count: number; text: string }> = [];

@@ -38,11 +38,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load what the team's calls cover." }, { status: 500 });
   };
 
-  const { data: calls, error } = await fetchAllPagedResult<{ id: string; agent_id: string }>(
+  const { data: calls, error } = await fetchAllPagedResult<{ id: string; agent_id: string; started_at: string | null; context: string | null }>(
     (from, to) =>
       db
         .from("coaching_sessions")
-        .select("id, agent_id")
+        .select("id, agent_id, started_at, context")
         .eq("company_id", mgr.companyId)
         .in("context", ["phone", "video"])
         .neq("status", "active")
@@ -52,9 +52,11 @@ export async function GET(req: NextRequest) {
     { label: "coverage calls", maxRows: 20_000 },
   );
   if (error) return fail("calls", error.message);
-  const callIds = (calls ?? []).filter((c) => inTeam(String(c.agent_id))).map((c) => String(c.id));
+  const inScope = (calls ?? []).filter((c) => inTeam(String(c.agent_id)));
+  const callIds = inScope.map((c) => String(c.id));
+  const callInfo = new Map(inScope.map((c) => [String(c.id), { startedAt: c.started_at ?? null, channel: c.context ?? null }]));
 
-  const { data: trackers, error: tErr } = await db.from("keyword_trackers").select("id, name, active").eq("company_id", mgr.companyId).eq("draft", false); // 0352: a draft never ran, so it has no coverage to show (switched-off ones keep their past hits)
+  const { data: trackers, error: tErr } = await db.from("keyword_trackers").select("id, name, active, starts_on, ends_on, channels").eq("company_id", mgr.companyId).eq("draft", false); // 0352: a draft never ran, so it has no coverage to show (switched-off ones keep their past hits)
   if (tErr) return fail("trackers", tErr.message);
 
   const hits: Array<{ trackerId: string; sessionId: string }> = [];
@@ -89,7 +91,8 @@ export async function GET(req: NextRequest) {
 
   const out = coverageShare({
     callIds,
-    trackers: ((trackers ?? []) as Array<{ id: string; name: string; active: boolean }>).map((t) => ({ id: String(t.id), name: t.name, active: t.active !== false })),
+    callInfo,
+    trackers: ((trackers ?? []) as Array<{ id: string; name: string; active: boolean; starts_on: string | null; ends_on: string | null; channels: string[] | null }>).map((t) => ({ id: String(t.id), name: t.name, active: t.active !== false, starts_on: t.starts_on, ends_on: t.ends_on, channels: t.channels })),
     hits,
     intel,
   });

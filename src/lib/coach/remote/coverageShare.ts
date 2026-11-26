@@ -5,12 +5,16 @@
  * "fired" on a call when it has any hit row for it; a call's topics are its LATEST intel read's. Below MIN_CALLS calls
  * the shares are not given (a percentage of three calls says nothing — Gong's own floor is four). Pure.
  */
+import { trackerAppliesTo } from "./trackers";
+
 export const MIN_CALLS = 4;
 const TOP_TOPICS = 10;
 
 export type CoverageInput = {
   callIds: string[];
-  trackers: Array<{ id: string; name: string; active: boolean }>;
+  /** Each call's start and channel (review 2026-11-26), so a tracker's share is over the calls it listens to. */
+  callInfo?: Map<string, { startedAt: string | null; channel: string | null }>;
+  trackers: Array<{ id: string; name: string; active: boolean; starts_on?: string | null; ends_on?: string | null; channels?: string[] | null }>;
   hits: Array<{ trackerId: string; sessionId: string }>;
   /** coach.session_intel_generated events, NEWEST FIRST (the first per call is its latest read). */
   intel: Array<{ subject: string | null; payload: unknown }>;
@@ -19,7 +23,8 @@ export type Share = { calls: number; share: number };
 export type Coverage = {
   calls: number;
   enough: boolean;
-  trackers: Array<{ id: string; name: string; active: boolean } & Share>;
+  /** `of` = the calls this tracker listens to (its dates and call types); the share is over those. */
+  trackers: Array<{ id: string; name: string; active: boolean; of: number } & Share>;
   topics: Array<{ topic: string } & Share>;
 };
 
@@ -40,8 +45,12 @@ export function coverageShare(input: CoverageInput): Coverage {
   const trackers = input.trackers
     .filter((t) => t.active || (firedOn.get(t.id)?.size ?? 0) > 0)
     .map((t) => {
-      const k = firedOn.get(t.id)?.size ?? 0;
-      return { id: t.id, name: t.name, active: t.active, calls: k, share: share(k) };
+      // A tracker's share is over the calls it listens to (review 2026-11-26): a video-only or dated tracker could never
+      // fire on the others, so counting them understated it — the same rule adoption uses (trackerAppliesTo, §2.2).
+      const scoped = !!(t.starts_on || t.ends_on || t.channels?.length) && input.callInfo;
+      const of = scoped ? [...calls].filter((id) => { const c = input.callInfo!.get(id); return trackerAppliesTo(t, c?.startedAt ?? null, c?.channel ?? null); }).length : n;
+      const k = scoped ? [...(firedOn.get(t.id) ?? [])].filter((id) => { const c = input.callInfo!.get(id); return trackerAppliesTo(t, c?.startedAt ?? null, c?.channel ?? null); }).length : firedOn.get(t.id)?.size ?? 0;
+      return { id: t.id, name: t.name, active: t.active, calls: k, of, share: of ? k / of : 0 };
     })
     .sort((a, b) => b.calls - a.calls || a.name.localeCompare(b.name));
 

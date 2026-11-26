@@ -363,12 +363,28 @@ export default function LibraryPage() {
 
         {emptyFolders.length > 0 && (
           <details className="rounded-2xl border border-default bg-surface p-3 text-xs">
-            <summary className="cursor-pointer text-secondary hover:text-primary">Empty folders ({emptyFolders.length})</summary>
+            <summary className="cursor-pointer text-secondary hover:text-primary">Folders with no calls of their own ({emptyFolders.length})</summary>
             <ul className="mt-2 space-y-1">
               {emptyFolders.map((f) => (
                 <li key={f.id} className="flex items-center gap-2">
                   <span className="text-primary">{f.name}</span>
-                  <button type="button" onClick={() => void setArchived(f.id, true)} aria-label={`Archive folder ${f.name}`} className="ml-auto text-secondary hover:text-primary">
+                  {/* A folder with only subfolders in it moves from here — that's how a whole branch moves (review 2026-11-26). */}
+                  <select
+                    aria-label={`Move folder ${f.name}`}
+                    value=""
+                    onChange={(e) => {
+                      const v = e.currentTarget.value;
+                      if (v) void moveFolder(f.id, v === "__top__" ? null : v);
+                    }}
+                    className="ml-auto rounded border border-default bg-base px-1 py-0.5 text-[11px] text-secondary"
+                  >
+                    <option value="">Move…</option>
+                    {f.parentId && <option value="__top__">To the top level</option>}
+                    {movableTargets(f.id).map((t) => (
+                      <option key={t.id} value={t.id}>Into {t.name}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => void setArchived(f.id, true)} aria-label={`Archive folder ${f.name}`} className="text-secondary hover:text-primary">
                     Archive
                   </button>
                 </li>

@@ -25,7 +25,7 @@ describe("coverageShare (F10.11)", () => {
       intel: [],
     });
     expect(out).toMatchObject({ calls: 4, enough: true });
-    expect(out.trackers).toEqual([
+    expect(out.trackers).toMatchObject([
       { id: "t1", name: "Pricing", active: true, calls: 2, share: 0.5 },
       { id: "t4", name: "Retired but fired", active: false, calls: 1, share: 0.25 },
       { id: "t2", name: "Competitor", active: true, calls: 0, share: 0 },
@@ -48,3 +48,23 @@ describe("coverageShare (F10.11)", () => {
     expect(coverageShare({ callIds: [], trackers: [], hits: [], intel: [] })).toEqual({ calls: 0, enough: false, trackers: [], topics: [] });
   });
 });
+
+describe("coverage share by what a tracker listens to (review 2026-11-26)", () => {
+  it("a video-only tracker's share is over video calls only; an unscoped one over all", async () => {
+    const { coverageShare } = await import("../coverageShare");
+    const ids = ["v1", "v2", "v3", "v4", "p1", "p2", "p3", "p4"];
+    const callInfo = new Map(ids.map((id) => [id, { startedAt: "2026-11-20T10:00:00Z", channel: id.startsWith("v") ? "video" : "phone" }]));
+    const out = coverageShare({
+      callIds: ids,
+      callInfo,
+      trackers: [{ id: "t1", name: "Screen share", active: true, channels: ["video"] }, { id: "t2", name: "Price", active: true }],
+      hits: [{ trackerId: "t1", sessionId: "v1" }, { trackerId: "t1", sessionId: "v2" }, { trackerId: "t2", sessionId: "p1" }, { trackerId: "t2", sessionId: "v1" }],
+      intel: [],
+    });
+    const t1 = out.trackers.find((t) => t.id === "t1")!;
+    const t2 = out.trackers.find((t) => t.id === "t2")!;
+    expect([t1.calls, t1.of, t1.share]).toEqual([2, 4, 0.5]);
+    expect([t2.calls, t2.of, t2.share]).toEqual([2, 8, 0.25]);
+  });
+});
+

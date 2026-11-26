@@ -120,6 +120,10 @@ describe("fillerMarkers (F9.6, 2026-11-26)", () => {
     expect(r.total).toBe(4);
     expect(r.perRepMinute).toBe(4); // 4 over 60 s of rep talk
   });
+  it("uh-huh and uh-oh are listening noises, not fillers (review 2026-11-26)", async () => {
+    const { fillerMarkers } = await import("../stats");
+    expect(fillerMarkers([{ speaker: "rep", startMs: 0, endMs: 70_000, text: "Uh-huh, got it. Uh-oh. Mm-hmm. Um, right." }]).total).toBe(1);
+  });
   it("no rate below a minute of rep talk", async () => {
     const { fillerMarkers } = await import("../stats");
     expect(fillerMarkers([{ speaker: "rep", startMs: 0, endMs: 5_000, text: "um" }]).perRepMinute).toBeNull();

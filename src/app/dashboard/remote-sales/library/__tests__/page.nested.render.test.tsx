@@ -33,7 +33,7 @@ describe("Library — nested folders", () => {
     await screen.findByText("Call i1");
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(["Objections", "Objections / Pricing", "Zebra"]);
-    expect(screen.queryByText(/Empty folders/)).toBeNull(); // "Old / Inner" is hidden with "Old", not an empty folder
+    expect(screen.queryByText(/Folders with no calls of their own/)).toBeNull(); // "Old / Inner" is hidden with "Old", not an empty folder
     expect(screen.getByText(/Archived folders \(1\)/)).toBeTruthy();
   });
 
@@ -113,6 +113,34 @@ describe("Library — nested folders", () => {
     expect([...moveB.options].map((o) => o.textContent)).toEqual(["Move…", "To the top level", "Into Zebra"]);
     fireEvent.change(moveB, { target: { value: "z" } });
     await waitFor(() => expect(posts).toEqual([{ action: "move", folderId: "b", toFolderId: "z" }]));
+  });
+  it("review 2026-11-26: a folder with only subfolders can be moved from 'Folders with no calls of their own'", async () => {
+    const posts: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn((_u: string, init?: { method?: string; body?: string }) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(init.body!));
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          available: true, isManager: false,
+          items: [item("i2", "b", "Objections / Pricing"), item("i3", "z", "Sales plays")],
+          folders: [
+            { id: "a", name: "Objections", parentId: null, archived: false, insideArchived: false, canArchive: true },
+            { id: "b", name: "Objections / Pricing", parentId: "a", archived: false, insideArchived: false, canArchive: true },
+            { id: "z", name: "Sales plays", parentId: null, archived: false, insideArchived: false, canArchive: true },
+          ],
+        }),
+      });
+    }));
+    render(<LibraryPage />);
+    await screen.findByText("Call i2");
+    fireEvent.click(screen.getByText(/Folders with no calls of their own/));
+    const move = screen.getByLabelText("Move folder Objections") as HTMLSelectElement;
+    expect([...move.options].map((o) => o.textContent)).toEqual(["Move…", "Into Sales plays"]);
+    fireEvent.change(move, { target: { value: "z" } });
+    await waitFor(() => expect(posts).toEqual([{ action: "move", folderId: "a", toFolderId: "z" }]));
   });
 });
 

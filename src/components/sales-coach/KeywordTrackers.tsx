@@ -20,6 +20,7 @@ type Tracker = { id: string; name: string; phrases: string[]; side: "rep" | "cus
 /** 0361 (F11.3): which call types a tracker listens to. "both" is stored as no limit. */
 type Channels = "both" | "phone" | "video";
 const channelsBody = (c: Channels) => (c === "both" ? null : [c]);
+const callsWord = (c: Channels) => (c === "phone" ? "phone calls" : c === "video" ? "video calls" : "phone and video calls");
 const channelsLabel = (t: Tracker) => (t.channels?.length === 1 ? ` · ${t.channels[0] === "phone" ? "phone" : "video"} calls only` : "");
 /** 0344 (F11.5): "from 1 Dec" / "until 31 Dec" / "1–31 Dec"; future start = scheduled. */
 const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -145,8 +146,8 @@ export function KeywordTrackers() {
           : kind === "smart"
           ? j.backfilling
             ? `Saved. Reading your last ${j.backfilling} ${j.backfilling === 1 ? "call" : "calls"} for it now — mentions show on those calls within a few minutes. New calls are checked as they land.`
-            : "Saved. New phone and video calls will be checked for it."
-          : "Saved. New phone and video calls will be checked for it.",
+            : `Saved. New ${callsWord(channels)} will be checked for it.`
+          : `Saved. New ${callsWord(channels)} will be checked for it.`,
       );
       await load();
     } finally {
@@ -175,7 +176,7 @@ export function KeywordTrackers() {
           ? j.error ?? "Couldn't put it live."
           : j.backfilling
             ? `"${t.name}" is live. Reading your last ${j.backfilling} ${j.backfilling === 1 ? "call" : "calls"} for it now.`
-            : `"${t.name}" is live. New phone and video calls will be checked for it.`,
+            : `"${t.name}" is live. New ${callsWord(t.channels?.length === 1 ? (t.channels[0] as Channels) : "both")} will be checked for it.`,
       );
       await load();
     } finally {
