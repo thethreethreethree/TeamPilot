@@ -5,6 +5,8 @@ vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn() }));
 vi.mock("@/lib/audit/recordAudit", () => ({ recordAudit: vi.fn(async () => true) }));
 vi.mock("@/lib/coach/v5/removeRecordingAudio", () => ({ removeRecordingAudio: vi.fn(), removeSessionChunks: vi.fn() }));
+const topics = vi.hoisted(() => ({ result: { groups: [], members: [] } as { groups: string[]; members: string[] } | null }));
+vi.mock("@/lib/coach/remote/marketErasure", () => ({ topicMembersOnlyIn: vi.fn(async () => topics.result) }));
 const db = vi.hoisted(() => ({
   log: [] as string[],
   matches: [] as unknown[],
@@ -38,6 +40,7 @@ vi.mock("@/lib/supabase/admin", () => ({
         db.prospectArgs = args;
         return { data: (args.p_prospects as unknown[]).length, error: null };
       }
+      if (fn === "rss_erase_topic_members") return { data: (args.p_groups as unknown[]).length, error: null };
       if (fn === "rss_erase_day_plans") {
         db.planArgs = args;
         return { data: (args.p_plans as unknown[]).length, error: null };
@@ -96,6 +99,24 @@ beforeEach(() => {
 });
 
 describe("POST /api/coach/remote/erasure", () => {
+  beforeEach(() => {
+    topics.result = { groups: [], members: [] };
+  });
+  it("topic-group members only on the erased calls are blanked before the calls are erased (0385)", async () => {
+    topics.result = { groups: ["g1"], members: ["betty's divorce"] };
+    db.audio = [];
+    const res = await POST(post({ action: "erase", kind: "phone", value: "5550100123", sessionIds: ["s1"] }));
+    expect(res.status).toBe(200);
+    expect(db.log.slice(-2)).toEqual(["rpc:rss_erase_topic_members", "rpc:rss_erase_sessions"]);
+    expect(await res.json()).toMatchObject({ topicMembersErased: 1 });
+  });
+  it("topic groups that can't be checked stop the erasure before the calls' step (safe to repeat)", async () => {
+    topics.result = null;
+    db.audio = [];
+    const res = await POST(post({ action: "erase", kind: "phone", value: "5550100123", sessionIds: ["s1"] }));
+    expect(res.status).toBe(500);
+    expect(db.log).not.toContain("rpc:rss_erase_sessions");
+  });
   it("a manager who is not a company admin is refused before any search", async () => {
     vi.mocked(resolveApiAuth).mockResolvedValue({ ...ADMIN, isAdmin: false } as never);
     expect((await POST(post({ action: "find", kind: "phone", value: "5550100123" }))).status).toBe(403);

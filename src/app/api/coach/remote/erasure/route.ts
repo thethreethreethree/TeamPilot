@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { topicMembersOnlyIn } from "@/lib/coach/remote/marketErasure";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
@@ -29,8 +30,10 @@ import {
  *                                                  confirmed calls; the identifier inside the confirmed day plans
  *                                                  (rss_erase_day_plans); the confirmed prospects' name and organization
  *                                                  (rss_erase_prospects); the confirmed contacts' and accounts' names
- *                                                  (rss_erase_contacts) — all before rss_erase_sessions, which also
- *                                                  renames the contacts on the erased calls (0370).
+ *                                                  (rss_erase_contacts); Market topic-group members that appear only
+ *                                                  on the erased calls (rss_erase_topic_members, 0385) — all before
+ *                                                  rss_erase_sessions, which also renames the contacts on the erased
+ *                                                  calls (0370).
  *
  * ERASE, IN ORDER, AND WHY:
  *   1. The search runs again here. Only calls it returns may be erased — a request can never reach a call that does
@@ -333,6 +336,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erased: 0, plansErased, prospectsErased, peopleErased, audioRemoved, hint });
   }
 
+  // Market topic groups (0385): a member that appears only on the calls being erased is blanked, decided before
+  // rss_erase_sessions deletes those calls' events (marketErasure.ts, Market's own topic matcher).
+  const topics = await topicMembersOnlyIn(admin, ctx.companyId, asked);
+  if (topics === null) {
+    return NextResponse.json({ error: "The topic groups couldn't be checked, so the calls weren't erased yet. Try again: it is safe to repeat.", audioRemoved, plansErased, prospectsErased, peopleErased }, { status: 500 });
+  }
+  let topicMembersErased = 0;
+  if (topics.members.length) {
+    const { error: tE } = await admin.rpc("rss_erase_topic_members", { p_company: ctx.companyId, p_request: request.id, p_groups: topics.groups, p_members: topics.members });
+    if (tE) {
+      console.error(`[erasure] topic members failed request=${request.id}: ${tE.message}`);
+      return NextResponse.json({ error: "The topic groups couldn't be erased. Try again: it is safe to repeat.", audioRemoved, plansErased, prospectsErased, peopleErased }, { status: 500 });
+    }
+    topicMembersErased = topics.members.length;
+  }
+
   const { data: result, error: eErr } = await admin.rpc("rss_erase_sessions", {
     p_company: ctx.companyId,
     p_request: request.id,
@@ -353,7 +372,7 @@ export async function POST(req: NextRequest) {
     action: "erasure.request",
     objectType: "erasure_request",
     objectId: String(request.id),
-    meta: { hint, kind, sessions: asked.length, plansErased, prospectsErased, peopleErased, audioRemoved, result },
+    meta: { hint, kind, sessions: asked.length, plansErased, prospectsErased, peopleErased, topicMembersErased, audioRemoved, result },
   });
-  return NextResponse.json({ erased: asked.length, plansErased, prospectsErased, peopleErased, audioRemoved, hint, result });
+  return NextResponse.json({ erased: asked.length, plansErased, prospectsErased, peopleErased, topicMembersErased, audioRemoved, hint, result });
 }

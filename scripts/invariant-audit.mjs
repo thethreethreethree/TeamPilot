@@ -2561,6 +2561,8 @@ for (const f of FILES) {
 // append-only rules yield to it — are not a second door: the function stays single and only the erasure route calls it
 // (checked above). Each is named here WITH what it adds, so a new mention of the flag still fails until reviewed.
 const ERASURE_EXTENSIONS = new Map([
+  ["0385_erasure_topic_members.sql",
+    "Market topic-group members (0319) that appear only on the calls being erased are customer-derived text (§3.1.1(2)): rss_erase_topic_members blanks them ('[erased]', the founder's 0366 rule), market_topic_groups' update rule yields to erasure with 0285's exact pattern; called only by the same erasure route for the same request, before rss_erase_sessions, never completing it."],
   ["0377_engage_flows.sql",
     "Engage step notes (plan E1) can quote the customer: engage_activities' append-only rules yield to erasure with 0285's exact pattern; rss_erase_sessions and rss_erase_prospects are 0374's exact bodies, and rss_erase_contacts 0370's, each plus one step blanking the notes on the erased deals' or contacts' enrolments. Same functions, same single caller."],
   ["0374_deal_briefs.sql",
@@ -2797,6 +2799,7 @@ const RAW_STORAGE_WRITERS = new Map([
 // Fixed in two commits (0349ef69 and this one). The rule: the LAST .order() of a statement that calls .range(from, to)
 // is "id", or the read is listed here with the key that is unique for it.
 const PAGING_UNIQUE_ALLOWLIST = new Map([
+  ["src/lib/coach/remote/marketErasure.ts::market_topic_group_retirements::group_id", "group_id is the table's primary key (0319): one row per group."],
   ["src/lib/coach/remote/revenue/daily.ts::agent_fires::agent_id,fire_key", "agent_fires primary key (agent_id, fire_key) (0383): one row per pair."],
   ["src/lib/coach/remote/prospects.ts::deal_contacts_current::prospect_id,contact_id", "the view is distinct on (prospect_id, contact_id) (0370): one row per pair."],
   ["src/app/api/coach/remote/hide-phrases/route.ts::call_unhides::hide_id", "call_unhides_once: unique (hide_id) (0337)."],

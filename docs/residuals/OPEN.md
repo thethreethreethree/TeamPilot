@@ -456,7 +456,7 @@ See `docs/SUPABASE-QUOTA-OUTAGE-2026-11-11.md`.
 - [ ] 2026-11-23 · market · FOUNDER CHECK: run "Suggest groups" once on Market with real topics and judge the AI's groups
       why-unresolved: only a manager's click in the product runs it
       next-action: Remote Sales → Market → Topic groups → Suggest groups; accept one, confirm Topics recounts
-- [ ] 2026-11-23 · market · legal erasure does not reach topic-group members (company topics on 2+ calls, not tied to a call)
+- [x] 2026-11-23 · market · legal erasure does not reach topic-group members (company topics on 2+ calls, not tied to a call) — DONE 2026-11-27 (0385): a member that appears only on the calls being erased becomes '[erased]' (§3.1.1(2) "stored text derived from them"; the founder's 0366 "blank the text" rule), decided with Market's own matcher before the calls' events are deleted; a group whose every member is erased has its name blanked too
       why-unresolved: needs a rule for matching an erased customer's words to group labels
       next-action: decide whether erasure should drop a member that appears only in erased calls
 - [x] 2026-11-23 · market · a manager can edit an AI suggestion but not build a topic group from scratch
@@ -612,7 +612,7 @@ product says so where it matters, never silently.
       why-unresolved: acting as a person needs a JWT secret (`SUPABASE_JWT_SECRET`) this server doesn't have (plan E8).
       next-action: add the secret in Vercel; then personal MCP keys that sign a short-lived user token so RLS applies.
       not verified: /api/health doesn't report this secret; treat "unset" as unconfirmed (the CRON_SECRET "unset" was wrong).
-- [ ] 2026-11-27 · revenue-p3a / p4 / engage-e5 · Warnings are live only (no 30/90-day drivers history), and agents have no date triggers (close date approaching).
+- [x] 2026-11-27 · revenue-p3a / p4 / engage-e5 · Warnings are live only (no 30/90-day drivers history), and agents have no date triggers (close date approaching). — BUILT 2026-11-27 (0382/0383, 92249504 + d4dc9ec2); first real run 05:15 UTC 2026-11-28 (check below)
       why-unresolved: both need a scheduled job, and `CRON_SECRET` is unset in Vercel.
       next-action: set `CRON_SECRET`; add a daily warnings snapshot and a date-trigger sweep.
       prerequisite found 2026-11-27: the nightly job runs as the service role, but `listProspects` (the reader dealRisk
