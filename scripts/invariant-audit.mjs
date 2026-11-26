@@ -940,10 +940,11 @@ const PUBLIC_ROUTE_ALLOWLIST = new Map([
 // validated mobile Bearer token, failing closed on a removed account; see src/lib/api/resolveApiAuth.ts),
 // a role gate
 // (requireCareAgent / requireVendorAdmin / …), a per-conversation capability token (getCareConversationByToken),
-// or a shared secret (CRON/SWEEP/inbound-email). resolveCareTenant is deliberately NOT here — it is tenant
+// or a shared secret (CRON/SWEEP/inbound-email), or a public-API key (authenticateApiKey, 0378: the key's SHA-256 must
+// match a live key with the route's scope, failing closed — src/lib/api/publicApi.ts). resolveCareTenant is deliberately NOT here — it is tenant
 // RESOLUTION for public widgets, not a session gate, so its routes are allowlisted individually above (which
 // forces a NEW resolveCareTenant route to be consciously classified rather than passing silently).
-const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|resolveApiAuth|resolveApiUserId|requireSalesCoachManager|requireCareAgent|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin|\bisAdmin\b|guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth|CRON_SECRET|SWEEP_SECRET|CARE_INBOUND_EMAIL_SECRET|getCareConversationByToken/;
+const ROUTE_AUTH_RE = /auth\.getUser|getCurrentCompanyId|getCurrentAuthContext|resolveApiAuth|resolveApiUserId|requireSalesCoachManager|requireCareAgent|requireVendorAdmin|requirePlatformAdmin|requireSuperAdmin|\bisAdmin\b|guardExtensionRequest|requireEntitledExtensionUser|requireExtensionAuth|CRON_SECRET|SWEEP_SECRET|CARE_INBOUND_EMAIL_SECRET|getCareConversationByToken|authenticateApiKey/;
 const MUTATION_EXPORT_RE = /export\s+(?:async\s+function|const)\s+(?:POST|PATCH|PUT|DELETE)\b/;
 for (const f of FILES) {
   if (!/^src\/app\/api\/.*route\.(ts|tsx)$/.test(f.path)) continue;

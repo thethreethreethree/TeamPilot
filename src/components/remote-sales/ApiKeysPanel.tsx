@@ -48,6 +48,11 @@ export function ApiKeysPanel() {
         <code> Authorization: Bearer els_…</code>. A key reads your whole company (no call with an active hide, no transcripts),
         3 requests a second and 10,000 a day. Revoke any key you no longer use.
       </p>
+      <p className="mt-1 text-secondary">
+        AI assistants (Claude, ChatGPT, Copilot): add EloState as an MCP server at <code>{typeof window === "undefined" ? "" : window.location.origin}/api/mcp</code> with
+        a key that has “Also for AI assistants”. They can list deals, read a deal or account, and ask about a deal from its
+        calls. Read-only.
+      </p>
       {shown && (
         <div className="mt-2 rounded-lg border border-brand/60 bg-brand/10 p-2" role="status">
           <p className="font-semibold text-primary">Copy this key now — it won&apos;t be shown again.</p>
