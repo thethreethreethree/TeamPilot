@@ -183,6 +183,34 @@ export async function GET(req: NextRequest) {
     console.error(`[library] hidden check failed: ${e instanceof Error ? e.message : String(e)}`);
     return NextResponse.json({ error: "Couldn't load the library." }, { status: 500 });
   }
+  // Folder usage (F12.9, 2026-11-26): for a manager looking at the company library, how many people other than the call's
+  // rep have played each call — distinct listeners from listen_events, a count only (never who). Paged and chunked; a
+  // failed read leaves the counts out (null) rather than showing zero.
+  let heardBy: Map<string, number> | null = null;
+  if (scope === "company" && isManager && items.length) {
+    const repBySession = new Map(items.map((i) => [String(i.session_id), String(i.rep_id)]));
+    const sids = [...repBySession.keys()];
+    const listeners = new Map<string, Set<string>>();
+    let ok = true;
+    for (let i = 0; ok && i < sids.length; i += 150) {
+      const { data, error: lErr } = await fetchAllPagedResult<{ session_id: string; listener_id: string; id: number }>(
+        (from, to) => admin.from("listen_events").select("session_id, listener_id, id").eq("company_id", ctx.companyId).in("session_id", sids.slice(i, i + 150)).order("id", { ascending: true }).range(from, to),
+        { label: "library usage", maxRows: 100_000 },
+      );
+      if (lErr) {
+        console.error(`[library] usage read failed: ${lErr.message}`);
+        ok = false;
+        break;
+      }
+      for (const r of data ?? []) {
+        const sid = String(r.session_id);
+        if (String(r.listener_id) === repBySession.get(sid)) continue; // the rep replaying their own call
+        if (!listeners.has(sid)) listeners.set(sid, new Set());
+        listeners.get(sid)!.add(String(r.listener_id));
+      }
+    }
+    if (ok) heardBy = new Map(sids.map((sid) => [sid, listeners.get(sid)?.size ?? 0]));
+  }
   const out = [];
   for (const i of items) {
     if (hidden.has(String(i.session_id))) continue;
@@ -212,6 +240,8 @@ export async function GET(req: NextRequest) {
       approved: inCompanyFolder ? shareable : null,
       pitchId: consent.get(String(i.session_id))?.pitchId ?? null,
       canOpenCall: viewerIsRep || viewerCanViewRep,
+      // Managers in the company library: distinct people (not the rep) who played this call; null = not shown / unread.
+      heardBy: heardBy ? heardBy.get(String(i.session_id)) ?? 0 : null,
       canRemove: String(i.added_by) === ctx.userId || folder?.owner_id === ctx.userId || (inCompanyFolder && isManager && viewerCanViewRep),
       audioUrl: await signedAudio(s?.audio_asset_url ?? null),
       addedAt: i.created_at,

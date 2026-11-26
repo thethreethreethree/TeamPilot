@@ -137,3 +137,29 @@ describe("GET — every item is read; removals before the cap (2026-11-26)", () 
   });
 });
 
+describe("GET — folder usage for managers (F12.9, 2026-11-26)", () => {
+  it("a manager sees how many people other than the rep played each company call; a peer sees no count", async () => {
+    DATA.listen_events = [
+      { id: 1, session_id: "s2", listener_id: "rep2" }, // the rep replaying their own call — not counted
+      { id: 2, session_id: "s2", listener_id: "mgr1" },
+      { id: 3, session_id: "s2", listener_id: "mgr1" }, // the same person twice counts once
+      { id: 4, session_id: "s2", listener_id: "peer" },
+    ];
+    try {
+      who.userId = "mgr1";
+      who.manager = true;
+      who.tree = ["rep1", "rep2"];
+      const body = await get();
+      const byId = Object.fromEntries(body.items.map((i: { id: string; heardBy: number | null }) => [i.id, i.heardBy]));
+      expect(byId).toEqual({ i1: 0, i2: 2 });
+      who.userId = "peer";
+      who.manager = false;
+      who.tree = [];
+      const peer = await get();
+      expect(peer.items.every((i: { heardBy: number | null }) => i.heardBy === null)).toBe(true);
+    } finally {
+      delete DATA.listen_events;
+    }
+  });
+});
+

@@ -63,6 +63,8 @@ function AskFolder({ name, items }: { name: string; items: Item[] }) {
  */
 type Item = {
   id: string;
+  /** F12.9: managers in the company library — distinct teammates (not the rep) who played it; null otherwise. */
+  heardBy?: number | null;
   folderName: string;
   folderId?: string;
   sessionId: string;
@@ -248,6 +250,9 @@ export default function LibraryPage() {
                       {i.addedByName ? ` · added by ${i.addedByName}` : ""}
                     </p>
                     {i.note && <p className="mt-1 text-secondary">{i.note}</p>}
+                    {typeof i.heardBy === "number" && (
+                      <p className="mt-1 text-muted">{i.heardBy === 0 ? "No one on the team has played it yet" : `Played by ${i.heardBy} ${i.heardBy === 1 ? "teammate" : "teammates"}`}</p>
+                    )}
                     {i.approved === true && <p className="mt-1 text-secondary">Approved by {i.repName ?? "the rep"}</p>}
                     {i.approved === false && (
                       <p className="mt-1 text-secondary">
