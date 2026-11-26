@@ -57,4 +57,21 @@ describe("Search — following a saved search (0342)", () => {
     render(<SearchCallsPage />);
     expect(await screen.findByText("new?")).toBeTruthy();
   });
+
+  it("opened from the bell (?saved=s1): the search's filters apply and its new calls are marked seen (2026-11-26)", async () => {
+    window.history.replaceState(null, "", "/dashboard/remote-sales/search?q=price&saved=s1");
+    const posts = setup();
+    await waitFor(() => expect(posts).toContainEqual({ url: "/api/coach/remote/saved-searches/events", body: { id: "s1", kind: "seen" } }));
+    await waitFor(() => expect(screen.queryByText(/3\s*new/)).toBeNull());
+    expect((screen.getAllByRole("textbox")[0] as HTMLInputElement).value).toBe("price");
+    window.history.replaceState(null, "", "/");
+  });
+  it("a ?saved= for a search that isn't followed writes nothing", async () => {
+    window.history.replaceState(null, "", "/dashboard/remote-sales/search?saved=s2");
+    const posts = setup();
+    await screen.findByText(/3\s*new/);
+    expect(posts.filter((p) => p.url.endsWith("/events"))).toEqual([]);
+    window.history.replaceState(null, "", "/");
+  });
 });
+

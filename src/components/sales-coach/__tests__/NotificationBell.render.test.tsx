@@ -461,3 +461,36 @@ describe("call_scored (0332): the rep's call score landed", () => {
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/dashboard/sales-coach/sess-9");
   });
 });
+
+describe("NotificationBell — searches you follow (F12.7, 2026-11-26)", () => {
+  const withFollowed = (searches: unknown[]) =>
+    fetchMock.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => (String(url).startsWith("/api/coach/remote/saved-searches") ? { available: true, searches } : { notifications: [], unread: 0, total: 0 }),
+    }));
+
+  it("a followed search with new calls counts on the badge and opens the search, which it names", async () => {
+    withFollowed([
+      { id: "s1", name: "Pricing objections", query: "q=price", following: true, newCount: 3, newCapped: false },
+      { id: "s2", name: "Quiet", query: "", following: true, newCount: 0, newCapped: false },
+      { id: "s3", name: "Not followed", query: "", following: false, newCount: 0, newCapped: false },
+      { id: "s4", name: "Couldn't check", query: "", following: true, newCount: null, newCapped: false },
+    ]);
+    render(<NotificationBell />);
+    const bell = await screen.findByRole("button", { name: "Notifications (1 unread)" });
+    fireEvent.click(bell);
+    const link = screen.getByRole("link", { name: /3 new calls match “Pricing objections”/ });
+    expect(link.getAttribute("href")).toBe("/dashboard/remote-sales/search?q=price&saved=s1");
+    expect(screen.queryByText(/Quiet|Not followed|Couldn't check/)).toBeNull();
+    expect(screen.queryByText("No notifications yet.")).toBeNull();
+    fireEvent.click(link);
+    expect(await screen.findByRole("button", { name: "Notifications" })).toBeTruthy(); // gone from the badge at once
+  });
+
+  it("a capped count says so", async () => {
+    withFollowed([{ id: "s1", name: "Busy", query: "", following: true, newCount: 50, newCapped: true }]);
+    render(<NotificationBell />);
+    fireEvent.click(await screen.findByRole("button", { name: "Notifications (1 unread)" }));
+    expect(screen.getByRole("link", { name: /50\+ new calls match “Busy”/ }).getAttribute("href")).toBe("/dashboard/remote-sales/search?saved=s1");
+  });
+});

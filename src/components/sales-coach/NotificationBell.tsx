@@ -262,6 +262,13 @@ function destination(n: Notif): string | null {
  * saw the notices addressed to them (call ready, call scored, score corrected, dispute answered, mentions). It now lives
  * in both module shells for everyone: `align` says which way the panel opens, `tone` matches a dark sidebar.
  */
+/** A followed saved search with calls since it was last opened (F12.7, 0342) — derived on read, never stored. */
+type Followed = { id: string; name: string; query: string; newCount: number; newCapped: boolean };
+const FOLLOW_POLL_MS = 10 * 60_000;
+
+/** Opens the search on Remote Sales Search; `saved` tells the page which saved search to mark seen. */
+export const followedHref = (f: Pick<Followed, "id" | "query">) => `/dashboard/remote-sales/search?${f.query ? `${f.query}&` : ""}saved=${encodeURIComponent(f.id)}`;
+
 export function NotificationBell({ align = "right", tone = "light" }: { align?: "left" | "right"; tone?: "light" | "dark" } = {}) {
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
@@ -269,6 +276,32 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
   const [total, setTotal] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // F12.7 (2026-11-26): searches the person follows that have new calls. Counted by the saved-searches route through
+  // the person's OWN client (their reporting tree and hidden calls decide), every 10 minutes — each one runs a search.
+  const [followed, setFollowed] = useState<Followed[]>([]);
+  const loadFollowed = useCallback(async () => {
+    try {
+      const res = await fetch("/api/coach/remote/saved-searches");
+      if (!res.ok) return;
+      const d = (await res.json()) as { searches?: Array<{ id: string; name: string; query: string; following?: boolean; newCount?: number | null; newCapped?: boolean }> };
+      if (!Array.isArray(d.searches)) return;
+      // newCount null = couldn't check: not shown (never a guessed number).
+      setFollowed(
+        d.searches
+          .filter((s) => s.following && ((s.newCount ?? 0) > 0 || s.newCapped))
+          .map((s) => ({ id: s.id, name: s.name, query: s.query, newCount: s.newCount ?? 0, newCapped: !!s.newCapped })),
+      );
+    } catch {
+      /* offline — keep the last list */
+    }
+  }, []);
+  useEffect(() => {
+    void loadFollowed();
+    const t = setInterval(loadFollowed, FOLLOW_POLL_MS);
+    return () => clearInterval(t);
+  }, [loadFollowed]);
+  // The badge counts unread notices plus followed searches with new calls (each search once, however many calls).
+  const badge = unread + followed.length;
 
   const load = useCallback(async () => {
     try {
@@ -409,13 +442,13 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
           setOpen((o) => !o);
           if (!open && unread > 0) void markShownRead();
         }}
-        aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}
+        aria-label={`Notifications${badge > 0 ? ` (${badge} unread)` : ""}`}
         className={`relative rounded-lg p-2 ${tone === "dark" ? "text-white/60 hover:bg-white/5 hover:text-white" : "text-secondary hover:bg-surface-raised hover:text-primary"}`}
       >
         <Bell size={18} />
-        {unread > 0 && (
+        {badge > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {unread > 9 ? "9+" : unread}
+            {badge > 9 ? "9+" : badge}
           </span>
         )}
       </button>
@@ -438,8 +471,31 @@ export function NotificationBell({ align = "right", tone = "light" }: { align?: 
               Showing the {items.length} most recent of {total}.
             </p>
           )}
+          {followed.length > 0 && (
+            <div className="border-b border-default" aria-label="Searches you follow">
+              <p className="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Searches you follow</p>
+              {followed.map((f) => (
+                <Link
+                  key={f.id}
+                  href={followedHref(f)}
+                  // The search page records it seen; drop it here now rather than at the next 10-minute poll (which
+                  // brings it back if that record failed).
+                  onClick={() => {
+                    setOpen(false);
+                    setFollowed((xs) => xs.filter((x) => x.id !== f.id));
+                  }}
+                  className="block px-3 py-2 hover:bg-surface-raised"
+                >
+                  <p className="text-sm leading-snug text-primary">
+                    {f.newCapped ? `${f.newCount}+` : f.newCount} new {f.newCount === 1 && !f.newCapped ? "call matches" : "calls match"} “{f.name}”
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">Opening the search clears this.</p>
+                </Link>
+              ))}
+            </div>
+          )}
           {items.length === 0 ? (
-            <div className="px-3 py-6 text-center text-sm text-muted">No notifications yet.</div>
+            followed.length > 0 ? null : <div className="px-3 py-6 text-center text-sm text-muted">No notifications yet.</div>
           ) : (
             items.map((n) => {
               const inner = (

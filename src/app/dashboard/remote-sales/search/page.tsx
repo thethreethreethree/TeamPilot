@@ -101,6 +101,15 @@ export default function SearchCallsPage() {
         if (!j) return;
         setSavedAvailable(j.available);
         setSaved(j.searches);
+        // Opened from the bell (F12.7, 2026-11-26): ?saved=<id> names the followed search this link opens. Its new
+        // calls are now seen — the same record openSaved writes; the count clears only once the server has it.
+        const openedId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("saved") : null;
+        const opened = openedId ? j.searches.find((s) => s.id === openedId) : undefined;
+        if (opened?.following && (opened.newCount || opened.newCapped)) {
+          void fetch("/api/coach/remote/saved-searches/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: opened.id, kind: "seen" }) })
+            .then((r) => r.ok && setSaved((xs) => xs.map((x) => (x.id === opened.id ? { ...x, newCount: 0, newCapped: false } : x))))
+            .catch(() => null);
+        }
       })
       .catch(() => setListFailed((x) => ({ ...x, saved: true })));
     fetch("/api/coach/remote/trackers")
