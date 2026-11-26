@@ -22,3 +22,12 @@ describe("dealDrivers", () => {
     expect(few.teamWide).toEqual([]);
   });
 });
+
+import { driversFromSnapshots } from "../drivers";
+describe("driversFromSnapshots (0382)", () => {
+  it("a past day's record is read by the same rule as today", () => {
+    const d = driversFromSnapshots([{ rep_id: "a", reasons: ["ghosted", "no_amount"] }, { rep_id: "a", reasons: [] }]);
+    expect(d.rows).toEqual([{ repId: "a", open: 2, share: { ghosted: 0.5 } }]);
+    expect(d.reasons).toEqual(["ghosted"]);
+  });
+});

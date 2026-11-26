@@ -21,6 +21,8 @@ const TriggerZ = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("deal_stage"), status: z.enum(["open", "won", "lost"]).optional(), label: z.string().trim().min(1).max(60).optional() }),
   // 0380: a tracker first heard on one of a deal's calls. It must be one of the company's trackers.
   z.object({ kind: z.literal("tracker_heard"), tracker_id: z.string().uuid() }),
+  // 0382: an open deal's expected close date is this many days away (the nightly job; needs CRON_SECRET).
+  z.object({ kind: z.literal("close_date_near"), days: z.number().int().min(1).max(60) }),
 ]);
 const ActionZ = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("brief") }),

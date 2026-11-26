@@ -238,7 +238,7 @@ export function RemotePipeline() {
         ) : (
           <>
             {whose === "mine" && <p className="text-xs text-secondary">Drivers compare reps: pick “My team&apos;s pipeline” above.</p>}
-            <DealDrivers deals={data.prospects} nameOf={(id) => (id === data.viewerId ? "You" : nameOf(id))} today={today()} />
+            <DealDrivers key={whose} deals={data.prospects} whose={whose} nameOf={(id) => (id === data.viewerId ? "You" : nameOf(id))} today={today()} />
           </>
         )
       ) : view === "calendar" ? (

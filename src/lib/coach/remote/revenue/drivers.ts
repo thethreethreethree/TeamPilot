@@ -3,8 +3,8 @@ import { dealRisk, type RiskReason } from "../dealRisk";
 /**
  * Deal drivers (revenue Phase 4; Gong F20.11): for each rep, how many open deals they have and the share with each
  * warning now. The three highest shares in a column are marked; when more than three reps have a warning on at least
- * half their open deals, it is a team habit, not one rep's — a training need. Live only: there is no daily record of
- * warnings yet (Phase 3a residual R1), so Gong's 30 / 90-day view isn't offered. dealRisk is the one verdict (§2.2).
+ * half their open deals, it is a team habit, not one rep's — a training need. Now from the live deals; 30 / 90 days ago
+ * from the nightly record (0382), once the nightly job runs. dealRisk is the one verdict (§2.2).
  */
 export type DriverDeal = Parameters<typeof dealRisk>[0] & { repId: string };
 export type DriverRow = { repId: string; open: number; share: Partial<Record<RiskReason, number>> };
@@ -14,12 +14,24 @@ export const TEAM_WIDE_SHARE = 0.5;
 export const TEAM_WIDE_REPS = 3;
 
 export function dealDrivers(deals: DriverDeal[], today: string): Drivers {
-  const byRep = new Map<string, DriverDeal[]>();
-  for (const d of deals) if (d.status === "open") byRep.set(d.repId, [...(byRep.get(d.repId) ?? []), d]);
+  return driversOf(deals.filter((d) => d.status === "open").map((d) => ({ repId: d.repId, reasons: dealRisk(d, today).reasons })));
+}
+
+/**
+ * The same table from a past day's record (0382 deal_warning_snapshots: each open deal's warnings as dealRisk judged
+ * them that night), so 30 / 90 days ago is computed by the same rule as today. Pure.
+ */
+export function driversFromSnapshots(rows: Array<{ rep_id: string; reasons: string[] }>): Drivers {
+  return driversOf(rows.map((r) => ({ repId: r.rep_id, reasons: r.reasons as RiskReason[] })));
+}
+
+function driversOf(open: Array<{ repId: string; reasons: RiskReason[] }>): Drivers {
+  const byRep = new Map<string, Array<{ reasons: RiskReason[] }>>();
+  for (const d of open) byRep.set(d.repId, [...(byRep.get(d.repId) ?? []), d]);
   const seen = new Set<RiskReason>();
   const rows: DriverRow[] = [...byRep.entries()].map(([repId, ds]) => {
     const counts = new Map<RiskReason, number>();
-    for (const d of ds) for (const r of new Set(dealRisk(d, today).reasons)) {
+    for (const d of ds) for (const r of new Set(d.reasons)) {
       if (r === "no_amount") continue; // a data gap, not a warning (dealRisk's own rule)
       counts.set(r, (counts.get(r) ?? 0) + 1);
       seen.add(r);

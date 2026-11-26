@@ -620,6 +620,10 @@ product says so where it matters, never silently.
       update 2026-11-27 (181e4ee3): the pinned reader is built and tested — `listProspects(admin, undefined, { companyId })`
       pins every table read. What remains is the job itself (snapshot table, close-date trigger, cron route), once
       `CRON_SECRET` is set so it can be verified end to end.
+      update 2026-11-27: the job is built (0382, revenue/daily.ts, /api/coach/remote/revenue-daily-cron at 05:15 UTC,
+      drivers 30/90, the close-date agent trigger), tested and probed. It answers 503 until `CRON_SECRET` is set.
+      next-action: set `CRON_SECRET` in Vercel; the next morning, check the cron's response and that deal_warning_snapshots
+      has today's rows.
 - [ ] 2026-11-27 · revenue-r2 · No CRM sync (Salesforce / HubSpot / Dynamics).
       why-unresolved: no client CRM is on record to sync with (plan R2).
       next-action: when a paying client names their CRM, build its connector first.

@@ -55,6 +55,10 @@
     {
       "path": "/api/coach/remote/webhooks/send-cron",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/coach/remote/revenue-daily-cron",
+      "schedule": "15 5 * * *"
     }
   ]
 }

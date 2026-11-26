@@ -10,7 +10,11 @@ import { hiddenFrom } from "../hidePhrases";
  * the deal, send an 'agent.ran' webhook. An agent acts on a deal only if its owner could see it (rss_agent_can_see),
  * and reads only the calls its owner may hear (hidden calls are left out for them). Every run is recorded.
  */
-export type Trigger = { kind: "deal_stage"; status?: "open" | "won" | "lost"; label?: string } | { kind: "tracker_heard"; tracker_id: string };
+export type Trigger =
+  | { kind: "deal_stage"; status?: "open" | "won" | "lost"; label?: string }
+  | { kind: "tracker_heard"; tracker_id: string }
+  // 0382: an open deal's expected close date is `days` away (run by the nightly job, once per deal and close date).
+  | { kind: "close_date_near"; days: number };
 export type Action = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
 export type StageEvent = { companyId: string; prospectId: string; status: string; label: string | null };
 
@@ -31,7 +35,7 @@ export function stageChanged(before: { status: string; stage_label: string | nul
   return before.status !== next.status || norm(before.stage_label) !== norm(next.label);
 }
 
-type AgentRow = { id: string; company_id: string; owner_id: string; name: string; trigger: Trigger; actions: Action[] };
+export type AgentRow = { id: string; company_id: string; owner_id: string; name: string; trigger: Trigger; actions: Action[] };
 type ActionResult = { kind: Action["kind"]; ok: boolean; detail: string };
 
 /** Run every enabled agent whose trigger this stage change fires. Never throws: a failure is recorded on the run. */
@@ -111,9 +115,9 @@ export async function firstHeard(admin: SupabaseClient, companyId: string, sessi
 }
 
 /** Run one agent on one deal (test = say what would happen, without doing it). Returns the recorded result. */
-export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: string, test: boolean, on?: { sessionId: string; trackerId: string }): Promise<{ ok: boolean; skipped: string | null; results: ActionResult[] }> {
+export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: string, test: boolean, on?: { sessionId?: string; trackerId?: string; fireKey?: string }): Promise<{ ok: boolean; skipped: string | null; results: ActionResult[] }> {
   const record = async (ok: boolean, skipped: string | null, results: ActionResult[]) => {
-    const { error } = await admin.from("agent_runs").insert({ agent_id: a.id, company_id: a.company_id, prospect_id: prospectId, test, ok, skipped, results, session_id: on?.sessionId ?? null, tracker_id: on?.trackerId ?? null });
+    const { error } = await admin.from("agent_runs").insert({ agent_id: a.id, company_id: a.company_id, prospect_id: prospectId, test, ok, skipped, results, session_id: on?.sessionId ?? null, tracker_id: on?.trackerId ?? null, ...(on?.fireKey ? { fire_key: on.fireKey } : {}) });
     if (error) console.error(`[agents] run not recorded agent=${a.id}: ${error.message}`);
     return { ok, skipped, results };
   };

@@ -359,7 +359,7 @@ function Analytics() {
 }
 
 type AgentAction = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
-type AgentRow = { id: string; name: string; trigger: { kind?: string; status?: string; label?: string; tracker_id?: string }; actions: AgentAction[]; enabled: boolean };
+type AgentRow = { id: string; name: string; trigger: { kind?: string; status?: string; label?: string; tracker_id?: string; days?: number }; actions: AgentAction[]; enabled: boolean };
 type RunRow = { id: number; agent_id: string; prospect_id: string | null; test: boolean; ok: boolean; skipped: string | null; results: Array<{ kind: string; ok: boolean; detail: string }>; created_at: string };
 const ACTION_WORD = (a: AgentAction) => (a.kind === "brief" ? "write the deal brief" : a.kind === "notify" ? (a.to === "rep" ? "notify the deal's rep" : "notify me") : a.kind === "todo" ? `add the to-do “${a.title}”${a.due_days ? ` due in ${a.due_days} days` : ""}` : "send an agent.ran webhook");
 
@@ -434,7 +434,7 @@ function Agents() {
                 </span>
               </div>
               <p className="mt-1 text-secondary">
-                {a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
+                {a.trigger.kind === "close_date_near" ? <>When an open deal&apos;s close date is {a.trigger.days} day{a.trigger.days === 1 ? "" : "s"} away (checked each night): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
                 When a deal {a.trigger.label ? `reaches “${a.trigger.label}”` : ""}{a.trigger.label && a.trigger.status ? " and " : ""}{a.trigger.status ? (a.trigger.status === "won" ? "is won" : a.trigger.status === "lost" ? "is lost" : "is open") : ""}: {a.actions.map(ACTION_WORD).join(", then ")}.</>}
               </p>
               <ul className="mt-1 space-y-0.5">
@@ -454,7 +454,8 @@ function Agents() {
 
 function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
   const trackers = useTrackers();
-  const [when, setWhen] = useState<"stage" | "tracker">("stage");
+  const [when, setWhen] = useState<"stage" | "tracker" | "close">("stage");
+  const [closeDays, setCloseDays] = useState(7);
   const [trackerId, setTrackerId] = useState("");
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
@@ -473,7 +474,7 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
   ];
   const save = async () => {
     setErr(null);
-    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: when === "tracker" ? { kind: "tracker_heard", tracker_id: trackerId } : { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
+    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: when === "close" ? { kind: "close_date_near", days: closeDays } : when === "tracker" ? { kind: "tracker_heard", tracker_id: trackerId } : { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
     const j = (await r.json().catch(() => ({}))) as { error?: string };
     if (!r.ok) return setErr(j.error ?? "Couldn't save the agent.");
     onSaved();
@@ -482,11 +483,20 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
     <div className="space-y-2 rounded-xl border border-default bg-surface p-3">
       <input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={80} placeholder="Agent name, e.g. Proposal prep" aria-label="Agent name" className={`${field} w-full`} />
       <div role="group" aria-label="When it runs" className="inline-flex overflow-hidden rounded-lg border border-default">
-        {(["stage", "tracker"] as const).map((w) => (
-          <button key={w} type="button" aria-pressed={when === w} onClick={() => setWhen(w)} className={`px-2.5 py-1 ${when === w ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>{w === "stage" ? "A deal reaches a stage" : "A tracker is heard on a deal's call"}</button>
+        {(["stage", "tracker", "close"] as const).map((w) => (
+          <button key={w} type="button" aria-pressed={when === w} onClick={() => setWhen(w)} className={`px-2.5 py-1 ${when === w ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>{w === "stage" ? "A deal reaches a stage" : w === "tracker" ? "A tracker is heard on a deal's call" : "A close date is near"}</button>
         ))}
       </div>
-      {when === "tracker" ? (
+      {when === "close" ? (
+        <div className="space-y-1 text-secondary">
+          <div className="flex flex-wrap items-center gap-2">
+            When an open deal&apos;s expected close date is
+            <input type="number" min={1} max={60} value={closeDays} onChange={(e) => setCloseDays(Math.min(60, Math.max(1, Number(e.currentTarget.value) || 1)))} aria-label="Days before the close date" className={`${field} w-16`} />
+            days away or less
+          </div>
+          <p className="text-[11px] text-muted">Checked each night, once per deal and close date. The nightly job runs once CRON_SECRET is set.</p>
+        </div>
+      ) : when === "tracker" ? (
         <div className="flex flex-wrap items-center gap-2 text-secondary">
           When
           <select value={trackerId} onChange={(e) => setTrackerId(e.currentTarget.value)} aria-label="Tracker" className={field}>
