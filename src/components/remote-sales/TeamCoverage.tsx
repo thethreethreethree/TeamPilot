@@ -94,7 +94,13 @@ export function TeamCoverage({ team }: { team?: string } = {}) {
             ) : (
               <ul className="mt-2 space-y-1.5">
                 {data.trackers.map((t) => (
-                  <Bar key={t.id} label={t.active ? t.name : `${t.name} (retired)`} muted={!t.active} href={`/dashboard/remote-sales/search?tracker=${encodeURIComponent(t.id)}&from=${from}`} calls={t.calls} total={t.of ?? data.calls} share={t.share} />
+                  t.enough === false ? (
+                    <li key={t.id} className="text-xs text-muted">
+                      {t.active ? t.name : `${t.name} (retired)`}: {t.of === 0 ? "no calls it listens to in this period" : `only ${t.of} ${t.of === 1 ? "call" : "calls"} it listens to — too few for a share`}
+                    </li>
+                  ) : (
+                    <Bar key={t.id} label={t.active ? t.name : `${t.name} (retired)`} muted={!t.active} href={`/dashboard/remote-sales/search?tracker=${encodeURIComponent(t.id)}&from=${from}`} calls={t.calls} total={t.of ?? data.calls} share={t.share} />
+                  )
                 ))}
               </ul>
             )}

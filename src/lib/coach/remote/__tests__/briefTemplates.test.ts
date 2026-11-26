@@ -27,11 +27,14 @@ describe("brief templates", () => {
       { n: 2, answer: "The CFO.", seq: [] }, // no line → not an answer
       { n: 3, answer: "Next month.", seq: [42] }, // a line that doesn't exist
     ] });
-    expect(parseAnswers(raw, sections, lines)).toEqual([
+    expect(parseAnswers(raw, sections, lines)!).toEqual([
       { question: "What budget did they mention?", answer: "About ten thousand.", seqs: [1] },
       { question: "Who else decides?", answer: NOT_DISCUSSED, seqs: [] },
       { question: "When do they want to start?", answer: NOT_DISCUSSED, seqs: [] },
     ]);
-    expect(parseAnswers("not json", sections, lines).every((a) => a.answer === NOT_DISCUSSED)).toBe(true);
+    // A cut-off or empty reply is a failed read, not "not discussed" (review 2026-11-26).
+    expect(parseAnswers("not json", sections, lines)).toBeNull();
+    expect(parseAnswers('{"answers": [{"n": 1, "answer": "Ten', sections, lines)).toBeNull();
+    expect(parseAnswers('{"answers": []}', sections, lines)).toBeNull();
   });
 });

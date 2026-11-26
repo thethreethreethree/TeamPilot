@@ -80,7 +80,7 @@ export async function PATCH(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
-  if (typeof b.id !== "string" || b.retire !== true) return NextResponse.json({ error: "Which template to retire?" }, { status: 400 });
+  if (typeof b.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(b.id) || b.retire !== true) return NextResponse.json({ error: "Which template to retire?" }, { status: 400 });
   const { data, error } = await createAdminClient()
     .from("brief_templates")
     .update({ retired_at: new Date().toISOString() })

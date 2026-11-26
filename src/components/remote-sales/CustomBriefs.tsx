@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ListChecks } from "lucide-react";
 
 /**
@@ -21,6 +21,9 @@ export function CustomBriefs({ sessionId, onSeek }: { sessionId: string; onSeek?
   const [answers, setAnswers] = useState<Answer[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // The template on screen now: a run that comes back after a switch is not shown under the other template (review).
+  const pickedRef = useRef("");
+  pickedRef.current = picked;
 
   useEffect(() => {
     fetch("/api/coach/remote/brief-templates")
@@ -51,11 +54,13 @@ export function CustomBriefs({ sessionId, onSeek }: { sessionId: string; onSeek?
   if (failed) return <p className="rounded-2xl border border-default bg-surface p-4 text-xs text-muted">Couldn&apos;t load brief templates.</p>;
   if (!templates || templates.length === 0) return null;
   const run = async () => {
+    const asked = picked;
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch(`/api/coach/remote/${sessionId}/custom-brief`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: picked }) });
+      const r = await fetch(`/api/coach/remote/${sessionId}/custom-brief`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: asked }) });
       const j = (await r.json().catch(() => ({}))) as { brief?: { answers: Answer[] }; error?: string };
+      if (pickedRef.current !== asked) return;
       if (!r.ok || !j.brief) setMsg(j.error ?? "Couldn't run that brief.");
       else setAnswers(j.brief.answers);
     } catch {

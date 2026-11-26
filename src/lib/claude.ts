@@ -752,7 +752,7 @@ export async function customBriefCoach(args: { companyId?: string; systemPrompt:
   return call({
     companyId: args.companyId,
     expectJson: true,
-    maxTokens: 1200,
+    maxTokens: 2000,
     systemPrompt: args.systemPrompt,
     userContent: args.userMessage,
     controlExempt: true,

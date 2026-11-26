@@ -65,6 +65,10 @@ describe("coverage share by what a tracker listens to (review 2026-11-26)", () =
     const t2 = out.trackers.find((t) => t.id === "t2")!;
     expect([t1.calls, t1.of, t1.share]).toEqual([2, 4, 0.5]);
     expect([t2.calls, t2.of, t2.share]).toEqual([2, 8, 0.25]);
+    expect(t1.enough && t2.enough).toBe(true);
+    // A tracker that listens to fewer than MIN_CALLS calls gets no share (review 2026-11-26).
+    const few = coverageShare({ callIds: ids, callInfo, trackers: [{ id: "t3", name: "Late", active: true, starts_on: "2026-11-25" }], hits: [], intel: [] });
+    expect(few.trackers[0]).toMatchObject({ of: 0, enough: false });
   });
 });
 

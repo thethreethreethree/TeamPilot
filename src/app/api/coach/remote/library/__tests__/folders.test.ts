@@ -54,16 +54,17 @@ describe("library folders by name", () => {
   it("'Listen later' in your own library: looked up by name for you, created on first use, with the note", async () => {
     const r = await add({ scope: "mine", folderName: "  Listen   later ", note: "before Friday's 1:1" });
     expect(r.status).toBe(200);
-    expect(st.lookups).toEqual(expect.arrayContaining([["is_company", false], ["name", "Listen later"], ["owner_id", "u1"]]));
+    // Names are compared in code without regard to case (review 2026-11-26), so the lookup lists the level's folders.
+    expect(st.lookups).toEqual(expect.arrayContaining([["is_company", false], ["owner_id", "u1"]]));
     expect(st.inserts.find((i) => i.t === "library_folders")!.row).toMatchObject({ owner_id: "u1", is_company: false, name: "Listen later" });
     expect(st.inserts.find((i) => i.t === "library_items")!.row).toMatchObject({ folder_id: "f-new", note: "before Friday's 1:1" });
   });
   it("no name: your 'Mine' folder, as before", async () => {
     await add({ scope: "mine" });
-    expect(st.lookups).toContainEqual(["name", "Mine"]);
+    expect(st.inserts.find((i) => i.t === "library_folders")!.row).toMatchObject({ name: "Mine" });
   });
   it("an existing folder of that name is reused, not duplicated", async () => {
-    st.existing = [{ id: "f-old" }];
+    st.existing = [{ id: "f-old", name: "objections " }]; // same name, other case and spacing — still reused
     await add({ scope: "mine", folderName: "Objections" });
     expect(st.inserts.some((i) => i.t === "library_folders")).toBe(false);
     expect(st.inserts.find((i) => i.t === "library_items")!.row).toMatchObject({ folder_id: "f-old" });
@@ -89,7 +90,7 @@ describe("archiving a folder (0346, F12.6)", () => {
     expect(st.inserts).toEqual([]);
   });
   it("adding to an archived folder brings it back instead of hiding the call", async () => {
-    st.existing = [{ id: "f-old" }];
+    st.existing = [{ id: "f-old", name: "Objections" }];
     st.events = [{ id: 5, folder_id: "f-old", kind: "archive" }];
     const r = await add({ scope: "mine", folderName: "Objections" });
     expect((await r.json()).restored).toBe(true);
@@ -106,7 +107,7 @@ describe("nested folders (0353, F12.6)", () => {
       expect.objectContaining({ name: "Objections", parent_id: null }),
       expect.objectContaining({ name: "Pricing", parent_id: "f-new" }),
     ]);
-    expect(st.lookups).toEqual(expect.arrayContaining([["name", "Objections"], ["name", "Pricing"], ["current_parent_id", "f-new"]]));
+    expect(st.lookups).toEqual(expect.arrayContaining([["current_parent_id", "f-new"]]));
     expect(st.inserts.find((i) => i.t === "library_items")!.row).toMatchObject({ folder_id: "f-new" });
   });
   it("more than three levels is refused with the reason", async () => {
@@ -116,7 +117,7 @@ describe("nested folders (0353, F12.6)", () => {
     expect(st.inserts).toEqual([]);
   });
   it("saving inside an archived folder brings the archived folder back (once)", async () => {
-    st.existing = [{ id: "f-old" }]; // every level resolves to an existing folder
+    st.existing = [{ id: "f-old", name: "Objections" }, { id: "f-old", name: "Pricing" }]; // every level resolves to an existing folder
     st.events = [{ id: 5, folder_id: "f-old", kind: "archive" }];
     const r = await add({ scope: "mine", folderName: "Objections / Pricing" });
     expect((await r.json()).restored).toBe(true);

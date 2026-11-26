@@ -8,6 +8,8 @@ import { getSession } from "@/lib/data/salesCoach";
 import { isRemoteContext } from "@/lib/coach/sessionContext";
 import { isSalesCall } from "@/lib/coach/v5/salesOnly";
 import { runBriefTemplate } from "@/lib/coach/remote/briefTemplatesRun";
+import { loadLines } from "@/lib/coach/remote/followThrough";
+import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 import type { Answer, Section } from "@/lib/coach/remote/briefTemplates";
 
 export const maxDuration = 60;
@@ -35,13 +37,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const db = callerScopedDb(req) ?? (await createClient());
   const session = await getSession(id, db);
   if (!session) return NextResponse.json({ error: "Call not found." }, { status: 404 });
+  // Only a run on the call's CURRENT transcript (review 2026-11-26): after a trim, a correction or a relabel, an older
+  // run may quote words that are no longer in the call — it is not shown, and the call can be briefed again.
+  const loaded = await loadLines(db, id, audioBaseIso(session.startedAt, session.audioStartedAt) ?? session.startedAt);
+  if (!loaded) return NextResponse.json({ available: true, brief: null });
   const { data, error } = await db
     .from("custom_briefs")
     .select("answers, transcript_version, created_at")
     .eq("session_id", id)
     .eq("template_id", templateId)
-    .order("transcript_version", { ascending: false })
-    .limit(1)
+    .eq("transcript_version", loaded.version)
     .maybeSingle();
   if (error) {
     if (MISSING.has(String(error.code))) return NextResponse.json({ available: false });
@@ -83,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const r = await runBriefTemplate(admin, {
     companyId: ctx.companyId,
     userId: ctx.userId,
-    session: { id: session.id, agentId: session.agentId, startedAt: session.startedAt, audioStartedAt: session.audioStartedAt },
+    session: { id: session.id, companyId: session.companyId, agentId: session.agentId, startedAt: session.startedAt, audioStartedAt: session.audioStartedAt },
     template: { id: String(t.id), sections: t.sections as Section[] },
   });
   if (r === "empty") return NextResponse.json({ error: "This call has no transcript to brief yet." }, { status: 409 });

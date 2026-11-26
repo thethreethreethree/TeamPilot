@@ -345,7 +345,9 @@ export async function POST(req: NextRequest) {
     const { error } = await admin.from("library_folder_events").insert({ company_id: ctx.companyId, folder_id: folderId, kind: "move", to_parent: toFolderId, actor_id: ctx.userId });
     if (error) {
       const said = /RSS: (.+)/.exec(error.message)?.[1];
-      if (said) return NextResponse.json({ error: `${said[0]!.toUpperCase()}${said.slice(1)}.` }, { status: 400 });
+      // A name clash can be with an archived folder the person can't see in the list (review 2026-11-26): say so.
+      const clash = said && /^there is already a folder called/.test(said) ? " It may be archived — see Archived folders." : "";
+      if (said) return NextResponse.json({ error: `${said[0]!.toUpperCase()}${said.slice(1)}.${clash}` }, { status: 400 });
       console.error(`[library] folder move failed folder=${folderId}: ${error.message}`);
       return NextResponse.json({ error: "Couldn't move the folder." }, { status: 500 });
     }
@@ -419,16 +421,18 @@ export async function POST(req: NextRequest) {
     }
     let parent: string | null = null;
     for (const name of parts) {
-      // By CURRENT parent (0360): after a move, "Objections / Pricing" means where Pricing is now.
+      // By CURRENT parent (0360): after a move, "Objections / Pricing" means where Pricing is now. Names match without
+      // regard to case or edge spaces (review 2026-11-26), as the move guard compares them — "pricing" finds "Pricing"
+      // instead of making a second one beside it. The siblings are read and compared here, so no name reaches a filter.
       let lookup = admin
         .from("library_folders_current")
-        .select("id")
+        .select("id, name, created_at")
         .eq("company_id", ctx.companyId)
-        .eq("is_company", scope === "company")
-        .eq("name", name);
+        .eq("is_company", scope === "company");
       lookup = parent ? lookup.eq("current_parent_id", parent) : lookup.is("current_parent_id", null);
       if (scope === "mine") lookup = lookup.eq("owner_id", ctx.userId);
-      const { data: existing, error } = await lookup.order("created_at", { ascending: true }).limit(1);
+      const { data: siblings, error } = await lookup.order("created_at", { ascending: true }).limit(500);
+      const existing = ((siblings ?? []) as Array<{ id: string; name: string }>).filter((f) => f.name.trim().toLowerCase() === name.trim().toLowerCase()).slice(0, 1);
       if (error) {
         if (MISSING.has(String(error.code))) return NextResponse.json({ error: NOT_READY }, { status: 503 });
         console.error(`[library] folder lookup failed: ${error.message}`);

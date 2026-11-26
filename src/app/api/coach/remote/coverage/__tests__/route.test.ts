@@ -55,7 +55,7 @@ describe("GET coverage (F10.11)", () => {
   it("shares out of the period's calls, the latest topic read per call, company-pinned reads", async () => {
     const body = await (await get()).json();
     expect(body).toMatchObject({ days: 30, calls: 4, enough: true });
-    expect(body.trackers).toEqual([{ id: "t1", name: "Pricing", active: true, calls: 2, of: 4, share: 0.5 }]);
+    expect(body.trackers).toEqual([{ id: "t1", name: "Pricing", active: true, calls: 2, of: 4, enough: true, share: 0.5 }]);
     // Events arrive per chunk; the route sorts newest first, so c1's 24 Nov read ("Stale") is the latest one.
     expect(body.topics).toEqual([{ topic: "Stale", calls: 1, share: 0.25 }]);
     for (const t of ["coaching_sessions", "keyword_trackers", "tracker_hits"]) expect(st.eqs).toContainEqual([t, "company_id", "co1"]);

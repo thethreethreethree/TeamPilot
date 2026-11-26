@@ -24,7 +24,8 @@ export type Coverage = {
   calls: number;
   enough: boolean;
   /** `of` = the calls this tracker listens to (its dates and call types); the share is over those. */
-  trackers: Array<{ id: string; name: string; active: boolean; of: number } & Share>;
+  /** enough: this tracker listens to at least MIN_CALLS of the period's calls (review 2026-11-26) — else no share is given. */
+  trackers: Array<{ id: string; name: string; active: boolean; of: number; enough: boolean } & Share>;
   topics: Array<{ topic: string } & Share>;
 };
 
@@ -50,7 +51,7 @@ export function coverageShare(input: CoverageInput): Coverage {
       const scoped = !!(t.starts_on || t.ends_on || t.channels?.length) && input.callInfo;
       const of = scoped ? [...calls].filter((id) => { const c = input.callInfo!.get(id); return trackerAppliesTo(t, c?.startedAt ?? null, c?.channel ?? null); }).length : n;
       const k = scoped ? [...(firedOn.get(t.id) ?? [])].filter((id) => { const c = input.callInfo!.get(id); return trackerAppliesTo(t, c?.startedAt ?? null, c?.channel ?? null); }).length : firedOn.get(t.id)?.size ?? 0;
-      return { id: t.id, name: t.name, active: t.active, calls: k, of, share: of ? k / of : 0 };
+      return { id: t.id, name: t.name, active: t.active, calls: k, of, enough: of >= MIN_CALLS, share: of ? k / of : 0 };
     })
     .sort((a, b) => b.calls - a.calls || a.name.localeCompare(b.name));
 

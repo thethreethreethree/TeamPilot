@@ -52,15 +52,20 @@ export function questionsBlock(sections: Section[]): string {
   return sections.map((s, i) => `${i + 1}. ${s.question}${s.instructions ? `\n   Instructions: ${s.instructions}` : ""}`).join("\n");
 }
 
-/** The model's JSON → one answer per question, each resting on lines that exist, or NOT_DISCUSSED. Pure. */
-export function parseAnswers(raw: string, sections: Section[], lines: Line[]): Answer[] {
+/**
+ * The model's JSON → one answer per question, each resting on lines that exist, or NOT_DISCUSSED. Pure.
+ * null when the reply isn't a usable answer list at all (cut off, not JSON, no answers): that is a failed read, never
+ * "nothing was discussed" — it must not be stored (review 2026-11-26).
+ */
+export function parseAnswers(raw: string, sections: Section[], lines: Line[]): Answer[] | null {
   const seqs = new Set(lines.map((l) => l.seq));
   let items: unknown[] = [];
   try {
     const j = JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, "")) as { answers?: unknown };
-    if (Array.isArray(j?.answers)) items = j.answers;
+    if (!Array.isArray(j?.answers) || j.answers.length === 0) return null;
+    items = j.answers;
   } catch {
-    items = [];
+    return null;
   }
   const byN = new Map<number, { answer: string; seqs: number[] }>();
   for (const x of items) {

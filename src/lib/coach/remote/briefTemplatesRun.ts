@@ -15,7 +15,7 @@ export type RunResult = { answers: Answer[]; transcriptVersion: number; createdA
 
 export async function runBriefTemplate(
   admin: SupabaseClient,
-  args: { companyId: string; userId: string; session: { id: string; agentId: string; startedAt: string; audioStartedAt: string | null }; template: { id: string; sections: Section[] } },
+  args: { companyId: string; userId: string; session: { id: string; companyId: string; agentId: string; startedAt: string; audioStartedAt: string | null }; template: { id: string; sections: Section[] } },
 ): Promise<RunResult> {
   const { session, template } = args;
   const loaded = await loadLines(admin, session.id, audioBaseIso(session.startedAt, session.audioStartedAt) ?? session.startedAt);
@@ -24,7 +24,7 @@ export async function runBriefTemplate(
     const { data, error } = await admin
       .from("custom_briefs")
       .select("answers, transcript_version, created_at")
-      .eq("company_id", args.companyId)
+      .eq("company_id", session.companyId)
       .eq("session_id", session.id)
       .eq("template_id", template.id)
       .eq("transcript_version", loaded.version)
@@ -44,10 +44,14 @@ export async function runBriefTemplate(
   if (r.suppressed) return "suppressed";
   if (!r.text.trim()) return null;
   const atOf = new Map(loaded.lines.map((l) => [l.seq, l.atMs]));
-  const answers = parseAnswers(r.text, template.sections, loaded.lines).map((a) => ({ ...a, atMs: a.seqs.map((q) => atOf.get(q) ?? null) }));
+  const parsed = parseAnswers(r.text, template.sections, loaded.lines);
+  // A reply that isn't a usable answer list is a failure, not "nothing discussed": nothing is stored, so it can be run again.
+  if (!parsed) return null;
+  const answers = parsed.map((a) => ({ ...a, atMs: a.seqs.map((q) => atOf.get(q) ?? null) }));
   // A plain insert: the table has an UPDATE rule, so ON CONFLICT is refused; a concurrent run's row is read back.
+  // Filed under the CALL's company (review 2026-11-26), so erasure — which matches the call's company — always finds it.
   const { error } = await admin.from("custom_briefs").insert({
-    company_id: args.companyId,
+    company_id: session.companyId,
     session_id: session.id,
     rep_id: session.agentId,
     template_id: template.id,
