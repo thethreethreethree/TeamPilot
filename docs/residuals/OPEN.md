@@ -613,6 +613,10 @@ product says so where it matters, never silently.
 - [ ] 2026-11-27 · revenue-p3a / p4 / engage-e5 · Warnings are live only (no 30/90-day drivers history), and agents have no date triggers (close date approaching).
       why-unresolved: both need a scheduled job, and `CRON_SECRET` is unset in Vercel.
       next-action: set `CRON_SECRET`; add a daily warnings snapshot and a date-trigger sweep.
+      prerequisite found 2026-11-27: the nightly job runs as the service role, but `listProspects` (the reader dealRisk
+      needs) relies on the caller's RLS in about ten reads (tasks, accounts, deal contacts, rss_deal_signals, the stage
+      list, the playbook). It must first take a company and pin every one of those reads to it; otherwise a sweep would
+      read across companies. Build that pinned reader together with the job, and verify both once the secret is set.
 - [ ] 2026-11-27 · revenue-r2 · No CRM sync (Salesforce / HubSpot / Dynamics).
       why-unresolved: no client CRM is on record to sync with (plan R2).
       next-action: when a paying client names their CRM, build its connector first.
