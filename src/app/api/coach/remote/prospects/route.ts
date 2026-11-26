@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
@@ -70,6 +71,18 @@ export async function POST(req: NextRequest) {
     }
     console.error(`[prospects] create failed user=${ctx.userId}: ${error?.message ?? "no id"}`);
     return NextResponse.json({ error: "Couldn't add the prospect." }, { status: 500 });
+  }
+  // Revenue Phase 1 (0370): a company named on a new deal is its account, found or made by the company-wide key.
+  if (body.organization?.trim()) {
+    const { data: acc, error: aErr } = await createAdminClient().rpc("rss_account_find_or_create", { p_company: ctx.companyId, p_actor: ctx.userId, p_name: body.organization.trim().slice(0, 120) });
+    const { error: eErr } = acc && !aErr
+      ? await db.from("remote_prospect_events").insert({ prospect_id: String(id), company_id: ctx.companyId, kind: "account", value: { account_id: String(acc) }, actor_id: ctx.userId })
+      : { error: aErr ?? { message: "no account id" } };
+    if (eErr) {
+      // Said, not swallowed: the deal exists, but without its account it won't show on the account page.
+      console.error(`[prospects] account not set prospect=${String(id)}: ${eErr.message}`);
+      return NextResponse.json({ id: String(id), linked: !!body.sessionId, error: "The prospect was added, but its account couldn't be set. Set it from the prospect." }, { status: 500 });
+    }
   }
   return NextResponse.json({ id: String(id), linked: !!body.sessionId });
 }

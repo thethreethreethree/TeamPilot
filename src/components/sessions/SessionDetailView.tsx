@@ -46,6 +46,7 @@ import { FollowThroughPanel } from "@/components/sales-coach/FollowThroughPanel"
 import { RemoteCallComments } from "@/components/remote-sales/RemoteCallComments";
 import { MacroCallView } from "@/components/remote-sales/MacroCallView";
 import { CallPipelineLink } from "@/components/remote-sales/CallPipelineLink";
+import { CallContacts } from "@/components/remote-sales/CallContacts";
 import { ScenarioFromCallLink } from "@/components/remote-sales/ScenarioFromCallLink";
 import { CallAccessGrants } from "@/components/remote-sales/CallAccessGrants";
 import { HiddenCallNotice } from "@/components/remote-sales/HiddenCallNotice";
@@ -604,6 +605,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
 
         {/* Which prospect this call belongs to — in the full view too (2026-11-23); before, only Macro Mode had it. */}
         {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallPipelineLink sessionId={id} />}
+        {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && <CallContacts sessionId={id} />}
         {/* F17.3: a manager turns this call into a practice scenario (drafted by AI, edited, saved linked to the call). */}
         {!loading && module === "remote_sales" && session && isRemoteContext(session.context) && session.status !== "active" && <ScenarioFromCallLink sessionId={id} />}
         {/* F3.8 (0336): company admins give one teammate access to this call; renders nothing for anyone else. */}

@@ -1,5 +1,6 @@
 "use client";
 
+import { CallContacts } from "./CallContacts";
 import { CallPipelineLink } from "./CallPipelineLink";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -168,6 +169,7 @@ function Highlights({ sessionId, b, briefing, onPrepare, onChanged }: { sessionI
     <div className="space-y-4">
       {/* One pipeline control for every remote call view (CallPipelineLink, 2026-11-23): existing prospect or new. */}
       <CallPipelineLink sessionId={sessionId} onLinked={onChanged} />
+      <CallContacts sessionId={sessionId} />
       <div>
         <H>Call brief</H>
         {summary === undefined ? (

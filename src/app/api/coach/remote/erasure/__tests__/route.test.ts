@@ -18,6 +18,8 @@ const db = vi.hoisted(() => ({
   planArgs: null as Record<string, unknown> | null,
   prospects: [] as unknown[],
   prospectArgs: null as Record<string, unknown> | null,
+  people: [] as Array<{ entity: string; id: string; name: string | null; detail: string | null }>,
+  peopleArgs: null as Record<string, unknown> | null,
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -27,6 +29,11 @@ vi.mock("@/lib/supabase/admin", () => ({
       if (fn === "rss_erasure_matches") return { data: db.matches, error: null, args };
       if (fn === "rss_erasure_day_plan_matches") return { data: db.plans, error: null };
       if (fn === "rss_erasure_prospect_matches") return { data: db.prospects, error: null };
+      if (fn === "rss_erasure_contact_matches") return { data: db.people, error: null };
+      if (fn === "rss_erase_contacts") {
+        db.peopleArgs = args;
+        return { data: (args.p_contacts as unknown[]).length + (args.p_accounts as unknown[]).length, error: null };
+      }
       if (fn === "rss_erase_prospects") {
         db.prospectArgs = args;
         return { data: (args.p_prospects as unknown[]).length, error: null };
@@ -72,6 +79,8 @@ beforeEach(() => {
   db.log = [];
   db.inserts = [];
   db.matches = [M("s1"), M("s2")];
+  db.people = [];
+  db.peopleArgs = null;
   db.audio = [];
   db.eraseError = null;
   db.requests = [];
@@ -116,7 +125,7 @@ describe("POST /api/coach/remote/erasure", () => {
     db.audio = [{ id: "s1", company_id: "co1", audio_asset_url: "assets-v1/co1/s1/recording.webm" }];
     const res = await POST(post({ action: "erase", kind: "phone", value: "+1 (555) 010-0123", sessionIds: ["s1"] }));
     expect(res.status).toBe(200);
-    expect(db.log).toEqual(["rpc:rss_erasure_matches", "rpc:rss_erasure_day_plan_matches", "rpc:rss_erasure_prospect_matches", "insert:erasure_requests", "rpc:rss_erase_sessions"]);
+    expect(db.log).toEqual(["rpc:rss_erasure_matches", "rpc:rss_erasure_day_plan_matches", "rpc:rss_erasure_prospect_matches", "rpc:rss_erasure_contact_matches", "insert:erasure_requests", "rpc:rss_erase_sessions"]);
     const reqRow = db.inserts[0]!.row;
     expect(reqRow).toMatchObject({ company_id: "co1", requested_by: "ceo", match_kind: "phone", match_hint: "phone ••••0123" });
     expect(String(reqRow.match_hash)).toMatch(/^[0-9a-f]{64}$/);
@@ -256,6 +265,41 @@ describe("pipeline prospects (0323)", () => {
   it("a prospect the search did not return is refused, nothing written", async () => {
     db.prospects = [PR];
     expect((await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: ["s1"], prospectIds: ["other"] }))).status).toBe(400);
+    expect(db.inserts).toEqual([]);
+  });
+  // 0370: contacts and accounts that mention the customer — shown, confirmed, erased in the same request.
+  const PEOPLE = [{ entity: "contact", id: "c1", name: "Betty Ross", detail: "Owner" }, { entity: "account", id: "a1", name: "Ross Plumbing", detail: null }];
+  it("find lists matching contacts and accounts by name", async () => {
+    db.people = PEOPLE;
+    const j = await (await POST(post({ action: "find", kind: "client_label", value: "Betty Ross" }))).json();
+    expect(j.contacts).toEqual([{ id: "c1", name: "Betty Ross", title: "Owner" }]);
+    expect(j.accounts).toEqual([{ id: "a1", name: "Ross Plumbing" }]);
+  });
+  it("only contacts and accounts (no call): erased with the identifier as searched, and that step completes the request", async () => {
+    db.matches = [];
+    db.people = PEOPLE;
+    const j = await (await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: [], contactIds: ["c1"], accountIds: ["a1"] }))).json();
+    expect(j).toMatchObject({ erased: 0, peopleErased: 2 });
+    expect(db.peopleArgs).toMatchObject({ p_contacts: ["c1"], p_accounts: ["a1"], p_complete: true });
+  });
+  it("with calls too, the contacts step completes nothing — the calls' own step does", async () => {
+    db.people = PEOPLE;
+    await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: ["s1"], contactIds: ["c1"] }));
+    expect(db.peopleArgs).toMatchObject({ p_complete: false });
+    expect(db.log.indexOf("rpc:rss_erase_contacts")).toBeLessThan(db.log.lastIndexOf("rpc:rss_erase_sessions"));
+  });
+  it("a prospect step before a contacts step doesn't complete the request", async () => {
+    db.matches = [];
+    db.prospects = [PR];
+    db.people = PEOPLE;
+    await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: [], prospectIds: ["p9"], contactIds: ["c1"] }));
+    expect(db.prospectArgs).toMatchObject({ p_complete: false });
+    expect(db.peopleArgs).toMatchObject({ p_complete: true });
+  });
+  it("a contact or account the search did not return is refused, nothing written", async () => {
+    db.people = PEOPLE;
+    expect((await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: ["s1"], contactIds: ["zz"] }))).status).toBe(400);
+    expect((await POST(post({ action: "erase", kind: "client_label", value: "Betty Ross", sessionIds: ["s1"], accountIds: ["zz"] }))).status).toBe(400);
     expect(db.inserts).toEqual([]);
   });
 });

@@ -16,6 +16,7 @@ import { NotificationBell } from "@/components/sales-coach/NotificationBell";
 const TABS: Array<{ href: string; label: string; who: "all" | "manager" | "admin" }> = [
   { href: "/dashboard/remote-sales", label: "Calls", who: "all" },
   { href: "/dashboard/remote-sales/pipeline", label: "Pipeline", who: "all" },
+  { href: "/dashboard/remote-sales/accounts", label: "Accounts", who: "all" },
   { href: "/dashboard/remote-sales/scoreboard", label: "Scoreboard", who: "all" },
   { href: "/dashboard/remote-sales/coaching", label: "Coaching", who: "manager" },
   { href: "/dashboard/remote-sales/search", label: "Search", who: "all" },

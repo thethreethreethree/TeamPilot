@@ -1,0 +1,8 @@
+{
+  "name": "elostate-revenue",
+  "private": true,
+  "version": "0.1.0",
+  "description": "EloState revenue stack (deals, accounts, forecast) - rules as code with tests. Drops into the TeamPilot repo at src/lib/coach/remote/revenue/; see ../README-PLACEMENT.md.",
+  "type": "module",
+  "scripts": { "test": "node --test tests/*.test.ts", "check": "npm run test" }
+}

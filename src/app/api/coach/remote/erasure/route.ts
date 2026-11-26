@@ -23,10 +23,14 @@ import {
  *                                                  the rep's own, 0303/A10, so its words are never shown; 0322).
  *                                                  And pipeline prospects whose name or organization mentions them
  *                                                  (0323; shown by name — the pipeline is the company's).
- *   { action: "erase", kind, value, sessionIds, dayPlanIds?, prospectIds? } → erase the confirmed calls; the identifier
- *                                                  inside the confirmed day plans (rss_erase_day_plans); the confirmed
- *                                                  prospects' name and organization (rss_erase_prospects) — both before
- *                                                  rss_erase_sessions.
+ *                                                  And contacts and accounts whose name (or a contact's title) mentions
+ *                                                  them (0370).
+ *   { action: "erase", kind, value, sessionIds, dayPlanIds?, prospectIds?, contactIds?, accountIds? } → erase the
+ *                                                  confirmed calls; the identifier inside the confirmed day plans
+ *                                                  (rss_erase_day_plans); the confirmed prospects' name and organization
+ *                                                  (rss_erase_prospects); the confirmed contacts' and accounts' names
+ *                                                  (rss_erase_contacts) — all before rss_erase_sessions, which also
+ *                                                  renames the contacts on the erased calls (0370).
  *
  * ERASE, IN ORDER, AND WHY:
  *   1. The search runs again here. Only calls it returns may be erased — a request can never reach a call that does
@@ -140,6 +144,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "The search failed. Nothing was erased." }, { status: 500 });
   }
   const prospectMatches = ((prErr ? [] : prospectFound) ?? []) as Array<{ prospect_id: string; rep_id: string; name: string | null; organization: string | null }>;
+  // Contacts and accounts that mention the customer (0370). Before the migration: none.
+  const { data: peopleFound, error: ctErr } = await admin.rpc("rss_erasure_contact_matches", { p_company: ctx.companyId, p_kind: kind, p_value: normalised });
+  if (ctErr && !MISSING.has(String(ctErr.code))) {
+    console.error(`[erasure] contact search failed company=${ctx.companyId}: ${ctErr.message}`);
+    return NextResponse.json({ error: "The search failed. Nothing was erased." }, { status: 500 });
+  }
+  const peopleMatches = ((ctErr ? [] : peopleFound) ?? []) as Array<{ entity: "contact" | "account"; id: string; name: string | null; detail: string | null }>;
 
   if (b.action === "find") {
     const repIds = [...new Set([...matches.map((m) => String(m.agent_id)), ...planMatches.map((p) => String(p.rep_id)), ...prospectMatches.map((p) => String(p.rep_id))])];
@@ -160,6 +171,8 @@ export async function POST(req: NextRequest) {
       })),
       dayPlans: planMatches.map((p) => ({ id: Number(p.plan_id), repName: names.get(String(p.rep_id)) ?? null, day: p.day })),
       prospects: prospectMatches.map((p) => ({ id: String(p.prospect_id), repName: names.get(String(p.rep_id)) ?? null, name: p.name, organization: p.organization })),
+      contacts: peopleMatches.filter((m) => m.entity === "contact").map((m) => ({ id: String(m.id), name: m.name, title: m.detail })),
+      accounts: peopleMatches.filter((m) => m.entity === "account").map((m) => ({ id: String(m.id), name: m.name })),
     });
   }
 
@@ -171,13 +184,23 @@ export async function POST(req: NextRequest) {
   const askedProspects = Array.isArray((b as { prospectIds?: unknown }).prospectIds)
     ? [...new Set(((b as { prospectIds: unknown[] }).prospectIds).filter((x): x is string => typeof x === "string"))]
     : [];
+  const pickIds = (k: string) => {
+    const v = (b as Record<string, unknown>)[k];
+    return Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string"))] : [];
+  };
+  const askedContacts = pickIds("contactIds");
+  const askedAccounts = pickIds("accountIds");
+  const allowedContacts = new Set(peopleMatches.filter((m) => m.entity === "contact").map((m) => String(m.id)));
+  const allowedAccounts = new Set(peopleMatches.filter((m) => m.entity === "account").map((m) => String(m.id)));
+  const askedPeople = askedContacts.length + askedAccounts.length;
   const allowed = new Set(matches.map((m) => String(m.session_id)));
   const allowedPlans = new Set(planMatches.map((p) => Number(p.plan_id)));
   const allowedProspects = new Set(prospectMatches.map((p) => String(p.prospect_id)));
-  if (asked.length === 0 && askedPlans.length === 0 && askedProspects.length === 0) {
-    return NextResponse.json({ error: "Pick at least one call, day plan or prospect to erase." }, { status: 400 });
+  if (asked.length === 0 && askedPlans.length === 0 && askedProspects.length === 0 && askedPeople === 0) {
+    return NextResponse.json({ error: "Pick at least one call, day plan, prospect, contact or account to erase." }, { status: 400 });
   }
-  if (asked.some((id) => !allowed.has(id)) || askedPlans.some((id) => !allowedPlans.has(id)) || askedProspects.some((id) => !allowedProspects.has(id))) {
+  if (asked.some((id) => !allowed.has(id)) || askedPlans.some((id) => !allowedPlans.has(id)) || askedProspects.some((id) => !allowedProspects.has(id))
+      || askedContacts.some((id) => !allowedContacts.has(id)) || askedAccounts.some((id) => !allowedAccounts.has(id))) {
     return NextResponse.json({ error: "Some of those don't mention this customer. Search again and pick from the results." }, { status: 400 });
   }
 
@@ -253,7 +276,7 @@ export async function POST(req: NextRequest) {
       p_kind: kind,
       p_value: normalised,
       p_by: ctx.userId,
-      p_complete: asked.length === 0 && askedProspects.length === 0,
+      p_complete: asked.length === 0 && askedProspects.length === 0 && askedPeople === 0,
     });
     if (dErr) {
       console.error(`[erasure] day-plan erasure failed request=${request.id}: ${dErr.message}`);
@@ -271,13 +294,32 @@ export async function POST(req: NextRequest) {
       p_kind: kind,
       p_value: normalised,
       p_by: ctx.userId,
-      p_complete: asked.length === 0,
+      p_complete: asked.length === 0 && askedPeople === 0,
     });
     if (prE) {
       console.error(`[erasure] prospect erasure failed request=${request.id}: ${prE.message}`);
       return NextResponse.json({ error: "The prospects couldn't be erased. Try again: it is safe to repeat.", audioRemoved, plansErased }, { status: 500 });
     }
     prospectsErased = Number(n) || 0;
+  }
+  // Contacts and accounts (0370): their name (and a contact's title). Completes the request when there are no calls.
+  let peopleErased = 0;
+  if (askedPeople) {
+    const { data: n, error: ctE } = await admin.rpc("rss_erase_contacts", {
+      p_company: ctx.companyId,
+      p_request: request.id,
+      p_contacts: askedContacts,
+      p_accounts: askedAccounts,
+      p_kind: kind,
+      p_value: normalised,
+      p_by: ctx.userId,
+      p_complete: asked.length === 0,
+    });
+    if (ctE) {
+      console.error(`[erasure] contact erasure failed request=${request.id}: ${ctE.message}`);
+      return NextResponse.json({ error: "The contacts couldn't be erased. Try again: it is safe to repeat.", audioRemoved, plansErased, prospectsErased }, { status: 500 });
+    }
+    peopleErased = Number(n) || 0;
   }
   if (asked.length === 0) {
     await recordAudit(admin, {
@@ -286,9 +328,9 @@ export async function POST(req: NextRequest) {
       action: "erasure.request",
       objectType: "erasure_request",
       objectId: String(request.id),
-      meta: { hint, kind, sessions: 0, plansErased, prospectsErased },
+      meta: { hint, kind, sessions: 0, plansErased, prospectsErased, peopleErased },
     });
-    return NextResponse.json({ erased: 0, plansErased, prospectsErased, audioRemoved, hint });
+    return NextResponse.json({ erased: 0, plansErased, prospectsErased, peopleErased, audioRemoved, hint });
   }
 
   const { data: result, error: eErr } = await admin.rpc("rss_erase_sessions", {
@@ -311,7 +353,7 @@ export async function POST(req: NextRequest) {
     action: "erasure.request",
     objectType: "erasure_request",
     objectId: String(request.id),
-    meta: { hint, kind, sessions: asked.length, plansErased, prospectsErased, audioRemoved, result },
+    meta: { hint, kind, sessions: asked.length, plansErased, prospectsErased, peopleErased, audioRemoved, result },
   });
-  return NextResponse.json({ erased: asked.length, plansErased, prospectsErased, audioRemoved, hint, result });
+  return NextResponse.json({ erased: asked.length, plansErased, prospectsErased, peopleErased, audioRemoved, hint, result });
 }

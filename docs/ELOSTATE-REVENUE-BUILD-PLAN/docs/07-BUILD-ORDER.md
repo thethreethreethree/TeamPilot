@@ -1,0 +1,13 @@
+# 07 — Build order
+
+Each phase is one TBC record. It's committed only after `npm run check` passes, its migration goes through `db:apply` and `verify:live`, then it's pushed (which deploys). Each phase ends in something you can open.
+
+| Phase | Builds | You can look at |
+|---|---|---|
+| 1 | 0370 accounts, contacts, deal contacts, call contacts, backfill, erasure extension; routes; Accounts list and account page; account and contacts on the deal panel; "Who was this?" on the call | Accounts in Remote Sales, built from your existing pipeline |
+| 2 | 0371 stages and saved views; Pipeline becomes the Deals board with filters, columns and roll-ups; panel tabs | The Deals board |
+| 3 | 0372 warnings (nightly), playbooks, AI deal reviewer, suggested updates, deal brief | Warning chips, playbook letters, AI notes with cited lines |
+| 4 | 0373 activity level; win/loss; deal drivers | Analytics (gated) |
+| 5 | Ask Anything over a deal or an account | "Ask about this deal / account" |
+| 6 | 0374 forecast boards, submissions, snapshots, accuracy | Forecast |
+| 7+ | Engage, CRM / API / MCP, agents: their own plan | — |

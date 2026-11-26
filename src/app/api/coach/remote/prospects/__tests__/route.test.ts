@@ -10,13 +10,22 @@ const st = vi.hoisted(() => ({
   rpcResult: { data: "p-new", error: null } as { data: unknown; error: { code?: string; message: string } | null },
   list: [] as unknown[] | null,
   listArg: "unset" as unknown,
+  adminRpc: [] as Array<{ fn: string; args: Record<string, unknown> }>,
+  inserts: [] as Array<{ table: string; row: Record<string, unknown> }>,
+  insertError: null as { message: string } | null,
 }));
 
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "rep-1", companyId: "co1" })) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/api/callerScopedDb", () => ({
-  callerScopedDb: () => ({ rpc: async (fn: string, args: Record<string, unknown>) => (st.rpc.push({ fn, args }), st.rpcResult) }),
+  callerScopedDb: () => ({
+    rpc: async (fn: string, args: Record<string, unknown>) => (st.rpc.push({ fn, args }), st.rpcResult),
+    from: (table: string) => ({ insert: async (row: Record<string, unknown>) => (st.inserts.push({ table, row }), { error: st.insertError }) }),
+  }),
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({ rpc: async (fn: string, args: Record<string, unknown>) => (st.adminRpc.push({ fn, args }), { data: "acc-1", error: null }) }),
 }));
 vi.mock("@/lib/coach/remote/prospects", () => ({
   listProspects: vi.fn(async (_db: unknown, repId: unknown) => ((st.listArg = repId), st.list)),
@@ -35,6 +44,9 @@ beforeEach(() => {
   st.rpcResult = { data: "p-new", error: null };
   st.list = [];
   st.listArg = "unset";
+  st.adminRpc = [];
+  st.inserts = [];
+  st.insertError = null;
 });
 
 describe("adding a prospect", () => {
@@ -42,6 +54,25 @@ describe("adding a prospect", () => {
     const res = await post({ name: "Pat", organization: "Acme", amount: 120, stageLabel: "Demo", nextCallDate: "2026-11-30", sessionId: CALL });
     expect(await res.json()).toEqual({ id: "p-new", linked: true });
     expect(st.rpc).toEqual([{ fn: "rss_create_prospect", args: { p_name: "Pat", p_organization: "Acme", p_amount: 120, p_stage_label: "Demo", p_next_call: "2026-11-30", p_session: CALL, p_source: null } }]);
+  });
+
+  it("a company named on the deal becomes its account (0370): found or made by the company key, then an 'account' event", async () => {
+    await post({ name: "Pat", organization: " Acme " });
+    expect(st.adminRpc).toEqual([{ fn: "rss_account_find_or_create", args: { p_company: "co1", p_actor: "rep-1", p_name: "Acme" } }]);
+    expect(st.inserts).toEqual([{ table: "remote_prospect_events", row: { prospect_id: "p-new", company_id: "co1", kind: "account", value: { account_id: "acc-1" }, actor_id: "rep-1" } }]);
+  });
+
+  it("no company, no account step", async () => {
+    await post({ name: "Pat" });
+    expect(st.adminRpc).toEqual([]);
+    expect(st.inserts).toEqual([]);
+  });
+
+  it("an account that can't be set is said, with the new deal's id — not a silent success", async () => {
+    st.insertError = { message: "boom" };
+    const res = await post({ name: "Pat", organization: "Acme" });
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ id: "p-new", error: expect.stringContaining("account") });
   });
 
   it("carries the lead source in the same transaction (0313)", async () => {

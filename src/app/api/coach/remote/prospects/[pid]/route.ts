@@ -8,6 +8,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
 import { isTaskClosed } from "@/lib/tasks/statusLabels";
 import { eventValue } from "@/lib/coach/remote/macroMode";
+import { AccountReadError, contactsOfDeal, DEAL_ROLES } from "@/lib/coach/remote/revenue/accounts";
 
 /**
  * /api/coach/remote/prospects/:pid — one prospect in the Remote Sales pipeline (Macro Mode, 0303).
@@ -15,6 +16,11 @@ import { eventValue } from "@/lib/coach/remote/macroMode";
  *   POST { action: "set", kind, value }   — a new fact (stage/amount/next call/name/organization/source/expected close date, 0320) as an EVENT (§3.1)
  *        { action: "link", sessionId }    — this call belongs to this prospect (last call date is derived from links)
  *        { action: "todo", title, due }   — a to-do, created as a Task assigned to the prospect's rep
+ *        { action: "account", accountId | name | null } — the deal's account (0370): an existing one the caller can see,
+ *                                          or found/made by name (rss_account_find_or_create, the key's one authority), or
+ *                                          none; an 'account' EVENT
+ *        { action: "contact", contactId, role } — a contact on the deal with a role, or role "removed" (0370 deal_contacts)
+ *   GET also returns { account, contacts } (revenue Phase 1).
  * All reads and writes go through the caller's client: a prospect the caller cannot see is a 404 for reads and a
  * refused insert for writes (0303's policies), never a confirmation that it exists.
  */
@@ -26,7 +32,17 @@ const Set_ = z.object({
 const Link = z.object({ action: z.literal("link"), sessionId: z.string().uuid() });
 const Todo = z.object({ action: z.literal("todo"), title: z.string().trim().min(1).max(200), due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const Body = z.discriminatedUnion("action", [Set_, Link, Todo]);
+const Account = z.object({
+  action: z.literal("account"),
+  accountId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).nullable().optional(),
+  name: z.string().trim().min(1).max(120).optional(),
+});
+const Contact = z.object({
+  action: z.literal("contact"),
+  contactId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
+  role: z.enum([...DEAL_ROLES, "removed"]),
+});
+const Body = z.discriminatedUnion("action", [Set_, Link, Todo, Account, Contact]);
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ pid: string }> }) {
   const limited = rateLimit(req, { id: "remote-prospect-read", windowMs: 60_000, max: 120 });
@@ -61,8 +77,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
     console.error(`[prospect] calls/to-dos read failed id=${pid}: ${(sess.error ?? tasks.error)?.message}`);
     return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
   }
+  // Revenue Phase 1 (0370): the deal's account and contacts. A failed read is a 500, never "no account".
+  let account: { id: string; name: string } | null = null;
+  let contacts: Awaited<ReturnType<typeof contactsOfDeal>> = [];
+  try {
+    if (p.account_id) {
+      const { data: a, error: aErr } = await db.from("accounts_current").select("id, name").eq("id", p.account_id).maybeSingle();
+      if (aErr) throw new AccountReadError(aErr.message);
+      if (a) account = { id: String(a.id), name: (a.name as string | null) ?? "(no name)" };
+    }
+    contacts = await contactsOfDeal(db, pid);
+  } catch (e) {
+    if (!(e instanceof AccountReadError)) throw e;
+    console.error(`[prospect] account/contacts read failed id=${pid}: ${e.message}`);
+    return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
+  }
   return NextResponse.json({
     prospect: p,
+    account,
+    contacts,
     history: ev.data ?? [],
     calls: ((sess.data ?? []) as Array<Record<string, unknown>>).map((s) => ({
       id: String(s.id), label: s.client_label ?? null, context: s.context, startedAt: s.started_at, outcome: s.outcome ?? null,
@@ -103,6 +136,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
       if (error.code === "23505") return NextResponse.json({ error: "That call already belongs to a prospect." }, { status: 409 });
       // 0304: a call joins only the pipeline of the rep who took it.
       return NextResponse.json({ error: "Only a call this prospect's rep took can be linked to it." }, { status: 403 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "account") {
+    let accountId: string | null = body.accountId ?? null;
+    if (body.name) {
+      const { data: id, error: fErr } = await createAdminClient().rpc("rss_account_find_or_create", { p_company: ctx.companyId, p_actor: ctx.userId, p_name: body.name });
+      if (fErr || !id) {
+        console.error(`[prospect] account find-or-create failed id=${pid}: ${fErr?.message ?? "no id"}`);
+        return NextResponse.json({ error: "Couldn't save that account." }, { status: 500 });
+      }
+      accountId = String(id);
+    } else if (accountId) {
+      // An existing account must be one the caller can see; else it's "not found", never a confirmation it exists.
+      const { data: seen } = await db.from("accounts").select("id").eq("id", accountId).maybeSingle();
+      if (!seen) return NextResponse.json({ error: "Account not found." }, { status: 404 });
+    }
+    const { error } = await db.from("remote_prospect_events").insert({ prospect_id: pid, company_id: p.company_id, kind: "account", value: { account_id: accountId }, actor_id: ctx.userId });
+    if (error) {
+      console.error(`[prospect] account event failed id=${pid}: ${error.message}`);
+      return NextResponse.json({ error: "Couldn't save that account." }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, accountId });
+  }
+
+  if (body.action === "contact") {
+    const { error } = await db.from("deal_contacts").insert({ prospect_id: pid, contact_id: body.contactId, company_id: p.company_id, role: body.role, actor_id: ctx.userId });
+    if (error) {
+      console.error(`[prospect] contact link failed id=${pid}: ${error.message}`);
+      return NextResponse.json({ error: "Couldn't save that contact on this deal." }, { status: 500 });
     }
     return NextResponse.json({ ok: true });
   }

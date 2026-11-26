@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { DealAccountContacts, type DealContact } from "./DealAccountContacts";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -350,6 +351,8 @@ function NewProspect({ onDone }: { onDone: (id: string | null) => void }) {
 }
 
 type Detail = {
+  account?: { id: string; name: string } | null;
+  contacts?: DealContact[];
   prospect: { id: string; name: string | null; organization: string | null; status: string; stage_label: string | null; amount: number | string | null; next_call_date: string | null; source?: string | null; close_date?: string | null; next_call_time?: string | null };
   calls: Array<{ id: string; label: string | null; context: string; startedAt: string; outcome: string | null }>;
   todos: Array<{ id: string; title: string; due: string | null; status: string; done: boolean }>;
@@ -498,6 +501,8 @@ function ProspectDetail({ id, onChanged, onClose }: { id: string; onChanged: () 
           />
         </label>}
       </div>
+
+      <DealAccountContacts dealId={p.id} account={d.account ?? null} contacts={d.contacts ?? []} busy={busy} post={post} />
 
       {(p.next_call_date || d.todos.some((t) => !t.done && t.due)) && (
         <button
