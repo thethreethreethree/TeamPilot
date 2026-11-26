@@ -212,5 +212,29 @@ describe("CoachingInbox — change against the 30 days before (F16.8)", () => {
     await screen.findByText("Coaching in the last 30 days");
     expect(screen.queryByRole("group", { name: "Coaching by" })).toBeNull();
   });
+  it("F16.6: interaction alerts on calls not yet coached — chips, an alerts-only filter, and too-few-calls / failed wording", async () => {
+    const bo = { repId: "bo", name: "Bo", feedback30: 0, lastFeedbackAt: null, overdue: true, openRequests: 0, calls30: 2, callsWithoutFeedback30: 2, uncoached: [{ id: "c2", label: "Betty", startedAt: "2026-11-24T10:00:00Z" }, { id: "c1", label: "Acme", startedAt: "2026-11-20T10:00:00Z" }] };
+    metrics = { decided: true, since: "x", sessions: 2, feedbackGiven: {}, callsListened: {}, byRep: [bo], alerts: { baselineCalls: 40, needed: 0, byCall: { c1: ["talked_most"] } } };
+    render(<CoachingInbox />);
+    await screen.findByLabelText("Coaching by rep");
+    fireEvent.click(screen.getAllByRole("button", { name: "2" })[0]!);
+    const list = screen.getByLabelText("Bo's calls not yet coached");
+    expect(list.textContent).toContain("Rep talked more than in 9 of 10 team calls");
+    fireEvent.click(screen.getByLabelText(/Only calls with an interaction alert \(1\)/));
+    expect([...list.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual(["/dashboard/remote-sales/calls/c1"]);
+    cleanup();
+    metrics = { decided: true, since: "x", sessions: 2, feedbackGiven: {}, callsListened: {}, byRep: [bo], alerts: { baselineCalls: 5, needed: 15, byCall: {} } };
+    render(<CoachingInbox />);
+    await screen.findByLabelText("Coaching by rep");
+    fireEvent.click(screen.getAllByRole("button", { name: "2" })[0]!);
+    expect(screen.getByText(/15 more analyzed calls/)).toBeTruthy();
+    expect(screen.queryByLabelText(/Only calls with an interaction alert/)).toBeNull();
+    cleanup();
+    metrics = { decided: true, since: "x", sessions: 2, feedbackGiven: {}, callsListened: {}, byRep: [bo], alerts: null };
+    render(<CoachingInbox />);
+    await screen.findByLabelText("Coaching by rep");
+    fireEvent.click(screen.getAllByRole("button", { name: "2" })[0]!);
+    expect(screen.getByText("Couldn't load interaction alerts.")).toBeTruthy();
+  });
 });
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Inbox, Loader2 } from "lucide-react";
 import type { RepCoaching } from "@/lib/coach/remote/feedback";
+import { ALERT_WORDS, type AlertKind } from "@/lib/coach/remote/interactionAlerts";
 import { useCurrentUserId } from "@/lib/hooks/useCurrentUserId";
 
 /**
@@ -58,6 +59,8 @@ type Metrics =
       };
       /** The period the numbers cover (7, 30 or 90 days). Absent from an older server, which always counted 30. */
       days?: number;
+      /** F16.6 (2026-11-26): interaction alerts on the calls not yet coached; null = couldn't load; absent = none to check. */
+      alerts?: { baselineCalls: number; needed: number; byCall: Record<string, AlertKind[]> } | null;
     };
 
 const CHANNEL: Record<string, string> = { phone: "Phone", video: "Video", in_person: "In person" };
@@ -99,6 +102,8 @@ const responseDelta = (now: number, before: number, days: number) =>
 export function CoachingInbox({ team }: { team?: string } = {}) {
   // F16.6: which rep's uncoached calls are listed (one at a time).
   const [openRep, setOpenRep] = useState<string | null>(null);
+  // F16.6 (2026-11-26): in that list, only the calls with an interaction alert.
+  const [alertsOnly, setAlertsOnly] = useState(false);
   const [wire, setWire] = useState<Wire | null>(null);
   const [failed, setFailed] = useState(false);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -409,25 +414,56 @@ export function CoachingInbox({ team }: { team?: string } = {}) {
           {(() => {
             const rep = metrics.byRep.find((x) => x.repId === openRep);
             if (!rep || rep.uncoached.length === 0) return null;
+            const alerts = metrics.alerts;
+            const alertsOf = (id: string) => alerts?.byCall[id] ?? [];
+            const flagged = rep.uncoached.filter((c) => alertsOf(c.id).length > 0).length;
+            const shown = alertsOnly && alerts ? rep.uncoached.filter((c) => alertsOf(c.id).length > 0) : rep.uncoached;
             return (
               <div className="mt-2 rounded-lg border border-default bg-surface p-2" aria-label={`${rep.name}'s calls not yet coached`}>
-                <p className="text-[11px] font-semibold text-primary">{rep.name}&apos;s calls with no feedback yet</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold text-primary">{rep.name}&apos;s calls with no feedback yet</p>
+                  {alerts && alerts.needed === 0 && (
+                    <label className="flex items-center gap-1 text-[11px] text-secondary">
+                      <input type="checkbox" checked={alertsOnly} onChange={(e) => setAlertsOnly(e.target.checked)} />
+                      Only calls with an interaction alert ({flagged})
+                    </label>
+                  )}
+                </div>
+                {alerts === null && <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">Couldn&apos;t load interaction alerts.</p>}
+                {alerts && alerts.needed > 0 && (
+                  <p className="mt-1 text-[11px] text-muted">
+                    Interaction alerts start once this team has {alerts.needed} more analyzed call{alerts.needed === 1 ? "" : "s"} to compare against.
+                  </p>
+                )}
                 <ul className="mt-1 space-y-1">
-                  {rep.uncoached.map((c) => (
+                  {shown.map((c) => (
                     <li key={c.id}>
-                      <Link href={`/dashboard/remote-sales/calls/${c.id}`} className="flex justify-between gap-2 rounded px-1 py-0.5 text-xs hover:bg-base">
-                        <span className="text-primary">{c.label ?? "Untitled call"}</span>
-                        <span className="text-muted">{new Date(c.startedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Go to call</span>
+                      <Link href={`/dashboard/remote-sales/calls/${c.id}`} className="block rounded px-1 py-0.5 text-xs hover:bg-base">
+                        <span className="flex justify-between gap-2">
+                          <span className="text-primary">{c.label ?? "Untitled call"}</span>
+                          <span className="text-muted">{new Date(c.startedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Go to call</span>
+                        </span>
+                        {alertsOf(c.id).length > 0 && (
+                          <span className="mt-0.5 flex flex-wrap gap-1">
+                            {alertsOf(c.id).map((a) => (
+                              <span key={a} className="rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-700 dark:text-amber-300">
+                                {ALERT_WORDS[a]}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                       </Link>
                     </li>
                   ))}
                 </ul>
+                {shown.length === 0 && <p className="mt-1 text-[11px] text-muted">None of these calls has an interaction alert.</p>}
               </div>
             );
           })()}
           <p className="mt-1 text-[11px] text-muted">
             Overdue: calls in the last 30 days and no feedback in that time. &ldquo;Not yet coached&rdquo; counts the rep&apos;s calls
-            with no feedback on them.
+            with no feedback on them. An interaction alert means the call was further out than 9 in 10 of this team&apos;s analyzed calls — unusual for
+            this team, not necessarily wrong.
           </p>
         </div>
       )}

@@ -10,6 +10,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { requireSalesCoachManager } from "@/lib/api/requireSalesCoachManager";
 import { treeFilterReps, treeAllowsRepChecked } from "@/lib/api/treeAccess";
 import { FEEDBACK_POLICY, LISTENED_THRESHOLD } from "@/lib/coach/remote/decisions";
+import { alertsFor, baselineFrom, MIN_BASELINE, type AlertKind, type Stats } from "@/lib/coach/remote/interactionAlerts";
 import { counted, loadCoachingEvents, coachingByRep, responseHoursByManager, feedbackTotals } from "@/lib/coach/remote/feedback";
 
 /**
@@ -221,6 +222,53 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Interaction alerts on the calls not yet coached (2026-11-26, F16.6): each call against THIS team's analyzed calls in
+  // view (the same calls as above), on each call's current transcript (its newest stats version). A failed read leaves
+  // the alerts out (alerts: null) and the panel says so — never "no alerts".
+  let alerts: { baselineCalls: number; needed: number; byCall: Record<string, AlertKind[]> } | null = null;
+  const uncoachedIds = new Set(byRep.flatMap((r) => r.uncoached.map((c) => c.id)));
+  if (uncoachedIds.size) {
+    type St = { session_id: string; transcript_version: number; talk_ratio_time: number | null; longest_rep_monologue_ms: number | null; interactivity: number | null; patience_ms: number | null; id: number };
+    const newest = new Map<string, St>();
+    let ok = true;
+    for (let i = 0; ok && i < ids.length; i += CHUNK) {
+      const { data, error: sErr } = await fetchAllPagedResult<St>(
+        (from, to) =>
+          admin
+            .from("session_interaction_stats")
+            .select("session_id, transcript_version, talk_ratio_time, longest_rep_monologue_ms, interactivity, patience_ms, id")
+            .eq("company_id", mgr.companyId)
+            .in("session_id", ids.slice(i, i + CHUNK))
+            .order("id", { ascending: true })
+            .range(from, to),
+        { label: "coaching-metrics interaction stats", maxRows: 200_000 },
+      );
+      if (sErr) {
+        console.error(`[coaching-metrics] interaction stats read failed company=${mgr.companyId}: ${sErr.message}`);
+        ok = false;
+        break;
+      }
+      for (const r of data ?? []) {
+        const k = String(r.session_id);
+        const cur = newest.get(k);
+        if (!cur || Number(r.transcript_version) > Number(cur.transcript_version)) newest.set(k, r);
+      }
+    }
+    if (ok) {
+      const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+      const statsOf = new Map<string, Stats>(
+        [...newest].map(([k, r]) => [k, { talkRatio: num(r.talk_ratio_time), longestMonologueMs: num(r.longest_rep_monologue_ms), interactivity: num(r.interactivity), patienceMs: num(r.patience_ms) }]),
+      );
+      const baseline = baselineFrom([...statsOf.values()]);
+      const byCall: Record<string, AlertKind[]> = {};
+      for (const id of uncoachedIds) {
+        const a = alertsFor(statsOf.get(id), baseline);
+        if (a.length) byCall[id] = a;
+      }
+      alerts = { baselineCalls: statsOf.size, needed: Math.max(0, MIN_BASELINE - statsOf.size), byCall };
+    }
+  }
+
   // Coaching export (2026-11-23; ledger F16.11): the same numbers as a CSV, one row per person, audited like every
   // coaching export (the audit-route invariant). Same computation as the panel, so the file can't disagree with it.
   if (new URL(req.url).searchParams.get("format") === "csv") {
@@ -247,5 +295,5 @@ export async function GET(req: NextRequest) {
       },
     });
   }
-  return NextResponse.json({ decided: true, days, since, sessions: ids.length, feedbackGiven, callsWithFeedback, callsWithComments, callsListened, responseHours, byRep, previous });
+  return NextResponse.json({ decided: true, days, since, sessions: ids.length, feedbackGiven, callsWithFeedback, callsWithComments, callsListened, responseHours, byRep, previous, alerts });
 }
