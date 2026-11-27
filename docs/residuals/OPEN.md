@@ -635,6 +635,10 @@ product says so where it matters, never silently.
       next-action: on 2026-11-28, check the cron's run in Vercel and that deal_warning_snapshots has rows for that day.
       update (d4dc9ec2): the job now runs in three slots (05:15, 05:45, 06:15 UTC), each continuing what the last left;
       a 500 from the last slot that says "left for the next run" means the night didn't finish. Days are company-local.
+      readiness probe 2026-11-27 (production, read-only, counts only): the job's tables, views and functions all answer;
+      25 of 25 companies have a timezone; 0 open deals and 0 close-date agents. So the first run's expected answer is 200
+      with companies 0 and snapshots 0 — success with nothing to record. Drivers' 30/90-day views will say "nothing was
+      recorded" until there are open deals for a month.
 - [ ] 2026-11-27 · revenue-r2 · No CRM sync (Salesforce / HubSpot / Dynamics).
       why-unresolved: no client CRM is on record to sync with (plan R2).
       next-action: when a paying client names their CRM, build its connector first.
