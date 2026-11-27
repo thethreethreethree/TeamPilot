@@ -22,21 +22,25 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - USAGE_DAYS * 86_400_000).toISOString();
   const rows: UsageRow[] = [];
   let partial = false;
-  for (let from = 0; ; from += PAGE) {
-    if (from >= USAGE_MAX_ROWS) {
-      partial = true;
+  // Keyset paging (newest first, each page below the last id seen): a request logged while this reads can't shift a
+  // page and be counted twice, as offsets would.
+  let before: number | null = null;
+  for (;;) {
+    if (rows.length >= USAGE_MAX_ROWS) {
+      // Partial only if a row is really left (review 2026-11-27): exactly the cap is the whole week.
+      const { data: more, error: mErr } = await admin.from("api_usage").select("id").eq("company_id", ctx.companyId).gte("at", since).lt("id", before!).limit(1);
+      if (mErr) return NextResponse.json({ error: "Couldn't load API usage." }, { status: 500 });
+      partial = (more ?? []).length > 0;
       break;
     }
-    const { data, error } = await admin
-      .from("api_usage")
-      .select("key_id, route, status")
-      .eq("company_id", ctx.companyId)
-      .gte("at", since)
-      .order("id", { ascending: false })
-      .range(from, from + PAGE - 1);
+    let q = admin.from("api_usage").select("id, key_id, route, status").eq("company_id", ctx.companyId).gte("at", since);
+    if (before !== null) q = q.lt("id", before);
+    const { data, error } = await q.order("id", { ascending: false }).limit(PAGE);
     if (error) return NextResponse.json({ error: "Couldn't load API usage." }, { status: 500 });
-    rows.push(...((data ?? []) as UsageRow[]));
-    if ((data ?? []).length < PAGE) break;
+    const page = (data ?? []) as Array<UsageRow & { id: number }>;
+    rows.push(...page);
+    if (page.length < PAGE) break;
+    before = page[page.length - 1]!.id;
   }
   return NextResponse.json({ days: USAGE_DAYS, lines: summarizeUsage(rows), partial });
 }

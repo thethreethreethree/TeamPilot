@@ -666,3 +666,14 @@ what it needs:
 - [ ] 2026-11-27 · gong-gaps · OTHER REPO / LATER: F30.7 / F30.9 / F6.5 mobile app (separate repo); F1.4 mixed sign-in
       methods (after F1.2 is live); F1.8 several emails per person; F33.3 muting numbers in the audio (transcripts are
       already redacted).
+
+## Filed by Engage E7–E9 (2026-11-27)
+
+- [ ] 2026-11-27 · engage-e8 · the gone-quiet agent trigger (0389) hasn't fired on production: 0 agents and 0 open
+      deals today. Its first chance is the nightly run (05:15 UTC 2026-11-28); with an agent saved from the "Gone quiet"
+      template and an open deal with no call in 21 days, the run should show one agent run on that deal, once.
+- [ ] 2026-11-27 · engage-e7 · try `GET /api/v1/users` and `/api/v1/stats?days=30` with a real read key (none made
+      yet — keys are made by a company admin, not by the agent), then confirm the request appears in Settings → API keys
+      → Usage.
+- [ ] 2026-11-27 · engage-e9 · on-demand agents show on a deal's Ask box only (the plan row); an account's Ask box can
+      take the same prop if wanted.

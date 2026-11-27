@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 /** The usage report (E7): admins only, pinned to the admin's company, and honest when the week had more rows than it reads. */
-const st = vi.hoisted(() => ({ ctx: null as Record<string, unknown> | null, eqs: [] as Array<[string, unknown]>, pageRows: 0, pages: 0 }));
+const st = vi.hoisted(() => ({ ctx: null as Record<string, unknown> | null, eqs: [] as Array<[string, unknown]>, pageRows: 0, pages: 0, lts: [] as unknown[], noMore: false }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => st.ctx) }));
@@ -12,7 +12,9 @@ vi.mock("@/lib/supabase/admin", () => ({
       const q: Record<string, unknown> = {};
       for (const m of ["select", "gte", "order"]) q[m] = () => q;
       q.eq = (c: string, v: unknown) => (st.eqs.push([c, v]), q);
-      q.range = async () => (st.pages++, { data: Array.from({ length: st.pageRows }, () => ({ key_id: "k", route: "/api/v1/deals", status: 200 })), error: null });
+      q.lt = (_c: string, v: unknown) => (st.lts.push(v), q);
+      // ids count down from 1,000,000 across pages, as newest-first keyset paging sees them
+      q.limit = async (n: number) => { if (n === 1) return { data: st.noMore ? [] : [{ id: 1 }], error: null }; const base = 1_000_000 - st.pages * st.pageRows; st.pages++; return { data: Array.from({ length: st.pageRows }, (_, i) => ({ id: base - i, key_id: "k", route: "/api/v1/deals", status: 200 })), error: null }; };
       return q;
     },
   }),
@@ -25,6 +27,8 @@ beforeEach(() => {
   st.eqs = [];
   st.pageRows = 3;
   st.pages = 0;
+  st.lts = [];
+  st.noMore = false;
 });
 
 describe("GET api-keys/usage", () => {
@@ -45,7 +49,16 @@ describe("GET api-keys/usage", () => {
     st.pageRows = 1000;
     const j = await (await GET(req())).json();
     expect(st.pages).toBe(50);
-    expect(j.partial).toBe(true);
+    // each page asks below the last id it saw, never by offset
+    expect(st.lts.slice(0, 2)).toEqual([1_000_000 - 999, 1_000_000 - 1999]);
+    expect(j.partial).toBe(true); // the mock always has another row below
+  });
+  it("exactly the cap with nothing below → not partial", async () => {
+    st.pageRows = 1000;
+    st.noMore = true;
+    const j = await (await GET(req())).json();
+    expect(j.partial).toBe(false);
+    expect(j.lines[0].requests).toBe(50_000);
     expect(j.lines[0].requests).toBe(50_000);
   });
 });

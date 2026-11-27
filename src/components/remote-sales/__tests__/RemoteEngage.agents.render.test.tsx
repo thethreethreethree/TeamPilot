@@ -56,7 +56,7 @@ describe("Engage → Agents", () => {
     }));
     render(<RemoteEngage />);
     fireEvent.click(await screen.findByRole("tab", { name: "Agents" }));
-    expect(await screen.findByText(/When an open deal goes quiet — no call in 21 days/)).toBeTruthy();
+    expect(await screen.findByText(/When an open deal goes quiet — no call in 21 days, or none after 14 days/)).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: "Gone quiet" }));
     expect((screen.getByLabelText("Agent name") as HTMLInputElement).value).toBe("Gone quiet");
     expect(screen.getByRole("button", { name: "A deal goes quiet" }).getAttribute("aria-pressed")).toBe("true");
@@ -85,6 +85,7 @@ describe("Engage → Agents", () => {
     fireEvent.change(screen.getByLabelText("Instruction"), { target: { value: "List what each side agreed to do next." } });
     fireEvent.click(screen.getByRole("button", { name: "Add on-demand agent" }));
     await waitFor(() => expect(posts.at(-1)).toEqual({ name: "Next steps", instruction: "List what each side agreed to do next." }));
+    fireEvent.change(screen.getByLabelText("On-demand agent name"), { target: { value: "Draft" } });
     fireEvent.click(screen.getByRole("button", { name: "Retire…" }));
     const n = posts.length;
     fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
@@ -92,5 +93,7 @@ describe("Engage → Agents", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retire…" }));
     fireEvent.click(screen.getByRole("button", { name: "Retire" }));
     await waitFor(() => expect(posts.at(-1)).toEqual({ retire: "o1" }));
+    // retiring keeps the draft being typed
+    await waitFor(() => expect((screen.getByLabelText("On-demand agent name") as HTMLInputElement).value).toBe("Draft"));
   });
 });

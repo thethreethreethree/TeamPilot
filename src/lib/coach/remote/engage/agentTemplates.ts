@@ -1,5 +1,5 @@
 import type { Action, Trigger } from "./agents";
-import { RISK_FIX } from "../dealRisk";
+import { NEW_GRACE_DAYS, QUIET_DAYS, RISK_FIX } from "../dealRisk";
 
 /**
  * Agent templates (Engage plan E8; Gong F27.9): ready-made agents a manager starts from. A template only fills the
@@ -34,7 +34,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
   {
     key: "gone_quiet",
     name: "Gone quiet",
-    why: "When an open deal has had no call in 21 days, the rep is told and given a to-do to reach out.",
+    why: `When an open deal has had no call in ${QUIET_DAYS} days (or none at all after ${NEW_GRACE_DAYS} days in the pipeline), the rep is told and given a to-do to reach out.`,
     trigger: { kind: "deal_gone_quiet" },
     actions: [{ kind: "notify", to: "rep" }, { kind: "todo", title: RISK_FIX.gone_quiet.slice(0, 200), due_days: 1 }],
   },

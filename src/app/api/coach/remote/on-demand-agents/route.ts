@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
   const db = callerScopedDb(req) ?? (await createClient());
   if ("run" in body) {
-    // An AI call each: the same limit as Ask Coach's own route.
-    const runLimited = rateLimit(req, { id: "remote-ask", windowMs: 60_000, max: 20 });
+    // An AI call each: Ask Coach's own rate (20 a minute), counted separately (the limiter is per instance and per id).
+    const runLimited = rateLimit(req, { id: "on-demand-agents-run", windowMs: 60_000, max: 20 });
     if (runLimited) return runLimited;
     const { data: a, error } = await db.from("on_demand_agents").select("id, instruction").eq("company_id", ctx.companyId).eq("id", body.run).is("retired_at", null).maybeSingle();
     if (error) return NextResponse.json({ error: "Couldn't open that agent — try again." }, { status: 500 });

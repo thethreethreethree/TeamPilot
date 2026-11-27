@@ -6,7 +6,7 @@ import { Check, Copy, ListChecks, Loader2, Mail, Pause, Phone, Play, Plus, SkipF
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import type { Outcome, Step } from "@/lib/coach/remote/engage/flows";
 import { AGENT_TEMPLATES, type AgentTemplate } from "@/lib/coach/remote/engage/agentTemplates";
-import { QUIET_DAYS } from "@/lib/coach/remote/dealRisk";
+import { NEW_GRACE_DAYS, QUIET_DAYS } from "@/lib/coach/remote/dealRisk";
 
 /**
  * Remote Sales → Engage (plan E1, 0377; Gong M24 flows, F26.3 to-dos, M25 outcomes). Today: every step due across your
@@ -447,7 +447,7 @@ function Agents() {
                 </span>
               </div>
               <p className="mt-1 text-secondary">
-                {a.trigger.kind === "deal_gone_quiet" ? <>When an open deal goes quiet — no call in {QUIET_DAYS} days (checked each night, once per quiet spell): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "close_date_near" ? <>When an open deal&apos;s close date is {a.trigger.days} day{a.trigger.days === 1 ? "" : "s"} away (checked each night): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
+                {a.trigger.kind === "deal_gone_quiet" ? <>When an open deal goes quiet — no call in {QUIET_DAYS} days, or none after {NEW_GRACE_DAYS} days in the pipeline (checked each night, once per quiet spell): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "close_date_near" ? <>When an open deal&apos;s close date is {a.trigger.days} day{a.trigger.days === 1 ? "" : "s"} away (checked each night): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
                 When a deal {a.trigger.label ? `reaches “${a.trigger.label}”` : ""}{a.trigger.label && a.trigger.status ? " and " : ""}{a.trigger.status ? (a.trigger.status === "won" ? "is won" : a.trigger.status === "lost" ? "is lost" : "is open") : ""}: {a.actions.map(ACTION_WORD).join(", then ")}.</>}
               </p>
               <ul className="mt-1 space-y-0.5">
@@ -493,8 +493,11 @@ function OnDemandAgents() {
     const r = await fetch("/api/coach/remote/on-demand-agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j = (await r.json().catch(() => ({}))) as { error?: string };
     if (!r.ok) return setMsg(j.error ?? "Couldn't save that.");
-    setName("");
-    setInstruction("");
+    // A retire keeps a half-typed new agent (review 2026-11-27); only an add clears the form.
+    if ("name" in body) {
+      setName("");
+      setInstruction("");
+    }
     setConfirmRetire(null);
     void load();
   };
@@ -569,7 +572,10 @@ function AgentEditor({ start, onSaved, onCancel }: { start?: AgentTemplate | nul
         ))}
       </div>
       {when === "quiet" ? (
-        <p className="text-secondary">When an open deal has had no call in {QUIET_DAYS} days — the same rule as the deal&apos;s “gone quiet” warning. Checked each night, once per quiet spell (a new call starts a new one).</p>
+        <div className="space-y-1 text-secondary">
+          <p>When an open deal has had no call in {QUIET_DAYS} days, or none at all after {NEW_GRACE_DAYS} days in the pipeline — the same rule as the deal&apos;s “gone quiet” warning. Checked each night, once per quiet spell (a new call starts a new one).</p>
+          <p className="text-[11px] text-muted">Its first night, it runs on every open deal that is already quiet.</p>
+        </div>
       ) : when === "close" ? (
         <div className="space-y-1 text-secondary">
           <div className="flex flex-wrap items-center gap-2">
