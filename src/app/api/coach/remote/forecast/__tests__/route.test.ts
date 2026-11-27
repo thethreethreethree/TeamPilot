@@ -75,8 +75,15 @@ describe("forecast", () => {
     st.targets = [{ user_id: "m", period: "2026-Q4", amount: 500, for_team: false }, { user_id: "m", period: "2026-Q4", amount: 9000, for_team: true }];
     const j = await (await GET(new NextRequest("http://x/api?period=2026-Q4"))).json();
     expect(j.targets).toEqual([{ userId: "m", period: "2026-Q4", amount: 500 }, { userId: "m", period: "2026-Q4", amount: 9000, team: true }]);
+    // The caller's own team (a team target is only ever the caller's): the caller is this id here.
+    const { resolveApiAuth } = await import("@/lib/api/resolveApiAuth");
+    vi.mocked(resolveApiAuth).mockResolvedValueOnce({ userId: "11111111-1111-4111-8111-111111111111", companyId: "co1" } as never);
     await post({ kind: "target", period: "2026-Q4", userId: "11111111-1111-4111-8111-111111111111", amount: 9500, team: true });
     expect(st.inserts.at(-1)!.row).toMatchObject({ for_team: true, amount: 9500 });
+  });
+  it("a team target is only for the caller's own team (review)", async () => {
+    const r = await post({ kind: "target", period: "2026-Q4", userId: "22222222-2222-4222-8222-222222222222", amount: 1, team: true });
+    expect(r.status).toBe(400);
   });
 });
 

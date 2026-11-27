@@ -65,5 +65,12 @@ describe("ForecastBoard", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(posts[0]).toEqual({ kind: "target", period: "2026-Q4", userId: "me", amount: 5000, team: true });
   });
+  it("with one rep picked (not the whole team), the team row shows no team target and offers none (review)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ period: "2026-Q4", viewerId: "me", submissions: [], targets: [{ userId: "me", period: "2026-Q4", amount: 4000, team: true }] }))));
+    render(<ForecastBoard deals={deals} people={["r2"]} isManager nameOf={(id) => (id === "r2" ? "Sam" : null)} today="2026-11-27" teamView={false} />);
+    await screen.findByText("Team");
+    expect(screen.queryByText(/of team target/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Set team target|4,000/ })).toBeNull();
+  });
 });
 

@@ -55,9 +55,15 @@ const setAuth = (userId: string | null) =>
 let rpcCall: { name: string; args: Record<string, unknown> } | null;
 let rpcResult: { data: number | null; error: unknown };
 let fromCalls: string[];
+// E6/E10 (2026-11-27): the route reads whether the call came in by API (audit_log) and whether consent was confirmed
+// (events) — the only direct table reads it may make; everything it writes still goes through the RPCs.
+let viaApi = 0;
+let consented = 0;
 function setupAdmin() {
   rpcCall = null;
   fromCalls = [];
+  viaApi = 0;
+  consented = 0;
   rpcResult = { data: 2, error: null };
   mk(createAdminClient).mockReturnValue({
     rpc: (name: string, args: Record<string, unknown>) => {
@@ -65,6 +71,13 @@ function setupAdmin() {
       return Promise.resolve(rpcResult);
     },
     from: (t: string) => {
+      if (t === "audit_log" || t === "events") {
+        const q: Record<string, unknown> = {};
+        q.select = () => q;
+        q.eq = () => q;
+        q.then = (r: (v: unknown) => unknown) => r({ count: t === "audit_log" ? viaApi : consented, error: null });
+        return q;
+      }
       fromCalls.push(t);
       throw new Error(`unexpected direct table access: ${t}`);
     },
@@ -348,4 +361,13 @@ describe("POST attribute-unlabelled — not a sales call", () => {
     expect(rpcCall).toBeNull();
     expect(generateSessionArtifacts).not.toHaveBeenCalled();
   });
+  it("a call uploaded by API is not answered (nor scored) until its rep has confirmed consent (E6/E10)", async () => {
+    viaApi = 1;
+    consented = 0;
+    const r = await POST(req({ mine: true }), ctx);
+    expect(r.status).toBe(409);
+    expect((await r.json()).status).toBe("consent-needed");
+    expect(rpcCall).toBeNull();
+  });
 });
+

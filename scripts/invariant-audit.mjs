@@ -2854,6 +2854,7 @@ const PAGING_UNIQUE_ALLOWLIST = new Map([
 // reads a call table under the hide rules (or events about a call) calls hiddenFrom /
 // hiddenInCompanyFrom / hiddenCallsForCompany, or is listed here with why no hidden call can reach a person.
 const HIDE_ROUTE_ALLOWLIST = new Map([
+  ["src/app/api/coach/sales-session/[id]/attribute-unlabelled/route.ts", "the call is opened through the CALLER's client first (getSession(id, db): RLS hides a hidden call → 404) and only its own rep may answer; the service role reads only counts (made by API, consent) and writes through the RPCs."],
   ["src/app/api/coach/remote/[id]/topic-sections/route.ts", "the call and its lines are opened through the CALLER's client (RLS hides a hidden call: getSession returns null → 404); the service role only WRITES the result event afterwards."],
   ["src/app/api/coach/remote/settings/vocabulary/reapply/route.ts", "company admins only (a hide never hides a call from an admin, 0337), and it returns counts only — no call, line or label reaches the person."],
   ["src/app/api/coach/remote/courses/route.ts", "0359: reads library_items ids and folder ids only, to check a lesson's call is in a company folder; returns nothing about the call. The rep opens it in the library, whose route filters hidden calls (hiddenFrom)."],

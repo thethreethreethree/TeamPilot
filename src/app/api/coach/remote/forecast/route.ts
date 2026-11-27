@@ -69,6 +69,8 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
   const db = callerScopedDb(req) ?? (await createClient());
   if (body.kind === "target") {
+    // A team target is the caller's own team's (review 2026-11-27): a manager sets theirs; one on a rep means nothing.
+    if (body.team && body.userId !== ctx.userId) return NextResponse.json({ error: "A team target is set for your own team." }, { status: 400 });
     const { error } = await db.from("forecast_targets").insert({ company_id: ctx.companyId, user_id: body.userId, period: body.period, amount: body.amount, set_by: ctx.userId, for_team: body.team === true });
     if (error) {
       if (error.code === "42501") return NextResponse.json({ error: "Only a manager or admin can set a target, for someone on their team." }, { status: 403 });

@@ -19,7 +19,7 @@ const BAND_WORD = { green: "on target", pink: "close", red: "off" } as const;
 
 type Data = { period: string; viewerId: string; submissions: Submission[]; targets: Array<{ userId: string; period: string; amount: number; team?: boolean }> };
 
-export function ForecastBoard({ deals, people, isManager, nameOf, today }: { deals: FDeal[]; people: string[]; isManager: boolean; nameOf: (id: string) => string | null; today: string }) {
+export function ForecastBoard({ deals, people, isManager, nameOf, today, teamView = true }: { deals: FDeal[]; people: string[]; isManager: boolean; nameOf: (id: string) => string | null; today: string; teamView?: boolean }) {
   const [period, setPeriod] = useState(periodOf(today));
   const [data, setData] = useState<Data | null>(null);
   const [failed, setFailed] = useState(false);
@@ -169,15 +169,17 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
                 <td className="px-2 py-1.5 text-right tabular-nums text-primary">{money(commitTeam.amount)}<span className="block text-[10px] font-normal text-muted">{commitTeam.submitted} of {commitTeam.of} submitted</span></td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-primary">{money(bestTeam.amount)}<span className="block text-[10px] font-normal text-muted">{bestTeam.submitted} of {bestTeam.of} submitted</span></td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-primary">
-                  {isManager ? (
+                  {/* The team's own target belongs to the whole-team view only (review 2026-11-27): with one rep picked, this
+                      row is that rep's deals, so it shows the sum of targets in view, not the team's. */}
+                  {isManager && teamView ? (
                     <button type="button" onClick={() => { setEditing({ userId: data.viewerId, col: "team_target" }); setAmount(teamTarget === null ? "" : String(teamTarget)); setMsg(null); }} className="rounded px-1.5 py-0.5 tabular-nums underline-offset-2 hover:underline">
-                      {teamTarget !== null ? money(teamTarget) : targetTeam ? money(targetTeam) : "Set"}
+                      {teamTarget !== null ? money(teamTarget) : targetTeam ? money(targetTeam) : "Set team target"}
                     </button>
                   ) : (
-                    <span>{teamTarget !== null ? money(teamTarget) : targetTeam ? money(targetTeam) : "—"}</span>
+                    <span>{teamView && teamTarget !== null ? money(teamTarget) : targetTeam ? money(targetTeam) : "—"}</span>
                   )}
-                  {teamTarget !== null ? (
-                    <span className="block text-[10px] font-normal text-muted">{Math.round((mAll.closedWon / Math.max(1, teamTarget)) * 100)}% of team target</span>
+                  {teamView && teamTarget !== null ? (
+                    teamTarget > 0 ? <span className="block text-[10px] font-normal text-muted">{Math.round((mAll.closedWon / teamTarget) * 100)}% of team target</span> : null
                   ) : targetTeam ? (
                     <span className="block text-[10px] font-normal text-muted">sum of people&apos;s targets</span>
                   ) : null}

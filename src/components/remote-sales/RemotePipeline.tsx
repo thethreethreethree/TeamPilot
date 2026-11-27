@@ -252,6 +252,7 @@ export function RemotePipeline() {
               key={whose}
               deals={data.prospects}
               people={whose === "mine" ? [] : [...new Set(data.prospects.map((p) => p.repId))]}
+              teamView={whose === "team"}
               isManager={isManager}
               nameOf={nameOf}
               today={today()}

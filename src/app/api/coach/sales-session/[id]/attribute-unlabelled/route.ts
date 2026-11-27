@@ -143,6 +143,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     );
   }
 
+  // A CALL UPLOADED BY API (Engage plan E6/E10, 2026-11-27): no rep was there when it was recorded and sent, so it is not
+  // answered (and so not scored) until its rep has confirmed the customer knew it was recorded (the consent rule,
+  // "Rep confirms"). Enforced here, not only on the screen (review 2026-11-27). Calls made any other way are unchanged.
+  {
+    const admin = createAdminClient();
+    const [{ count: viaApi, error: aErr }, { count: consented, error: cErr }] = await Promise.all([
+      admin.from("audit_log").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("action", "call.api_upload").eq("object_id", id),
+      admin.from("events").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("kind", "coach.recording_consent_confirmed").eq("subject", `sales_session:${id}`),
+    ]);
+    if (aErr || cErr) return NextResponse.json({ error: "Couldn't check this call. Try again." }, { status: 503 });
+    if (viaApi && !consented) {
+      return NextResponse.json({ status: "consent-needed", error: "First confirm the customer knew this call was recorded." }, { status: 409 });
+    }
+  }
+
   const existing = await getSessionTranscript(id, db);
   const answer = answerableSpeaker(existing);
   if (!answer.answerable) {

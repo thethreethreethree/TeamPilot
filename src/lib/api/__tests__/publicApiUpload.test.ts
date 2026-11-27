@@ -2,14 +2,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
 /**
- * POST /api/v1/calls (Engage plan E6, 0387). Pinned: the key needs the "upload" scope; the rep must be an active person of
- * the KEY's company; the app upload's file rules; on success the call is made for that rep, its audio stored and pointed
- * to (company-pinned), it is ended, transcribed by the shared upload transcription, the rep is told (call_needs_voice) and
- * the upload is audited — and it is NOT scored here (the rep's voice pick scores it).
+ * POST /api/v1/calls and /:id/finalize (Engage plan E6, 0387; review 2026-11-27). Pinned: the "upload" scope; the rep is an
+ * active person of the KEY's company; a daily cap per key counted before transcription; the app upload's file rules; JSON
+ * returns a signed upload for a file named after the call, and finalize accepts only that file, only for a call made
+ * through the API, once; multipart works for small files; nothing is scored here (the rep's voice pick scores it).
  */
+const REP = "11111111-1111-4111-8111-111111111111";
+const CALL = "22222222-2222-4222-8222-222222222222";
 const st = vi.hoisted(() => ({
-  auth: { keyId: "k1", companyId: "co1", createdBy: "admin-1", scopes: ["read", "upload"] } as unknown,
-  rep: { id: "11111111-1111-4111-8111-111111111111", status: "active" } as unknown,
+  auth: null as unknown,
+  rep: null as unknown,
+  uploadsToday: 0,
+  apiMade: 1,
+  call: null as unknown,
+  info: { sizeBytes: 10, contentType: "audio/mpeg" } as unknown,
   eqs: [] as Array<[string, string, unknown]>,
   inserts: [] as Array<{ table: string; row: unknown }>,
   updates: [] as Array<{ table: string; patch: unknown }>,
@@ -19,11 +25,14 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/publicApi", () => ({ authenticateApiKey: vi.fn(async () => st.auth), recordApiUsage: vi.fn(async () => undefined) }));
 vi.mock("../publicApi", () => ({ authenticateApiKey: vi.fn(async () => st.auth), recordApiUsage: vi.fn(async () => undefined) }));
 vi.mock("@/lib/data/salesCoach", () => ({
-  createSession: vi.fn(async (a: Record<string, unknown>) => ({ id: "sess-1", startedAt: "2026-11-27T10:00:00Z", ...a })),
+  createSession: vi.fn(async (a: Record<string, unknown>) => ({ id: CALL, startedAt: "2026-11-27T10:00:00Z", ...a })),
   setSessionStatus: vi.fn(async () => ({})),
 }));
 vi.mock("@/lib/storage/assets", () => ({
-  buildStoragePath: () => "co1/file-1/recording.mp3",
+  buildStoragePath: (a: { companyId: string; fileId: string }) => `${a.companyId}/2026/11/${a.fileId}.mp3`,
+  createSignedUploadTarget: vi.fn(async (a: { companyId: string; fileId: string }) => ({ ok: true, storagePath: `${a.companyId}/2026/11/${a.fileId}.mp3`, token: "tok" })),
+  getAssetObjectInfo: vi.fn(async () => st.info),
+  downloadAssetBytes: vi.fn(async () => ({ ok: true, bytes: Buffer.from("abc"), contentType: "audio/mpeg" })),
   uploadAssetBytes: vi.fn(async () => ({ ok: true })),
   recordingMaxBytes: () => 1000,
   ASSETS_BUCKET: "assets-v1",
@@ -36,30 +45,37 @@ vi.mock("@/lib/supabase/admin", () => ({
     from: (table: string) => {
       const q: Record<string, unknown> = {};
       q.select = () => q;
+      q.gte = () => q;
       q.eq = (c: string, v: unknown) => (st.eqs.push([table, c, v]), q);
-      q.maybeSingle = async () => ({ data: table === "profiles" ? st.rep : null, error: null });
+      q.maybeSingle = async () => ({ data: table === "profiles" ? st.rep : table === "coaching_sessions" ? st.call : null, error: null });
       q.update = (patch: unknown) => (st.updates.push({ table, patch }), q);
-      q.then = (r: (v: unknown) => unknown) => r({ error: null });
+      // counts: audit_log is read for the daily cap (by key) and for "made through the API" (by object id)
+      q.then = (r: (v: unknown) => unknown) => r({ error: null, count: table === "audit_log" ? (st.eqs.some(([t, c]) => t === "audit_log" && c === "object_id") ? st.apiMade : st.uploadsToday) : 0 });
       q.insert = async (row: unknown) => (st.inserts.push({ table, row }), { error: null });
       return q;
     },
   }),
 }));
-import { POST } from "@/app/api/v1/calls/route";
-const uploadCall = (r: Request) => POST(r);
-import { createSession, setSessionStatus } from "@/lib/data/salesCoach";
+import { POST as CREATE } from "@/app/api/v1/calls/route";
+import { POST as FINALIZE } from "@/app/api/v1/calls/[id]/finalize/route";
+import { createSession } from "@/lib/data/salesCoach";
 import { transcribeUploadedAudio } from "@/lib/coach/v5/transcribeUpload";
 
-const REP = "11111111-1111-4111-8111-111111111111";
-function req(fields: Record<string, string | File>) {
+const json = (b: unknown) => new Request("http://x/api/v1/calls", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) });
+function multipart(fields: Record<string, string | File>) {
   const f = new FormData();
   for (const [k, v] of Object.entries(fields)) f.append(k, v);
   return new Request("http://x/api/v1/calls", { method: "POST", body: f });
 }
-const audio = (bytes = 10, type = "audio/mpeg", name = "call.mp3") => new File([new Uint8Array(bytes)], name, { type });
+const fin = (path: string, id = CALL) => FINALIZE(new Request(`http://x/api/v1/calls/${id}/finalize`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path }) }), { params: Promise.resolve({ id }) });
+const META = { repId: REP, channel: "phone", filename: "call.mp3", sizeBytes: 10, mimeType: "audio/mpeg" };
 beforeEach(() => {
   st.auth = { keyId: "k1", companyId: "co1", createdBy: "admin-1", scopes: ["read", "upload"] };
   st.rep = { id: REP, status: "active" };
+  st.uploadsToday = 0;
+  st.apiMade = 1;
+  st.call = { id: CALL, agent_id: REP, context: "phone", started_at: "2026-11-27T10:00:00Z", client_label: null, audio_asset_url: null };
+  st.info = { sizeBytes: 10, contentType: "audio/mpeg" };
   st.eqs = [];
   st.inserts = [];
   st.updates = [];
@@ -69,39 +85,65 @@ beforeEach(() => {
 describe("POST /api/v1/calls", () => {
   it("a key without the upload scope is refused before anything happens", async () => {
     st.auth = NextResponse.json({ error: "no" }, { status: 403 });
-    expect((await uploadCall(req({ file: audio(), repId: REP, channel: "phone" }))).status).toBe(403);
+    expect((await CREATE(json(META))).status).toBe(403);
     expect(createSession).not.toHaveBeenCalled();
   });
   it("the rep must be an active person of the key's company", async () => {
     st.rep = null;
-    expect((await uploadCall(req({ file: audio(), repId: REP, channel: "phone" }))).status).toBe(404);
+    expect((await CREATE(json(META))).status).toBe(404);
     expect(st.eqs).toContainEqual(["profiles", "company_id", "co1"]);
-    st.rep = { id: REP, status: "removed" };
-    expect((await uploadCall(req({ file: audio(), repId: REP, channel: "phone" }))).status).toBe(404);
     expect(createSession).not.toHaveBeenCalled();
   });
-  it("the app upload's file rules: channel, size, type, no executable", async () => {
-    expect((await uploadCall(req({ file: audio(), repId: REP, channel: "door" }))).status).toBe(400);
-    expect((await uploadCall(req({ file: audio(5000), repId: REP, channel: "phone" }))).status).toBe(413);
-    expect((await uploadCall(req({ file: audio(10, "text/plain", "x.txt"), repId: REP, channel: "phone" }))).status).toBe(400);
-    expect((await uploadCall(req({ file: audio(10, "audio/mpeg", "x.exe"), repId: REP, channel: "phone" }))).status).toBe(400);
+  it("the daily upload cap per key is checked before a call is made", async () => {
+    st.uploadsToday = 200;
+    expect((await CREATE(json(META))).status).toBe(429);
     expect(createSession).not.toHaveBeenCalled();
   });
-  it("makes the call for the rep, stores and transcribes it, ends it, tells the rep — and doesn't score it", async () => {
-    const r = await uploadCall(req({ file: audio(), repId: REP, channel: "video", title: "Acme demo" }));
+  it("the app upload's file rules on the claimed file", async () => {
+    expect((await CREATE(json({ ...META, channel: "door" }))).status).toBe(400);
+    expect((await CREATE(json({ ...META, sizeBytes: 5000 }))).status).toBe(413);
+    expect((await CREATE(json({ ...META, mimeType: "text/plain" }))).status).toBe(400);
+    expect((await CREATE(json({ ...META, filename: "x.exe" }))).status).toBe(400);
+    expect(createSession).not.toHaveBeenCalled();
+  });
+  it("JSON: the call is made for the rep and a signed upload returned, named after the call; nothing transcribed yet", async () => {
+    const r = await CREATE(json({ ...META, title: "Acme" }));
     expect(r.status).toBe(201);
-    expect(await r.json()).toMatchObject({ id: "sess-1", status: "waiting_for_rep" });
-    expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ companyId: "co1", agentId: REP, context: "video", clientLabel: "Acme demo" }));
-    expect(st.updates).toContainEqual({ table: "coaching_sessions", patch: { audio_asset_url: "assets-v1/co1/file-1/recording.mp3" } });
-    expect(st.eqs).toContainEqual(["coaching_sessions", "company_id", "co1"]);
-    expect(setSessionStatus).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "sess-1", status: "ended" }));
-    expect(transcribeUploadedAudio).toHaveBeenCalledWith(expect.objectContaining({ companyId: "co1", sessionId: "sess-1", context: "video" }));
-    expect(st.inserts).toContainEqual({ table: "manager_notifications", row: expect.objectContaining({ recipient_id: REP, type: "call_needs_voice", session_id: "sess-1" }) });
+    const j = await r.json();
+    expect(j.upload.path).toBe(`co1/2026/11/${CALL}.mp3`);
+    expect(j.upload.url).toContain(`/storage/v1/object/upload/sign/assets-v1/co1/2026/11/${CALL}.mp3?token=tok`);
+    expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ companyId: "co1", agentId: REP, context: "phone", clientLabel: "Acme" }));
+    expect(transcribeUploadedAudio).not.toHaveBeenCalled();
   });
-  it("a failed transcription still answers with the call (the audio is kept)", async () => {
-    st.transcribe = { ok: false, code: "AI_UNAVAILABLE" };
-    const j = await (await uploadCall(req({ file: audio(), repId: REP, channel: "phone" }))).json();
-    expect(j).toMatchObject({ id: "sess-1", status: "transcription_failed" });
-    st.transcribe = { ok: true, segments: [{ speakerId: "speaker_0", text: "hi" }], durationSeconds: 60 };
+  it("multipart for a small file: stored, attached, transcribed, the rep told", async () => {
+    const r = await CREATE(multipart({ file: new File([new Uint8Array(10)], "c.mp3", { type: "audio/mpeg" }), repId: REP, channel: "video" }));
+    expect(r.status).toBe(201);
+    expect(await r.json()).toMatchObject({ id: CALL, status: "waiting_for_rep" });
+    expect(st.updates).toContainEqual({ table: "coaching_sessions", patch: { audio_asset_url: `assets-v1/co1/2026/11/${CALL}.mp3` } });
+    expect(st.inserts).toContainEqual({ table: "manager_notifications", row: expect.objectContaining({ recipient_id: REP, type: "call_needs_voice" }) });
+  });
+});
+
+describe("POST /api/v1/calls/:id/finalize", () => {
+  it("only this call's own file, in this company's space", async () => {
+    expect((await fin(`co2/2026/11/${CALL}.mp3`)).status).toBe(403);
+    expect((await fin(`co1/2026/11/33333333-3333-4333-8333-333333333333.mp3`)).status).toBe(403);
+    expect((await fin(`co1/2026/11/${CALL}.mp3/../x`)).status).toBe(403);
+  });
+  it("only a call made through the API, and only once", async () => {
+    st.apiMade = 0;
+    expect((await fin(`co1/2026/11/${CALL}.mp3`)).status).toBe(403);
+    st.apiMade = 1;
+    st.call = { ...(st.call as object), audio_asset_url: "assets-v1/x" };
+    expect((await fin(`co1/2026/11/${CALL}.mp3`)).status).toBe(409);
+  });
+  it("checks the STORED file (size, type), then attaches and transcribes it", async () => {
+    st.info = { sizeBytes: 5000, contentType: "audio/mpeg" };
+    expect((await fin(`co1/2026/11/${CALL}.mp3`)).status).toBe(413);
+    st.info = { sizeBytes: 10, contentType: "audio/mpeg" };
+    const r = await fin(`co1/2026/11/${CALL}.mp3`);
+    expect(r.status).toBe(201);
+    expect(transcribeUploadedAudio).toHaveBeenCalledWith(expect.objectContaining({ companyId: "co1", sessionId: CALL }));
+    expect(st.eqs).toContainEqual(["coaching_sessions", "company_id", "co1"]);
   });
 });
