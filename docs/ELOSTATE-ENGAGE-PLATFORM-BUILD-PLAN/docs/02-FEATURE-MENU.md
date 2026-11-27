@@ -18,4 +18,5 @@
 | E9 | On-demand agents: a manager saves a named instruction for the company; anyone opening a deal runs it from the deal's Ask box, answered from the deal's calls with cited lines; nothing is acted on and answers aren't stored | F27.2 | DESIGNED (founder picker 2026-11-27) |
 | E6 | Upload a call by API: a key with the "upload calls" scope creates a phone/video call for one of the company's reps from an audio file, processed and scored like an upload | F6.9 | DESIGNED (founder picker 2026-11-27) |
 | E5 | Agents: trigger (deal stage change, close date near, tracker heard) → actions (write the brief, notify, add a to-do, send a webhook); test, enable, run history | F27.3–F27.6 | DESIGNED |
+| E11 | Meeting prep: an agent trigger "a deal's next call is tomorrow" (by the company's day), run nightly, once per deal and booked date; a "Meeting prep" template (write the brief, tell the rep) | F13.6 | DESIGNED (founder picker 2026-11-27) |
 | — | Auto email, tracking, dialer, Enrich, AI flow builder, CRM sync | F26.1 F26.2 M25 F26.5 F24.8 M29 | PROPOSAL (00) |

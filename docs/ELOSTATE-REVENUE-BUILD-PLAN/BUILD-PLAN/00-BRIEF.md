@@ -28,6 +28,7 @@
 | 2026-11-27 | Targets (F23.4) | Team quarterly revenue targets on the forecast board; no targets on other metrics (no metric builder stays) | Founder picker (recommended) |
 | 2026-11-27 | Topic sections (F11.11) | On request per call | Founder picker (recommended) |
 | 2026-11-27 | Share a personal folder (F12.8) | Managers only (today's rule) | Founder picker (recommended) |
+| 2026-11-27 | Next batch after the Gong P3 audit | Deal-flow batch: field history (F23.11), forecast due day and reminder (F22.4) here; meeting-prep trigger (F13.6) in the Engage plan E11 | Founder picker: "Deal-flow batch (Recommended)" |
 
 ## Open questions
 | # | Question | Blocks |

@@ -677,3 +677,20 @@ what it needs:
       → Usage.
 - [ ] 2026-11-27 · engage-e9 · on-demand agents show on a deal's Ask box only (the plan row); an account's Ask box can
       take the same prop if wanted.
+
+## Filed by the Gong P3 gap audit (2026-11-27)
+
+Read-only audit of the 148 P3 features the pre-build comparison graded LACK or PARTIAL: 60 built (+2 unsure: F27.8
+skills, F32.6 MCP metering), 16 decided against, 37 need outside setup / data we don't capture / another repo, 21 need a
+founder decision, 12 open and buildable now.
+
+- [ ] 2026-11-27 · gong-p3 · BUILDABLE NOW (by value): F27.10 AI data extractor (brief template → suggested deal fields
+      the rep accepts); F13.6 meeting prep (a "next call tomorrow" agent trigger: brief + notify); F22.4 forecast
+      deadlines and reminders (due day; nightly in-app reminder); F23.11 a deal's field history in its Activity tab;
+      F15.19 scores in the API; F26.6 recommended contacts (people heard on an account's calls, not on the deal);
+      F13.11 cited battlecard / FAQ from Market; F31.3 coaching, library and to-do APIs; F24.7 flows in the API; F13.12
+      deep Ask over more than 10 calls (needs a cost cap); F33.10 per-key IP allow-list; F34.3 API vs export help.
+- [ ] 2026-11-27 · gong-p3 · FOUNDER DECISION: F1.9 one person in several companies; F2.9 sandbox companies; F7.3 / F7.4
+      / F7.7 recording notice and opt-out (D11, legal wording); F9.11 / F9.12 / F9.14 customer share links, view
+      tracking, embeds; F20.12 several owners and splits (R9); F33.4 PHI redaction; F11.6 / F14.3 / F28.1–F28.6 AI
+      credits and quotas (pricing); F35.1 / F35.2 / F35.4 commercial model.

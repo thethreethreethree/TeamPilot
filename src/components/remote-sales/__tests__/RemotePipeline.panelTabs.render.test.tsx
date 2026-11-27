@@ -36,5 +36,26 @@ describe("deal panel tabs", () => {
     expect(screen.queryByLabelText("Next call date")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Activity" }));
     expect(screen.getByText(/No calls linked yet/)).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Deal changes" })).toBeNull(); // no history → no Changes list
+  });
+  it("Activity lists the deal's changes (F23.11): from → to, who; none recorded shows no Changes list", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (url.startsWith("/api/coach/remote/prospects/p1")) return json({
+        prospect: { id: "p1", name: "Acme", organization: null, status: "open", stage_label: null, amount: 5000, next_call_date: null },
+        calls: [], todos: [],
+        history: [
+          { kind: "amount", value: { amount: 5000 }, actor_id: "u1", created_at: "2026-11-26T10:00:00Z" },
+          { kind: "amount", value: { amount: 3000 }, actor_id: "u2", created_at: "2026-11-24T10:00:00Z" },
+        ],
+        actors: { u1: "Ana" },
+      });
+      if (url.startsWith("/api/coach/remote/prospects")) return json({ prospects: [PROSPECT], totals: { open: { count: 1, amount: 0 }, won: { count: 0, amount: 0 }, lost: { count: 0, amount: 0 } }, viewerId: "r" });
+      return json({});
+    }));
+    render(<RemotePipeline />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Activity" }));
+    const list = screen.getByRole("list", { name: "Deal changes" });
+    expect(list.textContent).toMatch(/Amount\s*\$3,000 → \$5,000 · Ana/);
+    expect(list.textContent).toMatch(/set to \$3,000 · A teammate/);
   });
 });

@@ -93,11 +93,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
     console.error(`[prospect] account/contacts read failed id=${pid}: ${e.message}`);
     return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
   }
+  // Revenue phase 8 (F23.11): who made each change, for the Activity tab's field history. Names only; a failed read
+  // shows "A teammate" rather than hiding the history.
+  const actorIds = [...new Set(((ev.data ?? []) as Array<{ actor_id: string | null }>).map((e) => e.actor_id).filter((x): x is string => !!x))];
+  const actorsRead = actorIds.length ? await db.from("profiles").select("id, full_name").in("id", actorIds) : { data: [], error: null };
+  if (actorsRead.error) console.error(`[prospect] actor names read failed id=${pid}: ${actorsRead.error.message}`);
+  const actorRows = (actorsRead.data ?? []) as Array<{ id: string; full_name: string | null }>;
   return NextResponse.json({
     prospect: p,
     account,
     contacts,
     history: ev.data ?? [],
+    actors: Object.fromEntries(actorRows.map((a) => [String(a.id), a.full_name || "Unnamed teammate"])),
     calls: ((sess.data ?? []) as Array<Record<string, unknown>>).map((s) => ({
       id: String(s.id), label: s.client_label ?? null, context: s.context, startedAt: s.started_at, outcome: s.outcome ?? null,
     })),

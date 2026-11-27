@@ -28,4 +28,6 @@ Gong IDs are the teardown's (`reference/gong-teardown.json`). SETTLED = founder-
 | 6 | Weekly snapshot; category movement; accuracy (green 85–115%) | F22.5–F22.7 | DESIGNED |
 | 6 | Due day and reminder (in-app) | F22.4 | DESIGNED |
 | 7 | Team revenue target per quarter on the forecast board (a manager sets their team's; the team row shows progress) | F23.4 | DESIGNED (founder picker 2026-11-27) |
+| 8 | A deal's field history: stage, amount, close date, next call, source, account and name changes, from → to, who and when, on the deal panel's Activity tab, from the deal's own event log (remote_prospect_events). Owner isn't in it: a deal's rep can't be changed today, so there is no owner change to show | F23.11 | DESIGNED (founder picker 2026-11-27) |
+| 8 | Forecast due day (a company setting, default Monday) and a nightly in-app reminder to each forecast submitter who hasn't submitted for the period by then; F22.4 above, built here | F22.4 | DESIGNED (founder picker 2026-11-27) |
 | — | Likelihood score, revenue predictor, red flag email, CRM write-back, splits | F20.9 F22.8 F20.5 F20.2 F20.12 | PROPOSAL (00, deliberately not built) |

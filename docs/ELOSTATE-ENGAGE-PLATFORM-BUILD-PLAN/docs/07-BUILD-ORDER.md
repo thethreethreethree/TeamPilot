@@ -11,4 +11,5 @@
 | E7 | People and team stats in the API; the usage report (F31.2, F31.9) | Settings → API keys: usage by route |
 | E8 | Agent templates (F27.9) | Engage → Agents: "Start from a template" |
 | E9 | On-demand agents (F27.2) | A deal's Ask box offers the company's agents |
+| E11 | Meeting prep: a "next call is tomorrow" agent trigger (F13.6) | Engage → Agents: "A deal's next call is tomorrow"; the Meeting prep template |
 | later | Auto email (needs E1 in 00), dialer (E4 in 00), CRM sync | — |

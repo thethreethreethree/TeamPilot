@@ -11,4 +11,5 @@ Each phase is one TBC record. It's committed only after `npm run check` passes, 
 | 5 | Ask Anything over a deal or an account | "Ask about this deal / account" |
 | 6 | 0374 forecast boards, submissions, snapshots, accuracy | Forecast |
 | 7 | Team revenue targets (F23.4; founder picker 2026-11-27) | The forecast board's team row with its target |
-| 8+ | Engage, CRM / API / MCP, agents: their own plan | — |
+| 8 | A deal's field history (F23.11) and the forecast due day with an in-app reminder (F22.4); founder picker 2026-11-27 "Deal-flow batch" | The deal panel's Activity tab lists its field changes (stage, amount, close date, next call…); Forecast shows the due day and managers who haven't submitted get a bell reminder |
+| 9+ | Engage, CRM / API / MCP, agents: their own plan | — |

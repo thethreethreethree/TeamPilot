@@ -7,6 +7,7 @@ import { DealPlaybook } from "./DealPlaybook";
 import { DealBrief } from "./DealBrief";
 import { DealDrivers } from "./DealDrivers";
 import { AskCalls } from "./AskCalls";
+import { fieldChanges, type HistoryEvent } from "@/lib/coach/remote/revenue/fieldHistory";
 import { ForecastBoard } from "./ForecastBoard";
 import { kindOf, type Stage } from "@/lib/coach/remote/revenue/dealBoard";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
@@ -421,7 +422,31 @@ type Detail = {
   prospect: { id: string; name: string | null; organization: string | null; status: string; stage_label: string | null; amount: number | string | null; next_call_date: string | null; source?: string | null; close_date?: string | null; next_call_time?: string | null };
   calls: Array<{ id: string; label: string | null; context: string; startedAt: string; outcome: string | null }>;
   todos: Array<{ id: string; title: string; due: string | null; status: string; done: boolean }>;
+  // Revenue phase 8 (F23.11): the deal's own event log, newest first, and who made each change.
+  history?: HistoryEvent[];
+  actors?: Record<string, string>;
 };
+
+/** The deal's field changes (revenue plan phase 8; Gong F23.11), newest first; the 8 newest, the rest behind "Show all". */
+function FieldHistory({ history, actors }: { history: HistoryEvent[]; actors: Record<string, string> }) {
+  const [all, setAll] = useState(false);
+  const changes = fieldChanges(history, new Map(Object.entries(actors)), { money, date: (iso) => shortDate(iso) });
+  if (changes.length === 0) return null;
+  const list = all ? changes : changes.slice(0, 8);
+  return (
+    <div className="mb-3">
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Changes</p>
+      <ul className="space-y-0.5 text-xs" aria-label="Deal changes">
+        {list.map((c, i) => (
+          <li key={`${c.at}-${i}`} className="text-secondary">
+            <span className="text-muted">{shortDate(c.at)}</span> · <span className="text-primary">{c.field}</span> {c.from !== null ? <>{c.from} → </> : "set to "}<span className="text-primary">{c.to}</span> · {c.who}
+          </li>
+        ))}
+      </ul>
+      {changes.length > 8 && <button type="button" onClick={() => setAll(!all)} className="mt-1 text-[11px] text-muted hover:text-primary">{all ? "Show fewer" : `Show all ${changes.length}`}</button>}
+    </div>
+  );
+}
 
 /** The deal panel's tabs (revenue UI spec, Gong F20.3). Simple view keeps the working ones. */
 const PANEL_TABS = ["Overview", "Warnings", "Contacts", "Activity", "Playbook", "Brief"] as const;
@@ -679,6 +704,7 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
       )}
 
       {shown === "Activity" && <div>
+        <FieldHistory history={d.history ?? []} actors={d.actors ?? {}} />
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Calls</p>
         {d.calls.length === 0 ? (
           <p className="text-xs text-secondary">No calls linked yet. Open a call and choose “Add to pipeline”.</p>
