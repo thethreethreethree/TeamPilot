@@ -15,7 +15,7 @@ vi.mock("../../engage/agents", () => ({
     return { ok: true, skipped: null, results: [], acted: true };
   }),
 }));
-import { closeDateFires, closeFireKey, dayIn, runRevenueDaily, snapshotRows } from "../daily";
+import { closeDateFires, closeFireKey, dayIn, quietFireKey, quietFires, runRevenueDaily, snapshotRows } from "../daily";
 
 const DAY = "2026-11-27";
 const NOW = new Date("2026-11-27T12:00:00Z");
@@ -81,7 +81,29 @@ describe("closeDateFires", () => {
   });
 });
 
+describe("quietFires (0389, E8)", () => {
+  const agent = { id: "aq", company_id: "co1", owner_id: "m", name: "Gone quiet", trigger: { kind: "deal_gone_quiet" as const }, actions: [] };
+  it("fires on open deals dealRisk calls gone quiet, once per quiet spell; a recent call or a closed deal doesn't", () => {
+    const deals = [deal("quiet", { lastCallAt: "2026-10-01T00:00:00Z" }), deal("recent"), deal("won", { status: "won", lastCallAt: "2026-10-01T00:00:00Z" })] as never;
+    expect(quietFires([agent], deals, DAY, new Set()).map((f) => f.fireKey)).toEqual([quietFireKey("quiet", "2026-10-01T00:00:00Z")]);
+    expect(quietFires([agent], deals, DAY, new Set([`aq|${quietFireKey("quiet", "2026-10-01T00:00:00Z")}`]))).toEqual([]);
+    // A call since then ends the spell; quiet again later is a new key.
+    expect(quietFireKey("quiet", "2026-11-01T00:00:00Z")).not.toBe(quietFireKey("quiet", "2026-10-01T00:00:00Z"));
+  });
+  it("other triggers never fire here", () => {
+    expect(quietFires([{ ...agent, trigger: { kind: "close_date_near", days: 7 } }] as never, [deal("quiet", { lastCallAt: "2026-10-01T00:00:00Z" })] as never, DAY, new Set())).toEqual([]);
+  });
+});
+
 describe("runRevenueDaily", () => {
+  it("runs gone-quiet agents once per spell, with the fire key", async () => {
+    st.deals = { co1: [deal("q", { lastCallAt: "2026-10-01T00:00:00Z" })] };
+    st.agents = [{ id: "aq", company_id: "co1", owner_id: "m", name: "x", trigger: { kind: "deal_gone_quiet" }, actions: [] }];
+    expect((await runRevenueDaily(admin, NOW)).fired).toBe(1);
+    expect(st.ran).toEqual([{ agent: "aq", pid: "q", test: false, fireKey: quietFireKey("q", "2026-10-01T00:00:00Z") }]);
+    st.ran = [];
+    expect((await runRevenueDaily(admin, NOW)).fired).toBe(0);
+  });
   it("reads each company through the pinned reader; a failed company is counted and gets nothing written", async () => {
     st.deals = { co1: [deal("a")], co2: null };
     const r = await runRevenueDaily(admin, NOW);

@@ -51,6 +51,26 @@ export function closeDateFires(agents: AgentRow[], deals: ProspectRow[], day: st
   return out;
 }
 
+/** The fire key of a gone-quiet run: the deal and its last call ("none" before the first), so a new call starts a new spell. */
+export const quietFireKey = (prospectId: string, lastCallAt: string | null) => `quiet:${prospectId}:${lastCallAt ?? "none"}`;
+
+/**
+ * Which gone-quiet agents (0389) fire on which open deals today: those dealRisk judges gone_quiet — its verdict, consumed,
+ * never re-derived (§2.2). Once per deal per quiet spell; fires already recorded are left out. Pure.
+ */
+export function quietFires(agents: AgentRow[], deals: ProspectRow[], day: string, fired: Set<string>): Array<{ agent: AgentRow; prospectId: string; fireKey: string }> {
+  const quiet = deals.filter((d) => d.status === "open" && dealRisk(d, day).reasons.includes("gone_quiet"));
+  const out: Array<{ agent: AgentRow; prospectId: string; fireKey: string }> = [];
+  for (const a of agents) {
+    if (a.trigger.kind !== "deal_gone_quiet") continue;
+    for (const d of quiet) {
+      const fireKey = quietFireKey(d.id, d.lastCallAt);
+      if (!fired.has(`${a.id}|${fireKey}`)) out.push({ agent: a, prospectId: d.id, fireKey });
+    }
+  }
+  return out;
+}
+
 /** A company's own day (its IANA timezone, 0226; UTC when unset or invalid): warnings and close dates are dated by it. */
 export function dayIn(timezone: string | null | undefined, now: Date): string {
   try {
@@ -91,7 +111,7 @@ export async function runRevenueDaily(admin: SupabaseClient, now: Date, budgetMs
       if (written === null) throw new Error("snapshots write failed");
       res.snapshots += written;
       const fired = await fireCloseDateAgents(admin, co.id, deals, day);
-      if (fired === null) throw new Error("close-date agents failed");
+      if (fired === null) throw new Error("date agents failed");
       res.fired += fired;
     } catch (err) {
       console.error(`[revenue-daily] company=${co.id} failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -142,7 +162,7 @@ async function writeSnapshots(admin: SupabaseClient, companyId: string, day: str
   return n;
 }
 
-/** Runs the company's close-date agents; how many acted, or null when the agents or their claims couldn't be read. */
+/** Runs the company's date agents (close date near; gone quiet, 0389); how many acted, or null when the agents or their claims couldn't be read. */
 async function fireCloseDateAgents(admin: SupabaseClient, companyId: string, deals: ProspectRow[], day: string): Promise<number | null> {
   const { data: agents, error } = await fetchAllPagedResult<AgentRow & { created_at: string }>(
     (f, t) => admin.from("agents").select("id, company_id, owner_id, name, trigger, actions, created_at").eq("company_id", companyId).eq("enabled", true).is("retired_at", null).order("created_at").order("id").range(f, t),
@@ -152,7 +172,7 @@ async function fireCloseDateAgents(admin: SupabaseClient, companyId: string, dea
     console.error(`[revenue-daily] agents read failed company=${companyId}: ${error.message}`);
     return null;
   }
-  const dateAgents = (agents ?? []).filter((a) => a.trigger.kind === "close_date_near");
+  const dateAgents = (agents ?? []).filter((a) => a.trigger.kind === "close_date_near" || a.trigger.kind === "deal_gone_quiet");
   if (!dateAgents.length) return 0;
   // Fires already claimed (0383). The claim itself is the guard; this read only saves needless work.
   const { data: claims, error: rErr } = await fetchAllPagedResult<{ agent_id: string; fire_key: string }>(
@@ -165,7 +185,7 @@ async function fireCloseDateAgents(admin: SupabaseClient, companyId: string, dea
   }
   const fired = new Set((claims ?? []).map((r) => `${r.agent_id}|${r.fire_key}`));
   let n = 0;
-  for (const f of closeDateFires(dateAgents, deals, day, fired)) {
+  for (const f of [...closeDateFires(dateAgents, deals, day, fired), ...quietFires(dateAgents, deals, day, fired)]) {
     const claim = async () => {
       const { error: clErr } = await admin.from("agent_fires").insert({ agent_id: f.agent.id, fire_key: f.fireKey, company_id: companyId });
       if (!clErr) return true;

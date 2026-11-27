@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { ActionZ, TriggerZ } from "@/lib/coach/remote/engage/agentSchema";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,19 +18,6 @@ export const maxDuration = 90;
  *   POST { id, enabled } → on or off · POST { retire: id } → retired for good.
  *   POST { test: id, prospectId } → what it would do on that deal, recorded as a test run (nothing is changed).
  */
-const TriggerZ = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("deal_stage"), status: z.enum(["open", "won", "lost"]).optional(), label: z.string().trim().min(1).max(60).optional() }),
-  // 0380: a tracker first heard on one of a deal's calls. It must be one of the company's trackers.
-  z.object({ kind: z.literal("tracker_heard"), tracker_id: z.string().uuid() }),
-  // 0382: an open deal's expected close date is this many days away (the nightly job; needs CRON_SECRET).
-  z.object({ kind: z.literal("close_date_near"), days: z.number().int().min(1).max(60) }),
-]);
-const ActionZ = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("brief") }),
-  z.object({ kind: z.literal("notify"), to: z.enum(["rep", "owner"]) }),
-  z.object({ kind: z.literal("todo"), title: z.string().trim().min(1).max(200), due_days: z.number().int().min(0).max(365).optional() }),
-  z.object({ kind: z.literal("webhook") }),
-]);
 const Body = z.union([
   z.object({ name: z.string().trim().min(1).max(80), trigger: TriggerZ, actions: z.array(ActionZ).min(1).max(5) }),
   z.object({ id: z.string().uuid(), enabled: z.boolean() }),

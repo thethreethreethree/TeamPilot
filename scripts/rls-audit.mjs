@@ -234,6 +234,7 @@ const ALLOWLIST = new Map([
   ["saved_search_events.update", "0342 §3.1 append-only (DB rule too)."],
   ["saved_search_events.delete", "0342 §3.1 append-only (DB rule too)."],
   ["agents.delete", "0379 an agent is never deleted (DB rule); retiring it is the end of its life, and its runs keep pointing at it."],
+  ["on_demand_agents.delete", "0389 an on-demand agent is never deleted (DB rule); retiring it is the end of its life (E9)."],
   ["agent_runs.insert", "0379 written only by the agent runner (service role, runAgent), after rss_agent_can_see confirms the owner may see the deal."],
   ["agent_runs.update", "0379 §3.1 append-only (DB rule)."],
   ["agent_runs.delete", "0379 §3.1 append-only (DB rule)."],

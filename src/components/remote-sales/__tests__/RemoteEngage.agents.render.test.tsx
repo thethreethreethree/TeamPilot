@@ -39,4 +39,27 @@ describe("Engage → Agents", () => {
     fireEvent.click(save);
     await waitFor(() => expect(posts.at(-1)).toMatchObject({ name: "Close soon", trigger: { kind: "close_date_near", days: 5 } }));
   });
+  it("a template (E8) fills the editor and saves nothing until Save; what's saved is what was shown", async () => {
+    const posts: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ id: "a1" }));
+      }
+      const u = String(url);
+      if (u.includes("/agents")) return new Response(JSON.stringify({ agents: [{ id: "q1", name: "Quiet", trigger: { kind: "deal_gone_quiet" }, actions: [{ kind: "notify", to: "rep" }], enabled: true }], runs: [] }));
+      if (u.includes("/trackers")) return new Response(JSON.stringify({ trackers: [] }));
+      if (u.includes("/prospects")) return new Response(JSON.stringify({ prospects: [] }));
+      return new Response(JSON.stringify({ items: [], outcomes: [], flows: [], viewerId: "me" }));
+    }));
+    render(<RemoteEngage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Agents" }));
+    expect(await screen.findByText(/When an open deal goes quiet — no call in 21 days/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Gone quiet" }));
+    expect((screen.getByLabelText("Agent name") as HTMLInputElement).value).toBe("Gone quiet");
+    expect(screen.getByRole("button", { name: "A deal goes quiet" }).getAttribute("aria-pressed")).toBe("true");
+    expect(posts).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Save agent" }));
+    await waitFor(() => expect(posts.at(-1)).toMatchObject({ name: "Gone quiet", trigger: { kind: "deal_gone_quiet" }, actions: [{ kind: "notify", to: "rep" }, { kind: "todo", due_days: 1 }] }));
+  });
 });

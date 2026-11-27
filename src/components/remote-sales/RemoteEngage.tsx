@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Check, Copy, ListChecks, Loader2, Mail, Pause, Phone, Play, Plus, SkipForward, Trash2, X } from "lucide-react";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 import type { Outcome, Step } from "@/lib/coach/remote/engage/flows";
+import { AGENT_TEMPLATES, type AgentTemplate } from "@/lib/coach/remote/engage/agentTemplates";
+import { QUIET_DAYS } from "@/lib/coach/remote/dealRisk";
 
 /**
  * Remote Sales → Engage (plan E1, 0377; Gong M24 flows, F26.3 to-dos, M25 outcomes). Today: every step due across your
@@ -359,7 +361,8 @@ function Analytics() {
 }
 
 type AgentAction = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
-type AgentRow = { id: string; name: string; trigger: { kind?: string; status?: string; label?: string; tracker_id?: string; days?: number }; actions: AgentAction[]; enabled: boolean };
+type AgentTrigger = { kind?: string; status?: string; label?: string; tracker_id?: string; days?: number };
+type AgentRow = { id: string; name: string; trigger: AgentTrigger; actions: AgentAction[]; enabled: boolean };
 type RunRow = { id: number; agent_id: string; prospect_id: string | null; test: boolean; ok: boolean; skipped: string | null; results: Array<{ kind: string; ok: boolean; detail: string }>; created_at: string };
 const ACTION_WORD = (a: AgentAction) => (a.kind === "brief" ? "write the deal brief" : a.kind === "notify" ? (a.to === "rep" ? "notify the deal's rep" : "notify me") : a.kind === "todo" ? `add the to-do “${a.title}”${a.due_days ? ` due in ${a.due_days} days` : ""}` : "send an agent.ran webhook");
 
@@ -385,6 +388,7 @@ function Agents() {
   const [failed, setFailed] = useState(false);
   const [deals, setDeals] = useState<Array<{ id: string; name: string | null }>>([]);
   const [editing, setEditing] = useState(false);
+  const [start, setStart] = useState<AgentTemplate | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const load = useCallback(async () => {
     setFailed(false);
@@ -414,8 +418,17 @@ function Agents() {
   if (!data) return <p className="flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading…</p>;
   return (
     <div className="space-y-3 text-xs">
-      {editing ? <AgentEditor onSaved={() => { setEditing(false); void load(); }} onCancel={() => setEditing(false)} /> : (
-        <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 font-semibold text-black"><Plus className="h-3.5 w-3.5" aria-hidden /> New agent</button>
+      {editing ? <AgentEditor key={start?.key ?? "blank"} start={start} onSaved={() => { setEditing(false); setStart(null); void load(); }} onCancel={() => { setEditing(false); setStart(null); }} /> : (
+        <div className="space-y-1.5">
+          <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 font-semibold text-black"><Plus className="h-3.5 w-3.5" aria-hidden /> New agent</button>
+          {/* Engage plan E8 (Gong F27.9): a template only fills the editor; nothing is saved until Save. */}
+          <div role="group" aria-label="Start from a template" className="flex flex-wrap items-center gap-1.5 text-secondary">
+            <span>Or start from a template:</span>
+            {AGENT_TEMPLATES.map((t) => (
+              <button key={t.key} type="button" title={t.why} onClick={() => { setStart(t); setEditing(true); }} className="rounded-full border border-default px-2 py-0.5 hover:border-brand hover:text-primary">{t.name}</button>
+            ))}
+          </div>
+        </div>
       )}
       {msg && <p className="text-secondary">{msg}</p>}
       {data.agents.length === 0 ? <p className="text-secondary">No agents yet. An agent does things for you when a deal reaches a stage — for example, writes the brief and adds a to-do when a deal reaches “Proposal”.</p> : (
@@ -434,7 +447,7 @@ function Agents() {
                 </span>
               </div>
               <p className="mt-1 text-secondary">
-                {a.trigger.kind === "close_date_near" ? <>When an open deal&apos;s close date is {a.trigger.days} day{a.trigger.days === 1 ? "" : "s"} away (checked each night): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
+                {a.trigger.kind === "deal_gone_quiet" ? <>When an open deal goes quiet — no call in {QUIET_DAYS} days (checked each night, once per quiet spell): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "close_date_near" ? <>When an open deal&apos;s close date is {a.trigger.days} day{a.trigger.days === 1 ? "" : "s"} away (checked each night): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
                 When a deal {a.trigger.label ? `reaches “${a.trigger.label}”` : ""}{a.trigger.label && a.trigger.status ? " and " : ""}{a.trigger.status ? (a.trigger.status === "won" ? "is won" : a.trigger.status === "lost" ? "is lost" : "is open") : ""}: {a.actions.map(ACTION_WORD).join(", then ")}.</>}
               </p>
               <ul className="mt-1 space-y-0.5">
@@ -452,19 +465,24 @@ function Agents() {
   );
 }
 
-function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
+function AgentEditor({ start, onSaved, onCancel }: { start?: AgentTemplate | null; onSaved: () => void; onCancel: () => void }) {
   const trackers = useTrackers();
-  const [when, setWhen] = useState<"stage" | "tracker" | "close">("stage");
-  const [closeDays, setCloseDays] = useState(7);
+  // A template (E8) only sets where the editor starts; every field stays the manager's to change.
+  const t = start?.trigger;
+  const has = (k: AgentAction["kind"]) => start?.actions.find((a) => a.kind === k);
+  const startTodo = has("todo") as Extract<AgentAction, { kind: "todo" }> | undefined;
+  const startNotify = has("notify") as Extract<AgentAction, { kind: "notify" }> | undefined;
+  const [when, setWhen] = useState<"stage" | "tracker" | "close" | "quiet">(t?.kind === "close_date_near" ? "close" : t?.kind === "deal_gone_quiet" ? "quiet" : t?.kind === "tracker_heard" ? "tracker" : "stage");
+  const [closeDays, setCloseDays] = useState(t?.kind === "close_date_near" ? t.days : 7);
   const [trackerId, setTrackerId] = useState("");
-  const [name, setName] = useState("");
-  const [status, setStatus] = useState("");
-  const [label, setLabel] = useState("");
-  const [brief, setBrief] = useState(true);
-  const [notify, setNotify] = useState<"" | "rep" | "owner">("rep");
-  const [todo, setTodo] = useState("");
-  const [days, setDays] = useState(2);
-  const [webhook, setWebhook] = useState(false);
+  const [name, setName] = useState(start?.name ?? "");
+  const [status, setStatus] = useState<string>(t?.kind === "deal_stage" ? (t.status ?? "") : "");
+  const [label, setLabel] = useState(t?.kind === "deal_stage" ? (t.label ?? "") : "");
+  const [brief, setBrief] = useState(start ? !!has("brief") : true);
+  const [notify, setNotify] = useState<"" | "rep" | "owner">(start ? (startNotify?.to ?? "") : "rep");
+  const [todo, setTodo] = useState(startTodo?.title ?? "");
+  const [days, setDays] = useState(startTodo?.due_days ?? 2);
+  const [webhook, setWebhook] = useState(start ? !!has("webhook") : false);
   const [err, setErr] = useState<string | null>(null);
   const actions: AgentAction[] = [
     ...(brief ? [{ kind: "brief" } as const] : []),
@@ -474,7 +492,7 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
   ];
   const save = async () => {
     setErr(null);
-    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: when === "close" ? { kind: "close_date_near", days: closeDays } : when === "tracker" ? { kind: "tracker_heard", tracker_id: trackerId } : { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
+    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: when === "quiet" ? { kind: "deal_gone_quiet" } : when === "close" ? { kind: "close_date_near", days: closeDays } : when === "tracker" ? { kind: "tracker_heard", tracker_id: trackerId } : { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
     const j = (await r.json().catch(() => ({}))) as { error?: string };
     if (!r.ok) return setErr(j.error ?? "Couldn't save the agent.");
     onSaved();
@@ -483,11 +501,13 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
     <div className="space-y-2 rounded-xl border border-default bg-surface p-3">
       <input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={80} placeholder="Agent name, e.g. Proposal prep" aria-label="Agent name" className={`${field} w-full`} />
       <div role="group" aria-label="When it runs" className="inline-flex overflow-hidden rounded-lg border border-default">
-        {(["stage", "tracker", "close"] as const).map((w) => (
-          <button key={w} type="button" aria-pressed={when === w} onClick={() => setWhen(w)} className={`px-2.5 py-1 ${when === w ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>{w === "stage" ? "A deal reaches a stage" : w === "tracker" ? "A tracker is heard on a deal's call" : "A close date is near"}</button>
+        {(["stage", "tracker", "close", "quiet"] as const).map((w) => (
+          <button key={w} type="button" aria-pressed={when === w} onClick={() => setWhen(w)} className={`px-2.5 py-1 ${when === w ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>{w === "stage" ? "A deal reaches a stage" : w === "tracker" ? "A tracker is heard on a deal's call" : w === "close" ? "A close date is near" : "A deal goes quiet"}</button>
         ))}
       </div>
-      {when === "close" ? (
+      {when === "quiet" ? (
+        <p className="text-secondary">When an open deal has had no call in {QUIET_DAYS} days — the same rule as the deal&apos;s “gone quiet” warning. Checked each night, once per quiet spell (a new call starts a new one).</p>
+      ) : when === "close" ? (
         <div className="space-y-1 text-secondary">
           <div className="flex flex-wrap items-center gap-2">
             When an open deal&apos;s expected close date is

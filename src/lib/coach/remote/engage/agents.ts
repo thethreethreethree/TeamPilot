@@ -15,7 +15,9 @@ export type Trigger =
   | { kind: "deal_stage"; status?: "open" | "won" | "lost"; label?: string }
   | { kind: "tracker_heard"; tracker_id: string }
   // 0382: an open deal's expected close date is `days` away (run by the nightly job, once per deal and close date).
-  | { kind: "close_date_near"; days: number };
+  | { kind: "close_date_near"; days: number }
+  // 0389 (E8): dealRisk raises gone_quiet on an open deal (nightly, once per deal per quiet spell).
+  | { kind: "deal_gone_quiet" };
 export type Action = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
 export type StageEvent = { companyId: string; prospectId: string; status: string; label: string | null };
 
