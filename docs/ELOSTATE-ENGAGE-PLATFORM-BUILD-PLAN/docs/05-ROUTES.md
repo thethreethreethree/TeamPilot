@@ -11,6 +11,6 @@
 | `/api/coach/remote/agents` and the agent runner | E5 |
 
 Pages: `/dashboard/remote-sales/engage` (Today, Flows, Analytics), plus an "Add to a flow" action on the deal panel.
-| `POST /api/v1/calls` (key scope "upload") | E6 — JSON {repId, channel, startedAt?, title?, filename, sizeBytes, mimeType} makes the call and returns a signed storage upload (the file named after the call, so it can belong to no other); multipart {file, …} still works for files under ~4 MB (Vercel's request limit) |
+| `POST /api/v1/calls` (key scope "upload") | E6 — JSON {repId, channel, startedAt?, title?, filename, sizeBytes, mimeType} makes the call and returns a signed storage upload (the file named after the call, so it can belong to no other); multipart {file, …} still works for files under ~4 MB (Vercel's request limit); an optional `Idempotency-Key` header makes a retry return the first call |
 | `POST /api/v1/calls/:id/finalize` (key scope "upload") | E6 — after the signed upload: checks the stored file (size, type), points the call at it, ends and transcribes it; the rep picks their voice in the app (E10), which scores it |
 

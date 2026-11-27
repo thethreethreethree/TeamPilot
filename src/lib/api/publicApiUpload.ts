@@ -83,12 +83,35 @@ async function precheck(admin: ReturnType<typeof createAdminClient>, caller: Api
   return null;
 }
 
-/** Make the call for the rep, and record it (the record is what the daily count reads). */
-async function startCall(admin: ReturnType<typeof createAdminClient>, caller: ApiCaller, m: Meta): Promise<SalesSession | null> {
+/**
+ * An optional `Idempotency-Key` header (review 2026-11-27): a tool that retries after a timeout sends the same value and
+ * gets the first call back instead of a second one (and a second transcription). Per API key, for 24 hours.
+ */
+export function idempotencyKey(req: Request): string | null {
+  const v = (req.headers.get("idempotency-key") ?? "").trim();
+  return /^[A-Za-z0-9._:-]{8,100}$/.test(v) ? v : null;
+}
+
+async function earlierCall(admin: ReturnType<typeof createAdminClient>, caller: ApiCaller, idem: string | null): Promise<string | null | "failed"> {
+  if (!idem) return null;
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const { data, error } = await admin.from("audit_log").select("object_id").eq("company_id", caller.companyId).eq("action", "call.api_upload").eq("meta->>keyId", caller.keyId).eq("meta->>idem", idem).gte("created_at", since).limit(1).maybeSingle();
+  if (error) return "failed";
+  return data ? String(data.object_id) : null;
+}
+
+/** Make the call for the rep, and record it (the record is what the daily count and a retry's lookup read). */
+async function startCall(admin: ReturnType<typeof createAdminClient>, caller: ApiCaller, m: Meta, idem: string | null): Promise<SalesSession | null> {
   const session = await createSession({ companyId: caller.companyId, agentId: m.repId, context: m.channel, clientLabel: m.title, startedAt: m.startedAt });
   if (!session) return null;
-  await recordAudit(admin, { companyId: caller.companyId, actorId: caller.createdBy, action: "call.api_upload", objectType: "coaching_session", objectId: session.id, meta: { keyId: caller.keyId, repId: m.repId } });
+  await recordAudit(admin, { companyId: caller.companyId, actorId: caller.createdBy, action: "call.api_upload", objectType: "coaching_session", objectId: session.id, meta: { keyId: caller.keyId, repId: m.repId, ...(idem ? { idem } : {}) } });
   return session;
+}
+
+/** A retry with an Idempotency-Key already used: the first call, as it stands (never a second one). */
+async function replay(admin: ReturnType<typeof createAdminClient>, caller: ApiCaller, id: string) {
+  const { data } = await admin.from("coaching_sessions").select("id, audio_asset_url").eq("company_id", caller.companyId).eq("id", id).maybeSingle();
+  return done(caller, { id, replayed: true, hasRecording: !!data?.audio_asset_url, finalize: `/api/v1/calls/${id}/finalize`, note: "This Idempotency-Key already made this call; nothing new was created." }, 200);
 }
 
 /** The audio is stored: point the call at it, end it, transcribe it, tell the rep. */
@@ -141,9 +164,13 @@ export async function uploadCall(req: Request, caller: ApiCaller): Promise<NextR
     const bad = fileProblem(m.channel, file.size, file.type || "", file.name || "");
     if (bad) return done(caller, { error: bad.error }, bad.status);
     if (!(file.type || "").startsWith("audio/") && !(file.type || "").startsWith("video/")) return done(caller, { error: "Upload an audio (or video) recording." }, 400);
+    const idem = idempotencyKey(req);
+    const prior = await earlierCall(admin, caller, idem);
+    if (prior === "failed") return done(caller, { error: "Couldn't check the Idempotency-Key. Try again." }, 503);
+    if (prior) return replay(admin, caller, prior);
     const pre = await precheck(admin, caller, m.repId);
     if (pre) return done(caller, { error: pre.error }, pre.status);
-    const session = await startCall(admin, caller, m);
+    const session = await startCall(admin, caller, m, idem);
     if (!session) return done(caller, { error: "Couldn't create the call. Try again." }, 500);
     const bytes = Buffer.from(await file.arrayBuffer());
     const storagePath = buildStoragePath({ companyId: caller.companyId, fileId: session.id, originalFilename: file.name || "recording.webm" });
@@ -171,9 +198,13 @@ export async function uploadCall(req: Request, caller: ApiCaller): Promise<NextR
   if (!mimeType.startsWith("audio/") && !mimeType.startsWith("video/")) return done(caller, { error: "Upload an audio (or video) recording (`mimeType`)." }, 400);
   const bad = fileProblem(m.channel, sizeBytes, mimeType, filename);
   if (bad) return done(caller, { error: bad.error }, bad.status);
+  const idem = idempotencyKey(req);
+  const prior = await earlierCall(admin, caller, idem);
+  if (prior === "failed") return done(caller, { error: "Couldn't check the Idempotency-Key. Try again." }, 503);
+  if (prior) return replay(admin, caller, prior);
   const pre = await precheck(admin, caller, m.repId);
   if (pre) return done(caller, { error: pre.error }, pre.status);
-  const session = await startCall(admin, caller, m);
+  const session = await startCall(admin, caller, m, idem);
   if (!session) return done(caller, { error: "Couldn't create the call. Try again." }, 500);
   // Named after the call (fileId = its id): finalize accepts only this file for only this call.
   const target = await createSignedUploadTarget({ companyId: caller.companyId, fileId: session.id, originalFilename: filename });

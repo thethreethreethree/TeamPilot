@@ -14,6 +14,7 @@ const st = vi.hoisted(() => ({
   rep: null as unknown,
   uploadsToday: 0,
   apiMade: 1,
+  prior: null as unknown,
   call: null as unknown,
   info: { sizeBytes: 10, contentType: "audio/mpeg" } as unknown,
   eqs: [] as Array<[string, string, unknown]>,
@@ -47,7 +48,8 @@ vi.mock("@/lib/supabase/admin", () => ({
       q.select = () => q;
       q.gte = () => q;
       q.eq = (c: string, v: unknown) => (st.eqs.push([table, c, v]), q);
-      q.maybeSingle = async () => ({ data: table === "profiles" ? st.rep : table === "coaching_sessions" ? st.call : null, error: null });
+      q.limit = () => q;
+      q.maybeSingle = async () => ({ data: table === "profiles" ? st.rep : table === "coaching_sessions" ? st.call : table === "audit_log" ? st.prior : null, error: null });
       q.update = (patch: unknown) => (st.updates.push({ table, patch }), q);
       // counts: audit_log is read for the daily cap (by key) and for "made through the API" (by object id)
       q.then = (r: (v: unknown) => unknown) => r({ error: null, count: table === "audit_log" ? (st.eqs.some(([t, c]) => t === "audit_log" && c === "object_id") ? st.apiMade : st.uploadsToday) : 0 });
@@ -61,7 +63,7 @@ import { POST as FINALIZE } from "@/app/api/v1/calls/[id]/finalize/route";
 import { createSession } from "@/lib/data/salesCoach";
 import { transcribeUploadedAudio } from "@/lib/coach/v5/transcribeUpload";
 
-const json = (b: unknown) => new Request("http://x/api/v1/calls", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) });
+const json = (b: unknown, idem?: string) => new Request("http://x/api/v1/calls", { method: "POST", headers: { "content-type": "application/json", ...(idem ? { "idempotency-key": idem } : {}) }, body: JSON.stringify(b) });
 function multipart(fields: Record<string, string | File>) {
   const f = new FormData();
   for (const [k, v] of Object.entries(fields)) f.append(k, v);
@@ -74,6 +76,7 @@ beforeEach(() => {
   st.rep = { id: REP, status: "active" };
   st.uploadsToday = 0;
   st.apiMade = 1;
+  st.prior = null;
   st.call = { id: CALL, agent_id: REP, context: "phone", started_at: "2026-11-27T10:00:00Z", client_label: null, audio_asset_url: null };
   st.info = { sizeBytes: 10, contentType: "audio/mpeg" };
   st.eqs = [];
@@ -121,6 +124,22 @@ describe("POST /api/v1/calls", () => {
     expect(await r.json()).toMatchObject({ id: CALL, status: "waiting_for_rep" });
     expect(st.updates).toContainEqual({ table: "coaching_sessions", patch: { audio_asset_url: `assets-v1/co1/2026/11/${CALL}.mp3` } });
     expect(st.inserts).toContainEqual({ table: "manager_notifications", row: expect.objectContaining({ recipient_id: REP, type: "call_needs_voice" }) });
+  });
+});
+
+describe("Idempotency-Key (review 2026-11-27)", () => {
+  it("a retry with the same key gets the first call back; nothing new is made", async () => {
+    st.prior = { object_id: CALL };
+    const r = await CREATE(json(META, "retry-abc-123"));
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ id: CALL, replayed: true });
+    expect(createSession).not.toHaveBeenCalled();
+    expect(st.eqs).toContainEqual(["audit_log", "meta->>idem", "retry-abc-123"]);
+  });
+  it("a first use makes the call and records the key with it", async () => {
+    const { recordAudit } = await import("@/lib/audit/recordAudit");
+    expect((await CREATE(json(META, "first-use-0001"))).status).toBe(201);
+    expect(recordAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ meta: expect.objectContaining({ idem: "first-use-0001" }) }));
   });
 });
 
