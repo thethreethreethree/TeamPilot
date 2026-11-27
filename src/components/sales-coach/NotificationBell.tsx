@@ -55,7 +55,8 @@ type Notif = {
     | "dispute_answered"
     | "call_scored"
     | "call_access_granted"
-    | "agent_ran";
+    | "agent_ran"
+    | "call_needs_voice";
   pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
@@ -161,6 +162,11 @@ function text(n: Notif): string {
     return `An admin gave ${who} access to your call${label}`;
   }
   // Engage plan E5 (0379): an agent acted on a deal (it wrote the brief, added a to-do, ...).
+  // Engage plan E6 (0387): a call an outside tool uploaded for this rep waits for them to pick their voice.
+  if (n.type === "call_needs_voice") {
+    const label = typeof n.payload.client_label === "string" && n.payload.client_label ? ` (${n.payload.client_label})` : "";
+    return `A call was added for you${label} — open it, confirm the customer knew it was recorded, and pick your voice to score it`;
+  }
   if (n.type === "agent_ran") {
     const agent = typeof n.payload.agent_name === "string" ? n.payload.agent_name : "An agent";
     return `${agent} acted on a deal — open it to see what changed`;
@@ -248,6 +254,7 @@ function destination(n: Notif): string | null {
       : `/dashboard/sales-coach/coach-assessment${n.payload.pitch_id ? `#dispute-${n.payload.pitch_id}` : ""}`;
   }
   // An agent's notice lands on the deal it acted on (0379).
+  if (n.type === "call_needs_voice") return n.session_id ? `/dashboard/remote-sales/calls/${n.session_id}` : null;
   if (n.type === "agent_ran") return typeof n.payload.deal_id === "string" ? `/dashboard/remote-sales/pipeline?p=${n.payload.deal_id}` : null;
   // A dispute answer on a pitch with no call (a door-log pitch): its report card shows the answer.
   if (n.type === "dispute_answered" && !n.session_id) {

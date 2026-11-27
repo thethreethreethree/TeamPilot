@@ -15,7 +15,7 @@ import { newApiKey } from "@/lib/api/publicApi";
  * Writes use the service role after the admin check, pinned to the admin's company (0378 has no write policy).
  */
 const Body = z.union([
-  z.object({ name: z.string().trim().min(1).max(60), scopes: z.array(z.enum(["read", "mcp"])).min(1).max(2) }),
+  z.object({ name: z.string().trim().min(1).max(60), scopes: z.array(z.enum(["read", "mcp", "upload"])).min(1).max(3) }),
   z.object({ revoke: z.string().uuid() }),
 ]);
 

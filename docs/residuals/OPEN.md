@@ -652,9 +652,10 @@ what it needs:
 - [ ] 2026-11-27 · gong-gaps · FOUNDER DECISION before building:
       F12.8 share a personal folder — DECIDED 2026-11-27 (founder picker): "Managers only" — today's rule stays, nothing to build;
       F11.11 topic segments on the timeline — DECIDED 2026-11-27: "On request per call" — BUILT (docs/tbc/2026-11-27-topic-sections);
-      F6.9 create a call by API with media (E3 decided keys are read-only);
-      F15.9 auto-score selection filters and F15.12 per-scorecard visibility (fixed roles, D-decisions);
-      F23.4 targets on other metrics (bounded by the "no metric builder" decision, F23.2/23.3).
+      F6.9 create a call by API with media — DECIDED 2026-11-27 ("upload calls" key scope; the rep picks their voice, E10) — BUILT (docs/tbc/2026-11-27-engage-e6-upload-calls); to try with a real key and file;
+      F15.9 auto-score selection filters — DECIDED 2026-11-27: keep scoring every call (nothing to build); F15.12
+      per-scorecard visibility (fixed roles, D-decisions);
+      F23.4 targets — DECIDED 2026-11-27: team revenue targets only — BUILT (8fe70887).
 - [ ] 2026-11-27 · gong-gaps · NEEDS DATA WE DON'T CAPTURE: F11.12 search by topic share (no topic durations);
       F4.4 / F33.8 domain exclusions and F5.10 bot leaves (no participant emails without calendar/bot, D12);
       F8.2 multi-speaker diarization (speech vendor settings).

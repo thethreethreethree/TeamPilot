@@ -14,6 +14,8 @@ export function ApiKeysPanel() {
   const [state, setState] = useState<"loading" | "ok" | "hidden" | "failed">("loading");
   const [name, setName] = useState("");
   const [mcp, setMcp] = useState(false);
+  // Engage plan E6 (0387): a key that can also upload calls for the company's reps.
+  const [upload, setUpload] = useState(false);
   const [shown, setShown] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   // Revoking can't be undone and stops an outside tool at once, so it asks first.
@@ -40,6 +42,7 @@ export function ApiKeysPanel() {
     if (j.key) setShown(j.key);
     setName("");
     setMcp(false);
+    setUpload(false);
     setConfirmRevoke(null);
     void load();
   };
@@ -51,7 +54,8 @@ export function ApiKeysPanel() {
         Read-only keys for outside tools: deals, accounts, contacts and calls at <code>/api/v1/…</code>, sent as
         <code> Authorization: Bearer els_…</code>. A key reads your whole company (no call with an active hide, no transcripts),
         3 requests a second and 10,000 a day. The audit log is at <code>/api/v1/audit</code> while the key&apos;s maker is
-        still a company admin. Revoke any key you no longer use.
+        still a company admin. A key that &ldquo;also uploads calls&rdquo; can send a recording to <code>POST /api/v1/calls</code> for
+        one of your reps; the rep confirms consent and picks their voice before it is scored. Revoke any key you no longer use.
       </p>
       <p className="mt-1 text-secondary">
         AI assistants (Claude, ChatGPT, Copilot): add EloState as an MCP server at <code>{typeof window === "undefined" ? "" : window.location.origin}/api/mcp</code> with
@@ -71,7 +75,8 @@ export function ApiKeysPanel() {
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={60} placeholder="What it's for, e.g. Data warehouse" aria-label="Key name" className="min-w-0 flex-1 rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />
         <label className="flex items-center gap-1 text-secondary"><input type="checkbox" checked={mcp} onChange={(e) => setMcp(e.currentTarget.checked)} /> Also for AI assistants (MCP)</label>
-        <button type="button" disabled={!name.trim()} onClick={() => void post({ name: name.trim(), scopes: mcp ? ["read", "mcp"] : ["read"] })} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Make a key</button>
+        <label className="flex items-center gap-1 text-secondary"><input type="checkbox" checked={upload} onChange={(e) => setUpload(e.currentTarget.checked)} /> Also uploads calls</label>
+        <button type="button" disabled={!name.trim()} onClick={() => void post({ name: name.trim(), scopes: ["read", ...(mcp ? ["mcp"] : []), ...(upload ? ["upload"] : [])] })} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Make a key</button>
       </div>
       {msg && <p className="mt-1 text-amber-700 dark:text-amber-300">{msg}</p>}
       {state === "failed" ? <p className="mt-2 text-secondary">Couldn&apos;t load API keys. Refresh to try again.</p> : keys && keys.length > 0 && (

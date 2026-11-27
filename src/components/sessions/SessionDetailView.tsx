@@ -54,6 +54,7 @@ import { RenameCall } from "@/components/remote-sales/RenameCall";
 import { CallNotes } from "@/components/remote-sales/CallNotes";
 import { CustomBriefs } from "@/components/remote-sales/CustomBriefs";
 import { TopicSections } from "@/components/remote-sales/TopicSections";
+import { PickYourVoice } from "@/components/remote-sales/PickYourVoice";
 import { CallCategoryPicker } from "@/components/remote-sales/CallCategoryPicker";
 import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
@@ -534,6 +535,10 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
         {/* 0337 (F33.8): a company phrase hid this call — the database refuses it to anyone but its rep and admins,
             so for them `session` is null here; the notice says why. Renders nothing when the call isn't hidden. */}
         {module === "remote_sales" && <HiddenCallNotice sessionId={id} />}
+        {/* Engage plan E6/E10: a call uploaded through the API waits for its rep to pick their voice (and confirm consent). */}
+        {module === "remote_sales" && session && isRemoteContext(session.context) && session.status !== "active" && viewerId === session.agentId && (
+          <PickYourVoice sessionId={id} onDone={() => void load()} />
+        )}
         {/* F6.3 (2026-11-26): the call's own rep can rename it, while it processes or after. */}
         {module === "remote_sales" && session && isRemoteContext(session.context) && viewerId === session.agentId && (
           <RenameCall sessionId={id} label={session.clientLabel ?? null} onRenamed={(l) => setSession((s0) => (s0 ? { ...s0, clientLabel: l } : s0))} />

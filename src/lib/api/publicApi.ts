@@ -24,7 +24,7 @@ export function hashApiKey(key: string): string {
 export type ApiCaller = { keyId: string; companyId: string; createdBy: string; scopes: string[] };
 
 /** The key on a request, checked: a live key with `scope`, inside its limits. Returns the caller or the response to send. */
-export async function authenticateApiKey(req: Request, scope: "read" | "mcp", route: string): Promise<ApiCaller | NextResponse> {
+export async function authenticateApiKey(req: Request, scope: "read" | "mcp" | "upload", route: string): Promise<ApiCaller | NextResponse> {
   const key = bearerToken(req);
   if (!/^els_[A-Za-z0-9_-]{40,}$/.test(key)) return NextResponse.json({ error: "Send a valid API key as 'Authorization: Bearer els_…'." }, { status: 401 });
   const admin = createAdminClient();
@@ -32,7 +32,7 @@ export async function authenticateApiKey(req: Request, scope: "read" | "mcp", ro
   if (error) return NextResponse.json({ error: "The API is unavailable. Try again." }, { status: 503 });
   if (!data || data.revoked_at) return NextResponse.json({ error: "That API key isn't valid." }, { status: 401 });
   const scopes = (data.scopes as string[]) ?? [];
-  if (!scopes.includes(scope)) return NextResponse.json({ error: `That key can't use the ${scope === "mcp" ? "MCP server" : "read API"}.` }, { status: 403 });
+  if (!scopes.includes(scope)) return NextResponse.json({ error: `That key can't use the ${scope === "mcp" ? "MCP server" : scope === "upload" ? "call upload" : "read API"}.` }, { status: 403 });
   const caller = { keyId: String(data.id), companyId: String(data.company_id), createdBy: String(data.created_by), scopes };
   if (!underPerSecond(caller.keyId)) {
     await recordApiUsage(caller, route, 429);

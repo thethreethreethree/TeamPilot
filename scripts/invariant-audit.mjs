@@ -2700,6 +2700,7 @@ const DATED_UPLOAD_WRITERS = new Map([
   ["src/app/api/coach/sales-session/door-log/route.ts", "pitches.audio_path"],
   ["src/app/api/coach/sales-session/[id]/upload-recording/route.ts", "coaching_sessions.audio_asset_url"],
   ["src/app/api/coach/sales-session/[id]/upload-recording/sign/route.ts", "coaching_sessions.audio_asset_url"],
+  ["src/lib/api/publicApiUpload.ts", "coaching_sessions.audio_asset_url"], // POST /api/v1/calls (Engage E6), same pointer as upload-recording
 ]);
 const RAW_STORAGE_WRITERS = new Map([
   ["src/lib/storage/assets.ts", "the dated-upload helpers themselves"],
