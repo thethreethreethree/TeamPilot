@@ -16,6 +16,9 @@
 
 ## ▶ ACTIVE BUILD
 
+**Now (2026-11-27):** none in flight — the revenue and Engage plans are built as far as decisions and outside settings
+allow; see RECENTLY CLOSED "2026-11-27 revenue + Engage, continued". The block below is the July build, kept as written.
+
 **slug:** `2026-07-30-care-jeff-guidance-upload` (IN PROGRESS — ~20%, PAUSED mid-build 2026-07-30)
 **instruction (verbatim intent):** two founder images (2026-07-30): (1) "add [the multi-format Upload-a-file
 feature] to the C.A.R.E system if we don't have it yet"; (2) "add this feature as well but not strictly
@@ -133,7 +136,21 @@ and "What you represent" (ai_product_context).
   · deal briefs · win/loss by contacts/power/time, drivers, account activity · ask about a deal or account · forecast
   board · Engage flows, today's steps, call outcomes, analytics · public read API with company keys · MCP server · agents
   (stage and tracker triggers). Waiting on the founder's outside settings (docs/residuals/OPEN.md, 2026-11-27): Postmark,
-  Twilio, SUPABASE_JWT_SECRET, CRON_SECRET, a client CRM.
+  Twilio, SUPABASE_JWT_SECRET, a client CRM. (CRON_SECRET was wrongly listed: it IS set in production — the cron route
+  answers 401 without it.)
+
+- `2026-11-27 revenue + Engage, continued` — later the same day, migrations 0381–0387, each probed rolled back on
+  production, five independent reviews (every finding fixed), `npm run check` exit 0 before every commit:
+  review fixes (hidden calls in briefs and AI reads, account reach, forecast notes refused) · MCP ask_account /
+  generate_brief / find_calls · forecast deals behind a number and movement · win/loss rows open their deals, CSV ·
+  deal panel tabs with what to do about each warning · near-duplicate accounts · the nightly revenue job (warnings record,
+  drivers 30/90 days, close-date agents; three cron slots, company-local days, claim-before-act) · webhook send claims ·
+  erasure reaches topic-group members (retired versions too) · the extension's connect page waits for the sign-in code ·
+  scenario stage tags offer the company list · six-hour recording cap · /api/v1/audit · topic sections on request ·
+  team revenue targets (Revenue phase 7) · upload a call by API, the rep picks their voice (Engage E6/E10).
+  Founder pickers recorded in both plans' decisions logs. To check next: the nightly job's first run (05:15 UTC
+  2026-11-28) and one API upload with a real key and file. Still open by decision or outside setting: OPEN.md
+  "Filed by the Gong P1/P2 gap audit".
 
 - `2026-07-30-x2-care-jeff-guidance-upload` — CLOSED 2026-07-30 — new Jeff customer-assistance guidance
   field (wired into his replies) + multi-format upload on 3 C.A.R.E surfaces. Migration 0202 (not applied,
