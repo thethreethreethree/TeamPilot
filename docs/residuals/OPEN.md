@@ -638,3 +638,27 @@ product says so where it matters, never silently.
 - [ ] 2026-11-27 · revenue-r2 · No CRM sync (Salesforce / HubSpot / Dynamics).
       why-unresolved: no client CRM is on record to sync with (plan R2).
       next-action: when a paying client names their CRM, build its connector first.
+
+## Filed by the Gong P1/P2 gap audit (2026-11-27)
+
+Read-only audit of the 102 P1/P2 features the pre-build comparison (gong-vs-elostate-comparison.json) marked LACK or
+PARTIAL, checked against the code: 66 now built, 13 decided against (docs/rss/docs/00-OPEN-DECISIONS.md and founder
+pickers), 23 open. Built since the audit: F5.7 six-hour cap (50ab05e5), F31.5 audit log API (228a5470). What's left, by
+what it needs:
+
+- [ ] 2026-11-27 · gong-gaps · OUTSIDE SETUP (code done): F1.2 Google/Microsoft sign-in (providers in Supabase +
+      NEXT_PUBLIC_AUTH_PROVIDERS), F1.5 lockout that can't be skipped (Supabase CAPTCHA or password hook), F31.8 webhooks
+      (RSS_WEBHOOK_SIGNING_SECRET). Each already has its own entry above.
+- [ ] 2026-11-27 · gong-gaps · FOUNDER DECISION before building:
+      F12.8 share a personal folder (today only managers make company folders, and peers see calls only through the
+      sharing consent rules; a rep sharing a folder would bypass both — who may share, and with whom?);
+      F11.11 topic segments on the timeline (one paid AI read per call, like the vocabulary re-apply cost question);
+      F6.9 create a call by API with media (E3 decided keys are read-only);
+      F15.9 auto-score selection filters and F15.12 per-scorecard visibility (fixed roles, D-decisions);
+      F23.4 targets on other metrics (bounded by the "no metric builder" decision, F23.2/23.3).
+- [ ] 2026-11-27 · gong-gaps · NEEDS DATA WE DON'T CAPTURE: F11.12 search by topic share (no topic durations);
+      F4.4 / F33.8 domain exclusions and F5.10 bot leaves (no participant emails without calendar/bot, D12);
+      F8.2 multi-speaker diarization (speech vendor settings).
+- [ ] 2026-11-27 · gong-gaps · OTHER REPO / LATER: F30.7 / F30.9 / F6.5 mobile app (separate repo); F1.4 mixed sign-in
+      methods (after F1.2 is live); F1.8 several emails per person; F33.3 muting numbers in the audio (transcripts are
+      already redacted).
