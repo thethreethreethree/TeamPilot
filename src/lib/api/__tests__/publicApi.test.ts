@@ -11,6 +11,7 @@ const st = vi.hoisted(() => ({
   sessions: [] as unknown[],
   hidden: new Set<string>(),
   usage: [] as unknown[],
+  maker: { role: "CEO", status: "active" } as Record<string, unknown> | null,
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenInCompanyFrom: vi.fn(async () => st.hidden) }));
@@ -20,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       const q: Record<string, unknown> = {};
       for (const m of ["select", "order", "in", "gte"]) q[m] = () => q;
       q.eq = (col: string, v: unknown) => (st.eqs.push([table, col, v]), q);
-      q.maybeSingle = async () => ({ data: table === "api_keys" ? st.key : null, error: null });
+      q.maybeSingle = async () => ({ data: table === "api_keys" ? st.key : table === "profiles" ? st.maker : null, error: null });
       q.range = async () => ({ data: table === "coaching_sessions" ? st.sessions : [], error: null });
       q.then = (r: (v: unknown) => unknown) => r({ data: null, error: null, count: st.dayCount });
       q.insert = async (row: unknown) => (st.usage.push(row), { error: null });
@@ -36,6 +37,7 @@ const req = (path: string, key = KEY) => new Request(`http://x${path}`, { header
 beforeEach(() => {
   st.key = { id: "k1", company_id: "co1", created_by: "admin-1", scopes: ["read"], revoked_at: null };
   st.dayCount = 0;
+  st.maker = { role: "CEO", status: "active" };
   st.eqs = [];
   st.sessions = [];
   st.hidden = new Set();
@@ -85,4 +87,17 @@ describe("public API keys", () => {
     expect([0, 1, 2, 3].map((i) => underPerSecond("kx", t + i))).toEqual([true, true, true, false]);
     expect(underPerSecond("kx", t + 1500)).toBe(true);
   });
+  it("the audit log (F31.5): pinned to the key's company, and only while the key's maker is still an admin", async () => {
+    st.key = { ...st.key!, id: "k-audit-1" };
+    expect((await readResource(req("/api/v1/audit"), "audit")).status).toBe(200);
+    expect(st.eqs).toContainEqual(["audit_log", "company_id", "co1"]);
+    expect(st.eqs).toContainEqual(["profiles", "id", "admin-1"]);
+    st.maker = { role: "Member", status: "active" };
+    st.key = { ...st.key!, id: "k-audit-2" }; // a fresh key each time: the per-second limit is per key
+    expect((await readResource(req("/api/v1/audit"), "audit")).status).toBe(403);
+    st.maker = { role: "CEO", status: "removed" };
+    st.key = { ...st.key!, id: "k-audit-3" };
+    expect((await readResource(req("/api/v1/audit"), "audit")).status).toBe(403);
+  });
 });
+

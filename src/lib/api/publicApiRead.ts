@@ -2,14 +2,15 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
+import { isAdminRole } from "@/lib/roles";
 import { authenticateApiKey, OUTSIDE_READER, paging, recordApiUsage } from "./publicApi";
 
 /**
- * The four read endpoints of /api/v1 (Engage plan E3; Gong F31.1–F31.3), one handler. Every statement pins the key's
+ * The read endpoints of /api/v1 (Engage plan E3; Gong F31.1–F31.3; the audit log F31.5), one handler. Every statement pins the key's
  * company (the service role bypasses RLS, so this filter is the tenant boundary), lists are ordered by a unique key
  * last, and calls with an active hide are left out (OUTSIDE_READER). No transcripts leave through this API.
  */
-export type Resource = "deals" | "accounts" | "contacts" | "calls";
+export type Resource = "deals" | "accounts" | "contacts" | "calls" | "audit";
 
 export async function readResource(req: Request, resource: Resource): Promise<NextResponse> {
   const route = `/api/v1/${resource}`;
@@ -42,6 +43,23 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
     const { data, error } = await admin.from("contacts_current").select("id, name, title, account_id, email, phone, created_at").eq("company_id", caller.companyId).order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to);
     if (error) return done({ error: "Couldn't read contacts." }, 500);
     return done({ data: (data ?? []).map((c) => ({ id: c.id, name: c.name, title: c.title, accountId: c.account_id, email: c.email, phone: c.phone, createdAt: c.created_at })), page, limit });
+  }
+  if (resource === "audit") {
+    // The audit log (0284; Gong F31.5) is for company admins: the key's maker must still be one (a key outlives a role
+    // change, so this is checked on every request, not only when the key was made).
+    const { data: maker, error: mErr } = await admin.from("profiles").select("role, status").eq("company_id", caller.companyId).eq("id", caller.createdBy).maybeSingle();
+    if (mErr) return done({ error: "Couldn't read the audit log." }, 500);
+    if (!maker || maker.status === "removed" || !isAdminRole(maker.role as string | null)) {
+      return done({ error: "The audit log is for company admins; the person who made this key isn't one now." }, 403);
+    }
+    const { data, error } = await admin
+      .from("audit_log")
+      .select("id, actor_id, action, object_type, object_id, meta, created_at")
+      .eq("company_id", caller.companyId)
+      .order("id", { ascending: false })
+      .range(from, to);
+    if (error) return done({ error: "Couldn't read the audit log." }, 500);
+    return done({ data: (data ?? []).map((r) => ({ id: r.id, at: r.created_at, action: r.action, actorId: r.actor_id, objectType: r.object_type, objectId: r.object_id, meta: r.meta })), page, limit });
   }
   let hidden: Set<string>;
   try {

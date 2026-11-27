@@ -50,7 +50,8 @@ export function ApiKeysPanel() {
       <p className="mt-1 text-secondary">
         Read-only keys for outside tools: deals, accounts, contacts and calls at <code>/api/v1/…</code>, sent as
         <code> Authorization: Bearer els_…</code>. A key reads your whole company (no call with an active hide, no transcripts),
-        3 requests a second and 10,000 a day. Revoke any key you no longer use.
+        3 requests a second and 10,000 a day. The audit log is at <code>/api/v1/audit</code> while the key&apos;s maker is
+        still a company admin. Revoke any key you no longer use.
       </p>
       <p className="mt-1 text-secondary">
         AI assistants (Claude, ChatGPT, Copilot): add EloState as an MCP server at <code>{typeof window === "undefined" ? "" : window.location.origin}/api/mcp</code> with
