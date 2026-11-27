@@ -778,6 +778,23 @@ export async function dealReviewCoach(args: { companyId?: string; systemPrompt: 
   });
 }
 
+/**
+ * Topic sections on one call (Gong F11.11; founder picker 2026-11-27 "On request per call"): a factual split of the
+ * transcript by what was discussed, run on click only like a call brief (controlExempt, the brief's precedent).
+ */
+export async function topicSectionsCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
+  return call({
+    companyId: args.companyId,
+    expectJson: true,
+    maxTokens: 900,
+    systemPrompt: args.systemPrompt,
+    userContent: args.userMessage,
+    controlExempt: true,
+    engine: "rss_topic_sections",
+    sessionId: args.sessionId,
+  });
+}
+
 /** Engage plan E4 (Gong F32.1 ask_deal): an outside AI assistant's question about one deal, through the MCP server. On request only, like Ask Coach (controlExempt). */
 export async function mcpAskCoach(args: { companyId?: string; systemPrompt: string; userMessage: string; sessionId: string }): Promise<CallResult> {
   return call({

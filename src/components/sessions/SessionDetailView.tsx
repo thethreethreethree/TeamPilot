@@ -53,6 +53,7 @@ import { HiddenCallNotice } from "@/components/remote-sales/HiddenCallNotice";
 import { RenameCall } from "@/components/remote-sales/RenameCall";
 import { CallNotes } from "@/components/remote-sales/CallNotes";
 import { CustomBriefs } from "@/components/remote-sales/CustomBriefs";
+import { TopicSections } from "@/components/remote-sales/TopicSections";
 import { CallCategoryPicker } from "@/components/remote-sales/CallCategoryPicker";
 import { ConsentStatus } from "@/components/remote-sales/RecordingConsent";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
@@ -554,6 +555,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
         )}
         {/* Brief templates (0364, F13.2): the company's own questions, answered from this call with the lines cited. */}
         {session && isRemoteContext(session.context) && session.status !== "active" && <CustomBriefs sessionId={id} onSeek={seekTo} />}
+        {session && isRemoteContext(session.context) && session.status !== "active" && <TopicSections sessionId={id} onSeek={seekTo} />}
         {/* Manager comments on the call (F9.8). Coach Assessment → Recordings lists in-person calls only since 0301, so
             without this a remote call's feedback request had nowhere to be answered. */}
         {session && isRemoteContext(session.context) && session.status !== "active" && (

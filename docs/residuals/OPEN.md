@@ -650,9 +650,8 @@ what it needs:
       NEXT_PUBLIC_AUTH_PROVIDERS), F1.5 lockout that can't be skipped (Supabase CAPTCHA or password hook), F31.8 webhooks
       (RSS_WEBHOOK_SIGNING_SECRET). Each already has its own entry above.
 - [ ] 2026-11-27 · gong-gaps · FOUNDER DECISION before building:
-      F12.8 share a personal folder (today only managers make company folders, and peers see calls only through the
-      sharing consent rules; a rep sharing a folder would bypass both — who may share, and with whom?);
-      F11.11 topic segments on the timeline (one paid AI read per call, like the vocabulary re-apply cost question);
+      F12.8 share a personal folder — DECIDED 2026-11-27 (founder picker): "Managers only" — today's rule stays, nothing to build;
+      F11.11 topic segments on the timeline — DECIDED 2026-11-27: "On request per call" — BUILT (docs/tbc/2026-11-27-topic-sections);
       F6.9 create a call by API with media (E3 decided keys are read-only);
       F15.9 auto-score selection filters and F15.12 per-scorecard visibility (fixed roles, D-decisions);
       F23.4 targets on other metrics (bounded by the "no metric builder" decision, F23.2/23.3).
