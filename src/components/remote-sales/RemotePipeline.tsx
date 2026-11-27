@@ -118,6 +118,11 @@ export function RemotePipeline() {
   useEffect(() => {
     if (simple) setView("list");
   }, [simple]);
+  // The bell's forecast reminder links here from the same page (review 2026-11-27): follow the URL when it changes.
+  const viewParam = params.get("view");
+  useEffect(() => {
+    if (viewParam === "forecast" && !simple) setView("forecast");
+  }, [viewParam, simple]);
   const [people, setPeople] = useState<Array<{ id: string; name: string }>>([]);
   const [peopleFailed, setPeopleFailed] = useState(false);
   const [data, setData] = useState<{ prospects: Prospect[]; totals: Totals; viewerId: string } | null>(null);
@@ -426,12 +431,13 @@ type Detail = {
   // Revenue phase 8 (F23.11): the deal's own event log, newest first, and who made each change.
   history?: HistoryEvent[];
   actors?: Record<string, string>;
+  accounts?: Record<string, string>;
 };
 
 /** The deal's field changes (revenue plan phase 8; Gong F23.11), newest first; the 8 newest, the rest behind "Show all". */
-function FieldHistory({ history, actors }: { history: HistoryEvent[]; actors: Record<string, string> }) {
+function FieldHistory({ history, actors, accounts }: { history: HistoryEvent[]; actors: Record<string, string>; accounts: Record<string, string> }) {
   const [all, setAll] = useState(false);
-  const changes = fieldChanges(history, new Map(Object.entries(actors)), { money, date: (iso) => shortDate(iso) });
+  const changes = fieldChanges(history, new Map(Object.entries(actors)), { money, date: (iso) => shortDate(iso), account: (id) => accounts[id] });
   if (changes.length === 0) return null;
   const list = all ? changes : changes.slice(0, 8);
   return (
@@ -705,7 +711,7 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
       )}
 
       {shown === "Activity" && <div>
-        <FieldHistory history={d.history ?? []} actors={d.actors ?? {}} />
+        <FieldHistory history={d.history ?? []} actors={d.actors ?? {}} accounts={d.accounts ?? {}} />
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Calls</p>
         {d.calls.length === 0 ? (
           <p className="text-xs text-secondary">No calls linked yet. Open a call and choose “Add to pipeline”.</p>

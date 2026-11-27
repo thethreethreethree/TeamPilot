@@ -17,7 +17,7 @@ const money = (n: number) => new Intl.NumberFormat(undefined, { style: "currency
 const BAND = { green: "bg-brand/20 text-primary", pink: "bg-amber-500/15 text-amber-700 dark:text-amber-300", red: "border border-amber-500/40 text-amber-700 dark:text-amber-300" } as const;
 const BAND_WORD = { green: "on target", pink: "close", red: "off" } as const;
 
-type Data = { period: string; viewerId: string; submissions: Submission[]; targets: Array<{ userId: string; period: string; amount: number; team?: boolean }>; dueWeekday?: number; canSetDue?: boolean };
+type Data = { period: string; viewerId: string; submissions: Submission[]; targets: Array<{ userId: string; period: string; amount: number; team?: boolean }>; dueWeekday?: number | null; canSetDue?: boolean };
 
 export function ForecastBoard({ deals, people, isManager, nameOf, today, teamView = true }: { deals: FDeal[]; people: string[]; isManager: boolean; nameOf: (id: string) => string | null; today: string; teamView?: boolean }) {
   const [period, setPeriod] = useState(periodOf(today));
@@ -125,8 +125,10 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today, teamVie
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-xs font-semibold text-primary">Forecast board</p>
-          {/* 0391 (F22.4): when forecasts are due; anyone who forecasts and hasn't submitted that week gets a bell reminder that morning. */}
-          {data.canSetDue ? (
+          {/* 0391 (F22.4): when forecasts are due; anyone who forecasts and hasn't submitted that week gets a bell reminder from the night run before it. */}
+          {data.dueWeekday === null ? (
+            <span className="text-[11px] text-muted">Couldn&apos;t read the due day</span>
+          ) : data.canSetDue ? (
             <label className="flex items-center gap-1 text-[11px] text-secondary">
               Due every
               <select value={data.dueWeekday ?? 1} disabled={busy} aria-label="Forecast due day" onChange={(e) => void setDueDay(Number(e.currentTarget.value))} className="rounded border border-default bg-base px-1 py-0.5 text-[11px] text-primary">

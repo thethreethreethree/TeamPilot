@@ -90,4 +90,10 @@ describe("ForecastBoard", () => {
     fireEvent.change(await screen.findByLabelText("Forecast due day"), { target: { value: "5" } });
     await vi.waitFor(() => expect(posts).toEqual([{ kind: "due_day", weekday: 5 }]));
   });
+  it("a due day that couldn't be read says so, not Monday", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ period: "2026-Q4", viewerId: "me", submissions: [], targets: [], dueWeekday: null, canSetDue: true }))));
+    render(<ForecastBoard deals={deals} people={["me"]} isManager nameOf={() => null} today="2026-11-27" />);
+    expect(await screen.findByText(/Couldn.t read the due day/)).toBeTruthy();
+    expect(screen.queryByLabelText("Forecast due day")).toBeNull();
+  });
 });

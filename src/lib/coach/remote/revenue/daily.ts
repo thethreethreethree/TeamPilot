@@ -17,7 +17,7 @@ import { sendForecastReminders } from "./forecastReminders";
  * Each company is dated by its own timezone.
  * Runs only from the cron route (CRON_SECRET). A company whose read fails is counted and skipped, never half-written.
  */
-export type DailyResult = { companies: number; snapshots: number; failedCompanies: number; fired: number; reminded?: number; remaining?: number; lookupFailed?: boolean };
+export type DailyResult = { companies: number; snapshots: number; failedCompanies: number; fired: number; reminded?: number; remindersFailed?: number; remaining?: number; lookupFailed?: boolean };
 
 const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
@@ -75,15 +75,18 @@ export function quietFires(agents: AgentRow[], deals: ProspectRow[], day: string
 /** The fire key of a meeting-prep run: the deal and the booked date, so a call moved to another day fires again. */
 export const nextCallFireKey = (prospectId: string, date: string) => `nextcall:${prospectId}:${date}`;
 
-/** Which meeting-prep agents (0390) fire today: open deals whose next call is the company's tomorrow. Pure. */
+/**
+ * Which meeting-prep agents (0390) fire today: open deals whose next call is the company's tomorrow — or today, for a
+ * call booked after the previous night's run, or a night that was missed (review 2026-11-27). Once per deal and date. Pure.
+ */
 export function nextCallFires(agents: AgentRow[], deals: ProspectRow[], day: string, fired: Set<string>): Array<{ agent: AgentRow; prospectId: string; fireKey: string }> {
   const tomorrow = addDays(day, 1);
   const out: Array<{ agent: AgentRow; prospectId: string; fireKey: string }> = [];
   for (const a of agents) {
     if (a.trigger.kind !== "next_call_tomorrow") continue;
     for (const d of deals) {
-      if (d.status !== "open" || d.nextCallDate !== tomorrow) continue;
-      const fireKey = nextCallFireKey(d.id, tomorrow);
+      if (d.status !== "open" || !d.nextCallDate || d.nextCallDate < day || d.nextCallDate > tomorrow) continue;
+      const fireKey = nextCallFireKey(d.id, d.nextCallDate);
       if (!fired.has(`${a.id}|${fireKey}`)) out.push({ agent: a, prospectId: d.id, fireKey });
     }
   }
@@ -124,9 +127,10 @@ export async function runRevenueDaily(admin: SupabaseClient, now: Date, budgetMs
       if ((count ?? 0) > 0) continue; // done by an earlier run today
       // 0391 (F22.4): the forecast reminder on the company's due day — before the deals, which it doesn't need. Claimed
       // per person and date, so a later slot re-running a company with no deals never sends it twice.
+      // A failed reminder is logged and counted, never a reason to skip the warnings and agents below (review 2026-11-27).
       const reminded = await sendForecastReminders(admin, co.id, day, co.forecast_due_weekday ?? 1);
-      if (reminded === null) throw new Error("forecast reminders failed");
-      res.reminded! += reminded;
+      if (reminded === null) res.remindersFailed = (res.remindersFailed ?? 0) + 1;
+      else res.reminded! += reminded;
       const deals = await listProspects(admin, undefined, { companyId: co.id, sentiment: true });
       if (deals === null) throw new Error("deals read failed");
       if (!deals.length) continue;

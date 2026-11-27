@@ -694,3 +694,11 @@ founder decision, 12 open and buildable now.
       / F7.7 recording notice and opt-out (D11, legal wording); F9.11 / F9.12 / F9.14 customer share links, view
       tracking, embeds; F20.12 several owners and splits (R9); F33.4 PHI redaction; F11.6 / F14.3 / F28.1–F28.6 AI
       credits and quotas (pricing); F35.1 / F35.2 / F35.4 commercial model.
+
+## Filed by the deal-flow batch (2026-11-27: field history, meeting prep, forecast due day)
+
+- [ ] 2026-11-27 · revenue-p8 · the first forecast reminders go out on the first nightly run on a Monday (the default due
+      day): 2026-11-30, 05:15 UTC slot. Only people who submitted a forecast for 2026-Q4 or 2026-Q3 and not in the past
+      7 days get one; production has 0 forecast submissions today, so the first real one needs a team using the board.
+- [ ] 2026-11-27 · engage-e11 · the first meeting-prep run needs a saved "Meeting prep" agent and an open deal with a
+      next call booked for the company's tomorrow (0 agents today).

@@ -50,8 +50,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't load the forecast." }, { status: 500 });
   }
   // 0391: the company's due weekday (Monday when unset or unreadable — the board says it either way).
-  const { data: co } = await db.from("companies").select("forecast_due_weekday").eq("id", ctx.companyId).maybeSingle();
-  const dueWeekday = typeof co?.forecast_due_weekday === "number" ? co.forecast_due_weekday : 1;
+  const { data: co, error: coErr } = await db.from("companies").select("forecast_due_weekday").eq("id", ctx.companyId).maybeSingle();
+  if (coErr) console.error(`[forecast] due day read failed company=${ctx.companyId}: ${coErr.message}`);
+  // null = couldn't be read; the board says so rather than showing a default as if it were the setting.
+  const dueWeekday = typeof co?.forecast_due_weekday === "number" ? co.forecast_due_weekday : null;
   // The latest target per person (or team), and quarter.
   const t = new Map<string, { userId: string; period: string; amount: number; team?: boolean }>();
   for (const x of targets.data ?? []) t.set(`${x.user_id}|${x.period}|${x.for_team ? "team" : "person"}`, { userId: x.user_id, period: x.period, amount: Number(x.amount), ...(x.for_team ? { team: true } : {}) });

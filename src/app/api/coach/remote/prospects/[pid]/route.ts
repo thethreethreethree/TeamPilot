@@ -99,12 +99,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
   const actorsRead = actorIds.length ? await db.from("profiles").select("id, full_name").in("id", actorIds) : { data: [], error: null };
   if (actorsRead.error) console.error(`[prospect] actor names read failed id=${pid}: ${actorsRead.error.message}`);
   const actorRows = (actorsRead.data ?? []) as Array<{ id: string; full_name: string | null }>;
+  // The accounts the history names, by name where the caller can see them (accounts_current's RLS); else "an account".
+  const accountIds = [...new Set(((ev.data ?? []) as Array<{ kind: string; value: { account_id?: string | null } | null }>).filter((e) => e.kind === "account" && e.value?.account_id).map((e) => String(e.value!.account_id)))];
+  const accountsRead = accountIds.length ? await db.from("accounts_current").select("id, name").in("id", accountIds) : { data: [], error: null };
+  if (accountsRead.error) console.error(`[prospect] account names read failed id=${pid}: ${accountsRead.error.message}`);
+  const accountRows = (accountsRead.data ?? []) as Array<{ id: string; name: string | null }>;
   return NextResponse.json({
     prospect: p,
     account,
     contacts,
     history: ev.data ?? [],
     actors: Object.fromEntries(actorRows.map((a) => [String(a.id), a.full_name || "Unnamed teammate"])),
+    accounts: Object.fromEntries(accountRows.map((a) => [String(a.id), a.name || "(no name)"])),
     calls: ((sess.data ?? []) as Array<Record<string, unknown>>).map((s) => ({
       id: String(s.id), label: s.client_label ?? null, context: s.context, startedAt: s.started_at, outcome: s.outcome ?? null,
     })),

@@ -6,7 +6,7 @@
  */
 export type HistoryEvent = { kind: string; value: Record<string, unknown> | null; actor_id: string | null; created_at: string };
 export type FieldChange = { at: string; who: string; field: string; from: string | null; to: string };
-export type Fmt = { money: (n: number) => string; date: (iso: string) => string };
+export type Fmt = { money: (n: number) => string; date: (iso: string) => string; account?: (id: string) => string | undefined };
 
 const FIELD: Record<string, string> = {
   stage: "Stage", amount: "Amount", close_date: "Close date", next_call: "Next call", source: "Source", account: "Account", name: "Name", organization: "Organization",
@@ -23,7 +23,8 @@ export function valueWord(kind: string, v: Record<string, unknown> | null, fmt: 
     if (typeof x.date !== "string") return "none";
     return `${fmt.date(x.date)}${typeof x.time === "string" ? ` ${x.time}` : ""}`;
   }
-  if (kind === "account") return x.account_id ? "linked" : "none";
+  // An account by its name where the reader can see it (review 2026-11-27: "linked" both times hid a move A → B).
+  if (kind === "account") return typeof x.account_id === "string" && x.account_id ? fmt.account?.(x.account_id) ?? "an account" : "none";
   return typeof x.text === "string" && x.text ? x.text : "none";
 }
 
@@ -35,7 +36,10 @@ export function fieldChanges(events: HistoryEvent[], names: Map<string, string>,
     const prev = events.slice(i + 1).find((o) => o.kind === e.kind);
     const to = valueWord(e.kind, e.value, fmt);
     const from = prev ? valueWord(prev.kind, prev.value, fmt) : null;
-    if (from === to) return; // saved again unchanged: not a change
+    // Saved again unchanged is not a change; an account is the same only when it's the same account (two unnamed
+    // accounts both read "an account").
+    const same = e.kind === "account" ? !!prev && (prev.value?.account_id ?? null) === (e.value?.account_id ?? null) : from === to;
+    if (same) return;
     const who = (e.actor_id ? names.get(e.actor_id) : undefined) || "A teammate";
     out.push({ at: e.created_at, who, field, from, to });
   });

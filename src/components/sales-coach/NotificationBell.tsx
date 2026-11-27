@@ -63,6 +63,7 @@ type Notif = {
     agent_name?: string | null;
     /** 0391 forecast_due: the quarter the reminder is for. */
     period?: string;
+    due_day?: string;
     /** 0379 agent_ran: the deal the agent acted on. */
     deal_id?: string;
     total?: number;
@@ -168,7 +169,9 @@ function text(n: Notif): string {
   // Revenue phase 8 (0391; F22.4): today is the company's forecast due day and this person hasn't submitted this week.
   if (n.type === "forecast_due") {
     const period = typeof n.payload.period === "string" ? ` for ${n.payload.period.replace("-", " ")}` : "";
-    return `Your forecast${period} is due today — open the forecast board and submit your Commit and Best case`;
+    // The day it's due (review 2026-11-27: some companies are reminded the evening before).
+    const due = typeof n.payload.due_day === "string" ? new Date(`${n.payload.due_day}T12:00:00Z`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" }) : "today";
+    return `Your forecast${period} is due ${typeof n.payload.due_day === "string" ? `on ${due}` : due} — open the forecast board and submit your Commit and Best case`;
   }
   // Engage plan E6 (0387): a call an outside tool uploaded for this rep waits for them to pick their voice.
   if (n.type === "call_needs_voice") {

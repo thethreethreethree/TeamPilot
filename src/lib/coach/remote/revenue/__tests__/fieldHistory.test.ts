@@ -29,4 +29,14 @@ describe("a deal's field history (F23.11)", () => {
     expect(valueWord("account", { account_id: null }, fmt)).toBe("none");
     expect(valueWord("source", { text: "Referral" }, fmt)).toBe("Referral");
   });
+  it("an account move shows both names; the same account saved again isn't a change", () => {
+    const f = { ...fmt, account: (id: string) => ({ a1: "Acme", a2: "Globex" } as Record<string, string>)[id] };
+    const out = fieldChanges([ev("account", { account_id: "a2" }, "t3"), ev("account", { account_id: "a1" }, "t2"), ev("account", { account_id: "a1" }, "t1")], names, f);
+    expect(out).toEqual([
+      { at: "t3", who: "Ana", field: "Account", from: "Acme", to: "Globex" },
+      { at: "t1", who: "Ana", field: "Account", from: null, to: "Acme" },
+    ]);
+    // two accounts the reader can't name are still two accounts
+    expect(fieldChanges([ev("account", { account_id: "x2" }, "t2"), ev("account", { account_id: "x1" }, "t1")], names, fmt).map((c) => c.at)).toEqual(["t2", "t1"]);
+  });
 });

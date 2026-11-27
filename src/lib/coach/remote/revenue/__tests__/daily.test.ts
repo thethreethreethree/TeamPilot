@@ -97,10 +97,12 @@ describe("quietFires (0389, E8)", () => {
 
 describe("nextCallFires (0390, E11)", () => {
   const agent = { id: "ap", company_id: "co1", owner_id: "m", name: "Meeting prep", trigger: { kind: "next_call_tomorrow" as const }, actions: [] };
-  it("fires on open deals whose next call is the company's tomorrow, once per deal and date", () => {
-    const deals = [deal("tmrw", { nextCallDate: "2026-11-28" }), deal("today", { nextCallDate: "2026-11-27" }), deal("later", { nextCallDate: "2026-11-29" }), deal("won", { status: "won", nextCallDate: "2026-11-28" })] as never;
-    expect(nextCallFires([agent], deals, DAY, new Set()).map((f) => f.fireKey)).toEqual([nextCallFireKey("tmrw", "2026-11-28")]);
-    expect(nextCallFires([agent], deals, DAY, new Set([`ap|${nextCallFireKey("tmrw", "2026-11-28")}`]))).toEqual([]);
+  it("fires on open deals whose next call is tomorrow, or today (booked after last night's run), once per deal and date", () => {
+    const deals = [deal("tmrw", { nextCallDate: "2026-11-28" }), deal("today", { nextCallDate: "2026-11-27" }), deal("later", { nextCallDate: "2026-11-29" }), deal("past", { nextCallDate: "2026-11-26" }), deal("won", { status: "won", nextCallDate: "2026-11-28" })] as never;
+    expect(nextCallFires([agent], deals, DAY, new Set()).map((f) => f.fireKey)).toEqual([nextCallFireKey("tmrw", "2026-11-28"), nextCallFireKey("today", "2026-11-27")]);
+    // the night before already fired it: the morning run doesn't again
+    expect(nextCallFires([agent], [deal("tmrw", { nextCallDate: "2026-11-28" })] as never, "2026-11-28", new Set([`ap|${nextCallFireKey("tmrw", "2026-11-28")}`]))).toEqual([]);
+    expect(nextCallFires([agent], deals, DAY, new Set([`ap|${nextCallFireKey("tmrw", "2026-11-28")}`])).map((f) => f.prospectId)).toEqual(["today"]);
     // moved to another day: a new key, so it runs again the night before
     expect(nextCallFireKey("tmrw", "2026-12-02")).not.toBe(nextCallFireKey("tmrw", "2026-11-28"));
   });
