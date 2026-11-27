@@ -17,13 +17,14 @@ const money = (n: number) => new Intl.NumberFormat(undefined, { style: "currency
 const BAND = { green: "bg-brand/20 text-primary", pink: "bg-amber-500/15 text-amber-700 dark:text-amber-300", red: "border border-amber-500/40 text-amber-700 dark:text-amber-300" } as const;
 const BAND_WORD = { green: "on target", pink: "close", red: "off" } as const;
 
-type Data = { period: string; viewerId: string; submissions: Submission[]; targets: Array<{ userId: string; period: string; amount: number }> };
+type Data = { period: string; viewerId: string; submissions: Submission[]; targets: Array<{ userId: string; period: string; amount: number; team?: boolean }> };
 
 export function ForecastBoard({ deals, people, isManager, nameOf, today }: { deals: FDeal[]; people: string[]; isManager: boolean; nameOf: (id: string) => string | null; today: string }) {
   const [period, setPeriod] = useState(periodOf(today));
   const [data, setData] = useState<Data | null>(null);
   const [failed, setFailed] = useState(false);
-  const [editing, setEditing] = useState<{ userId: string; col: "commit" | "best_case" | "target" } | null>(null);
+  // "team_target" (0386, revenue phase 7): the viewer's own team's quarterly revenue target.
+  const [editing, setEditing] = useState<{ userId: string; col: "commit" | "best_case" | "target" | "team_target" } | null>(null);
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -59,8 +60,8 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
     setBusy(true);
     setMsg(null);
     try {
-      const body = editing.col === "target"
-        ? { kind: "target", period, userId: editing.userId, amount: v }
+      const body = editing.col === "target" || editing.col === "team_target"
+        ? { kind: "target", period, userId: editing.userId, amount: v, ...(editing.col === "team_target" ? { team: true } : {}) }
         : { kind: "submit", period, category: editing.col, amount: v };
       const r = await fetch("/api/coach/remote/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
@@ -79,7 +80,9 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
   if (!data) return <p className="flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading the forecast…</p>;
 
   const prev = shiftPeriod(period, -1);
-  const target = (u: string) => data.targets.find((t) => t.userId === u && t.period === period)?.amount ?? null;
+  const target = (u: string) => data.targets.find((t) => t.userId === u && t.period === period && !t.team)?.amount ?? null;
+  // The team's own target (set by its manager), else the sum of its people's targets, said as a sum.
+  const teamTarget = data.targets.find((t) => t.team && t.userId === data.viewerId && t.period === period)?.amount ?? null;
   const cell = (u: string, col: "commit" | "best_case" | "target") => {
     const own = u === data.viewerId;
     const canEdit = col === "target" ? isManager : own;
@@ -165,7 +168,20 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
                 <td className="px-2 py-1.5 text-right tabular-nums text-secondary">{money(mAll.openClosing)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-primary">{money(commitTeam.amount)}<span className="block text-[10px] font-normal text-muted">{commitTeam.submitted} of {commitTeam.of} submitted</span></td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-primary">{money(bestTeam.amount)}<span className="block text-[10px] font-normal text-muted">{bestTeam.submitted} of {bestTeam.of} submitted</span></td>
-                <td className="px-2 py-1.5 text-right tabular-nums text-primary">{targetTeam ? money(targetTeam) : "—"}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-primary">
+                  {isManager ? (
+                    <button type="button" onClick={() => { setEditing({ userId: data.viewerId, col: "team_target" }); setAmount(teamTarget === null ? "" : String(teamTarget)); setMsg(null); }} className="rounded px-1.5 py-0.5 tabular-nums underline-offset-2 hover:underline">
+                      {teamTarget !== null ? money(teamTarget) : targetTeam ? money(targetTeam) : "Set"}
+                    </button>
+                  ) : (
+                    <span>{teamTarget !== null ? money(teamTarget) : targetTeam ? money(targetTeam) : "—"}</span>
+                  )}
+                  {teamTarget !== null ? (
+                    <span className="block text-[10px] font-normal text-muted">{Math.round((mAll.closedWon / Math.max(1, teamTarget)) * 100)}% of team target</span>
+                  ) : targetTeam ? (
+                    <span className="block text-[10px] font-normal text-muted">sum of people&apos;s targets</span>
+                  ) : null}
+                </td>
                 <td />
               </tr>
             )}
@@ -175,9 +191,9 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
       {editing && (
         <div className="space-y-1.5 rounded-lg border border-default p-2 text-xs">
           <p className="font-semibold text-primary">
-            {editing.col === "target" ? `Target for ${editing.userId === data.viewerId ? "you" : nameOf(editing.userId) ?? "this rep"}` : `${editing.userId === data.viewerId ? "Your" : `${nameOf(editing.userId) ?? "This rep"}'s`} ${editing.col === "commit" ? "Commit" : "Best case"}`} · {period.replace("-", " ")}
+            {editing.col === "team_target" ? "Your team's revenue target" : editing.col === "target" ? `Target for ${editing.userId === data.viewerId ? "you" : nameOf(editing.userId) ?? "this rep"}` : `${editing.userId === data.viewerId ? "Your" : `${nameOf(editing.userId) ?? "This rep"}'s`} ${editing.col === "commit" ? "Commit" : "Best case"}`} · {period.replace("-", " ")}
           </p>
-          {editing.col !== "target" && (
+          {editing.col !== "target" && editing.col !== "team_target" && (
             <SubmissionDetail
               own={editing.userId === data.viewerId}
               sub={latest(data.submissions, editing.userId, period, editing.col)}
@@ -187,7 +203,7 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today }: { dea
               dealName={(id) => deals.find((d) => d.id === id)?.name ?? null}
             />
           )}
-          {(editing.col === "target" ? isManager : editing.userId === data.viewerId) ? (
+          {(editing.col === "target" || editing.col === "team_target" ? isManager : editing.userId === data.viewerId) ? (
             <div className="flex flex-wrap gap-2">
               <input autoFocus value={amount} onChange={(e) => setAmount(e.currentTarget.value)} inputMode="decimal" aria-label="Amount" placeholder="Amount" className="w-32 rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />
               <button type="button" disabled={busy} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>

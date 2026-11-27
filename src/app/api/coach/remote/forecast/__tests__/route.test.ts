@@ -71,4 +71,12 @@ describe("forecast", () => {
     const j = await (await GET(new NextRequest("http://x/api?period=2026-Q4"))).json();
     expect(j.targets).toEqual([{ userId: "a", period: "2026-Q4", amount: 999 }]);
   });
+  it("a team target (0386) is kept apart from the manager's own target, and POST stores the flag", async () => {
+    st.targets = [{ user_id: "m", period: "2026-Q4", amount: 500, for_team: false }, { user_id: "m", period: "2026-Q4", amount: 9000, for_team: true }];
+    const j = await (await GET(new NextRequest("http://x/api?period=2026-Q4"))).json();
+    expect(j.targets).toEqual([{ userId: "m", period: "2026-Q4", amount: 500 }, { userId: "m", period: "2026-Q4", amount: 9000, team: true }]);
+    await post({ kind: "target", period: "2026-Q4", userId: "11111111-1111-4111-8111-111111111111", amount: 9500, team: true });
+    expect(st.inserts.at(-1)!.row).toMatchObject({ for_team: true, amount: 9500 });
+  });
 });
+

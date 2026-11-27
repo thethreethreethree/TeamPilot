@@ -48,4 +48,22 @@ describe("ForecastBoard", () => {
     expect(screen.getByText(/up \$400; in: Globex, 1 more; out: Acme/)).toBeTruthy();
     expect(screen.queryByLabelText("Amount")).toBeNull();
   });
+  it("a manager sets the team's revenue target (0386); the team row shows progress to it", async () => {
+    const posts: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_u: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ ok: true }));
+      }
+      return new Response(JSON.stringify({ period: "2026-Q4", viewerId: "me", submissions: [], targets: [{ userId: "me", period: "2026-Q4", amount: 4000, team: true }] }));
+    }));
+    render(<ForecastBoard deals={deals} people={["me", "r2"]} isManager nameOf={(id) => (id === "r2" ? "Sam" : null)} today="2026-11-27" />);
+    expect(await screen.findByText("25% of team target")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /4,000/ }));
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "5000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(posts[0]).toEqual({ kind: "target", period: "2026-Q4", userId: "me", amount: 5000, team: true });
+  });
 });
+

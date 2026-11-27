@@ -17,8 +17,9 @@ What EloState needs to compete with Gong beyond coaching: accounts, deals, warni
 | Review fixes (hidden calls in briefs and AI reads, account reach, forecast notes refused, ghosted) | 91b1eeb6 | 0381 |
 | 6 The deals behind a forecast number, how it moved; 4 win/loss rows open their deals, CSV | 2e18c7cb | — |
 | 2 Deal panel tabs with what to do about each warning; 1 near-duplicate accounts suggested | c2a308b5 | — |
-
 | 3a / 4 Nightly warnings record, drivers now / 30 / 90 days (and E5 close-date agents) | 92249504 | 0382 |
+| 7 Team revenue targets | (this commit) | 0386 |
+
 
 Not built, and why: forecast due day and reminder (decision R12); forecast notes (0381: free text erasure can't reach); the PROPOSAL rows in docs/00 (deliberately not built).
 

@@ -23,7 +23,8 @@ import { periodRange, shiftPeriod } from "@/lib/coach/remote/revenue/forecast";
 const PERIOD = /^[0-9]{4}-Q[1-4]$/;
 const Body = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("submit"), period: z.string().regex(PERIOD), category: z.enum(["commit", "best_case"]), amount: z.number().min(0).max(1e12) }),
-  z.object({ kind: z.literal("target"), period: z.string().regex(PERIOD), userId: z.string().uuid(), amount: z.number().min(0).max(1e12) }),
+  // team (0386, revenue phase 7): the target is for userId's team (their reporting tree), not for them alone.
+  z.object({ kind: z.literal("target"), period: z.string().regex(PERIOD), userId: z.string().uuid(), amount: z.number().min(0).max(1e12), team: z.boolean().optional() }),
 ]);
 
 export async function GET(req: NextRequest) {
@@ -38,15 +39,15 @@ export async function GET(req: NextRequest) {
   // Every row, oldest first (the latest per person wins below; a capped read would silently drop the newest).
   const [subs, targets] = await Promise.all([
     fetchAllPagedResult<{ id: number; user_id: string; period: string; category: string; amount: number; deals: Array<{ id: string; amount: number | null }> | null; created_at: string }>((f, t) => db.from("forecast_submissions").select("id, user_id, period, category, amount, deals, created_at").in("period", periods).order("id").range(f, t), { label: "forecast submissions" }),
-    fetchAllPagedResult<{ id: number; user_id: string; period: string; amount: number; created_at: string }>((f, t) => db.from("forecast_targets").select("id, user_id, period, amount, created_at").in("period", periods).order("id").range(f, t), { label: "forecast targets" }),
+    fetchAllPagedResult<{ id: number; user_id: string; period: string; amount: number; for_team: boolean | null; created_at: string }>((f, t) => db.from("forecast_targets").select("id, user_id, period, amount, for_team, created_at").in("period", periods).order("id").range(f, t), { label: "forecast targets" }),
   ]);
   if (subs.error || targets.error) {
     console.error(`[forecast] read failed company=${ctx.companyId}: ${(subs.error ?? targets.error)?.message}`);
     return NextResponse.json({ error: "Couldn't load the forecast." }, { status: 500 });
   }
-  // The latest target per person and quarter.
-  const t = new Map<string, { userId: string; period: string; amount: number }>();
-  for (const x of targets.data ?? []) t.set(`${x.user_id}|${x.period}`, { userId: x.user_id, period: x.period, amount: Number(x.amount) });
+  // The latest target per person (or team), and quarter.
+  const t = new Map<string, { userId: string; period: string; amount: number; team?: boolean }>();
+  for (const x of targets.data ?? []) t.set(`${x.user_id}|${x.period}|${x.for_team ? "team" : "person"}`, { userId: x.user_id, period: x.period, amount: Number(x.amount), ...(x.for_team ? { team: true } : {}) });
   return NextResponse.json({
     period,
     viewerId: ctx.userId,
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
   if (body instanceof NextResponse) return body;
   const db = callerScopedDb(req) ?? (await createClient());
   if (body.kind === "target") {
-    const { error } = await db.from("forecast_targets").insert({ company_id: ctx.companyId, user_id: body.userId, period: body.period, amount: body.amount, set_by: ctx.userId });
+    const { error } = await db.from("forecast_targets").insert({ company_id: ctx.companyId, user_id: body.userId, period: body.period, amount: body.amount, set_by: ctx.userId, for_team: body.team === true });
     if (error) {
       if (error.code === "42501") return NextResponse.json({ error: "Only a manager or admin can set a target, for someone on their team." }, { status: 403 });
       console.error(`[forecast] target failed company=${ctx.companyId}: ${error.message}`);
