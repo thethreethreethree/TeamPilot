@@ -673,6 +673,7 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
             title="Ask about this deal"
             calls={d.calls.map((c) => ({ sessionId: c.id, label: `${shortDate(c.startedAt)}${c.label ? ` · ${c.label}` : ""}` }))}
             starters={["What's blocking this deal?", "Who decides, and what do they care about?", "What did we promise to do?"]}
+            onDemand
           />
         </>
       )}

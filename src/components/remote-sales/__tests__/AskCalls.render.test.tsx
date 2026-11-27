@@ -31,4 +31,27 @@ describe("AskCalls", () => {
     const { container } = render(<AskCalls title="Ask" calls={[]} />);
     expect(container.textContent).toBe("");
   });
+  it("on-demand agents (E9): a button runs the saved agent by id over the same calls; the answer says it wasn't saved", async () => {
+    const posts: Array<{ url: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (u: string, init?: RequestInit) => {
+      if (!init?.method) return new Response(JSON.stringify({ agents: [{ id: "a1", name: "Risks raised", instruction: "List every risk." }] }));
+      posts.push({ url: String(u), body: JSON.parse(String(init.body)) });
+      return new Response(JSON.stringify({ answer: "Price [1].", citations: [] }));
+    }));
+    render(<AskCalls title="Ask about this deal" calls={calls.slice(0, 3)} onDemand />);
+    fireEvent.click(await screen.findByRole("button", { name: "Risks raised" }));
+    expect(await screen.findByText(/Risks raised · not saved/)).toBeTruthy();
+    expect(posts).toEqual([{ url: "/api/coach/remote/on-demand-agents", body: { run: "a1", sessionIds: ["s0", "s1", "s2"] } }]);
+  });
+  it("without onDemand, no agents are fetched; a failed list shows none and the box still works", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (u: string) => (urls.push(String(u)), new Response("{}", { status: 500 }))));
+    render(<AskCalls title="Ask" calls={calls.slice(0, 1)} />);
+    expect(urls).toEqual([]);
+    cleanup();
+    render(<AskCalls title="Ask" calls={calls.slice(0, 1)} onDemand />);
+    await waitFor(() => expect(urls).toEqual(["/api/coach/remote/on-demand-agents"]));
+    expect(screen.queryByRole("group", { name: "On-demand agents" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Ask" })).toBeTruthy();
+  });
 });

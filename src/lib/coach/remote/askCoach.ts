@@ -110,6 +110,8 @@ export async function askCoach(args: {
   sessionIds: string[];
   question: string;
   chatId: string | null;
+  /** false (Engage E9, on-demand agents): answer without keeping a chat — nothing is stored. Default true. */
+  save?: boolean;
 }): Promise<AskResult> {
   const { db, companyId, userId, question } = args;
   const admin = createAdminClient();
@@ -194,6 +196,7 @@ export async function askCoach(args: {
   if (!answer) return { ok: false, status: 502, error: "Ask-coach failed." };
   const citations = resolveCitations(answer, refs);
 
+  if (args.save === false) return { ok: true, chatId: null, answer, citations, suppressed: false };
   // Save (best-effort: a lost save must not lose the answer the person is waiting for).
   let chatId = args.chatId;
   try {

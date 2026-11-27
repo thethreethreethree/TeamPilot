@@ -69,6 +69,12 @@ describe("askCoach", () => {
     expect(r).toMatchObject({ ok: true, chatId: "ch1", citations: [{ ref: 2, sessionId: "s1", seq: 2, atMs: 30_000 }] });
     expect(saved.rows.map((x) => x.table)).toEqual(["ask_coach_chats", "ask_coach_turns"]);
   });
+  it("save: false (E9 on-demand agents) → the same answer and citations, nothing stored", async () => {
+    mock(askCoachTurn).mockResolvedValue({ text: "Price came up here [2].", suppressed: false });
+    const r = await askCoach({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: ["s1"], question: "price?", chatId: null, save: false });
+    expect(r).toMatchObject({ ok: true, chatId: null, answer: "Price came up here [2].", citations: [{ ref: 2, sessionId: "s1" }] });
+    expect(saved.rows).toEqual([]);
+  });
   it("empty answer, not suppressed → 502 (never a blank answer)", async () => {
     mock(askCoachTurn).mockResolvedValue({ text: "  ", suppressed: false });
     expect(await askCoach({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: ["s1"], question: "price?", chatId: null })).toMatchObject({ ok: false, status: 502 });

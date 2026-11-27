@@ -461,7 +461,70 @@ function Agents() {
           ))}
         </ul>
       )}
+      <OnDemandAgents />
     </div>
+  );
+}
+
+/**
+ * On-demand agents (Engage plan E9, 0389; Gong F27.2): a named instruction the team runs from a deal's Ask box over that
+ * deal's calls. Nothing is acted on and answers aren't saved. Never edited — retire it and add a new wording.
+ */
+function OnDemandAgents() {
+  const [list, setList] = useState<Array<{ id: string; name: string; instruction: string }> | "failed" | null>(null);
+  const [name, setName] = useState("");
+  const [instruction, setInstruction] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [confirmRetire, setConfirmRetire] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch("/api/coach/remote/on-demand-agents", { cache: "no-store" });
+      const j = r.ok ? ((await r.json()) as { agents?: unknown }) : null;
+      setList(j && Array.isArray(j.agents) ? (j.agents as Array<{ id: string; name: string; instruction: string }>) : "failed");
+    } catch {
+      setList("failed");
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const post = async (body: Record<string, unknown>) => {
+    setMsg(null);
+    const r = await fetch("/api/coach/remote/on-demand-agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = (await r.json().catch(() => ({}))) as { error?: string };
+    if (!r.ok) return setMsg(j.error ?? "Couldn't save that.");
+    setName("");
+    setInstruction("");
+    setConfirmRetire(null);
+    void load();
+  };
+  return (
+    <section aria-label="On-demand agents" className="space-y-2 rounded-xl border border-default bg-surface p-3">
+      <h3 className="font-semibold text-primary">On-demand agents</h3>
+      <p className="text-secondary">An instruction your team runs from a deal&apos;s “Ask about this deal” box, answered from that deal&apos;s calls with the lines it rests on. It changes nothing and the answer isn&apos;t saved.</p>
+      <input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={80} placeholder="Name, e.g. Risks raised" aria-label="On-demand agent name" className={`${field} w-full`} />
+      <textarea value={instruction} onChange={(e) => setInstruction(e.currentTarget.value)} maxLength={1000} rows={3} placeholder="e.g. List every risk or concern the customer raised, who raised it, and whether we answered it." aria-label="Instruction" className={`${field} w-full`} />
+      <button type="button" disabled={!name.trim() || instruction.trim().length < 10} onClick={() => void post({ name: name.trim(), instruction: instruction.trim() })} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Add on-demand agent</button>
+      {msg && <p className="text-amber-700 dark:text-amber-300">{msg}</p>}
+      {list === "failed" ? <p className="text-secondary">Couldn&apos;t load on-demand agents. Refresh to try again.</p> : list && list.length > 0 && (
+        <ul className="space-y-1">
+          {list.map((a) => (
+            <li key={a.id} className="flex flex-wrap items-start gap-2 rounded-lg border border-default p-2">
+              <span className="min-w-0 flex-1"><span className="font-medium text-primary">{a.name}</span> <span className="text-secondary">— {a.instruction}</span></span>
+              {confirmRetire === a.id ? (
+                <span className="flex items-center gap-2">
+                  <span className="text-secondary">Retire it? It leaves every deal&apos;s Ask box.</span>
+                  <button type="button" onClick={() => void post({ retire: a.id })} className="font-semibold text-primary hover:underline">Retire</button>
+                  <button type="button" onClick={() => setConfirmRetire(null)} className="text-muted hover:text-primary">Keep it</button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirmRetire(a.id)} className="text-muted hover:text-primary">Retire…</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

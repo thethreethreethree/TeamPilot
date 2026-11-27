@@ -23,6 +23,7 @@ describe("Engage → Agents", () => {
         return new Response(JSON.stringify({ id: "a1" }));
       }
       const u = String(url);
+      if (u.includes("/on-demand-agents")) return new Response(JSON.stringify({ agents: [] }));
       if (u.includes("/agents")) return new Response(JSON.stringify({ agents: [], runs: [] }));
       if (u.includes("/trackers")) return new Response(JSON.stringify({ trackers: [] }));
       if (u.includes("/prospects")) return new Response(JSON.stringify({ prospects: [] }));
@@ -47,6 +48,7 @@ describe("Engage → Agents", () => {
         return new Response(JSON.stringify({ id: "a1" }));
       }
       const u = String(url);
+      if (u.includes("/on-demand-agents")) return new Response(JSON.stringify({ agents: [] }));
       if (u.includes("/agents")) return new Response(JSON.stringify({ agents: [{ id: "q1", name: "Quiet", trigger: { kind: "deal_gone_quiet" }, actions: [{ kind: "notify", to: "rep" }], enabled: true }], runs: [] }));
       if (u.includes("/trackers")) return new Response(JSON.stringify({ trackers: [] }));
       if (u.includes("/prospects")) return new Response(JSON.stringify({ prospects: [] }));
@@ -61,5 +63,34 @@ describe("Engage → Agents", () => {
     expect(posts).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: "Save agent" }));
     await waitFor(() => expect(posts.at(-1)).toMatchObject({ name: "Gone quiet", trigger: { kind: "deal_gone_quiet" }, actions: [{ kind: "notify", to: "rep" }, { kind: "todo", due_days: 1 }] }));
+  });
+  it("on-demand agents (E9): a manager adds one; retiring asks first", async () => {
+    const posts: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ id: "n1", ok: true }));
+      }
+      const u = String(url);
+      if (u.includes("/on-demand-agents")) return new Response(JSON.stringify({ agents: [{ id: "o1", name: "Risks raised", instruction: "List every risk the customer raised." }] }));
+      if (u.includes("/agents")) return new Response(JSON.stringify({ agents: [], runs: [] }));
+      if (u.includes("/trackers")) return new Response(JSON.stringify({ trackers: [] }));
+      if (u.includes("/prospects")) return new Response(JSON.stringify({ prospects: [] }));
+      return new Response(JSON.stringify({ items: [], outcomes: [], flows: [], viewerId: "me" }));
+    }));
+    render(<RemoteEngage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Agents" }));
+    expect(await screen.findByText("Risks raised")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("On-demand agent name"), { target: { value: "Next steps" } });
+    fireEvent.change(screen.getByLabelText("Instruction"), { target: { value: "List what each side agreed to do next." } });
+    fireEvent.click(screen.getByRole("button", { name: "Add on-demand agent" }));
+    await waitFor(() => expect(posts.at(-1)).toEqual({ name: "Next steps", instruction: "List what each side agreed to do next." }));
+    fireEvent.click(screen.getByRole("button", { name: "Retire…" }));
+    const n = posts.length;
+    fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(posts.length).toBe(n);
+    fireEvent.click(screen.getByRole("button", { name: "Retire…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retire" }));
+    await waitFor(() => expect(posts.at(-1)).toEqual({ retire: "o1" }));
   });
 });
