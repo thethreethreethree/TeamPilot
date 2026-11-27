@@ -8,4 +8,7 @@
 | E4 | MCP server | Claude or ChatGPT connected to EloState |
 | E5 | Agents | Agents list with run history |
 | E6 | Upload a call by API ("upload calls" key scope, F6.9) | A call made by an outside tool, on the Calls list |
+| E7 | People and team stats in the API; the usage report (F31.2, F31.9) | Settings → API keys: usage by route |
+| E8 | Agent templates (F27.9) | Engage → Agents: "Start from a template" |
+| E9 | On-demand agents (F27.2) | A deal's Ask box offers the company's agents |
 | later | Auto email (needs E1 in 00), dialer (E4 in 00), CRM sync | — |
