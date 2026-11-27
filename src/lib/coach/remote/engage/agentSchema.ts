@@ -14,10 +14,14 @@ export const TriggerZ = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("deal_gone_quiet") }),
   // 0390 (E11): an open deal's next call is tomorrow (the company's day, checked nightly). Nothing but the kind.
   z.object({ kind: z.literal("next_call_tomorrow") }),
+  // 0392 (E12): a call is added to a deal. Nothing but the kind.
+  z.object({ kind: z.literal("call_linked") }),
 ]);
 export const ActionZ = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("brief") }),
   z.object({ kind: z.literal("notify"), to: z.enum(["rep", "owner"]) }),
   z.object({ kind: z.literal("todo"), title: z.string().trim().min(1).max(200), due_days: z.number().int().min(0).max(365).optional() }),
   z.object({ kind: z.literal("webhook") }),
+  // 0392 (E12): read the playbook from the deal's calls (the AI Deal Reviewer).
+  z.object({ kind: z.literal("playbook") }),
 ]);

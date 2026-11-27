@@ -1975,7 +1975,6 @@ st("INV26 reachability is TRANSITIVE, not one hop", (() => {
 // a tenant filter carried by a variable whose name does not contain "company". Those need a human; this
 // catches the common direct shape, which is the one both of today's defects had.
 const SERVICE_ROLE_TENANT_ALLOWLIST = new Map([
-  ["src/app/api/coach/remote/prospects/[pid]/playbook/route.ts::deal_element_notes::write", "0373: an INSERT whose rows carry company_id from the deal row read just above through the CALLER's client (prospects' RLS + tree); the service role writes only the AI read (ai_suggest), which no person may insert."],
   ["src/app/api/coach/remote/settings/vocabulary/reapply/route.ts::coaching_transcript_segments_current::session_id", "the session ids come from the coaching_sessions read just above it, pinned to the admin's company (.eq(\"company_id\", ctx.companyId)); the view has no company column."],
   // ── the caller's OWN row, not a tenant read ────────────────────────────────────────────────────────
   ...[

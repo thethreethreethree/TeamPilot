@@ -112,10 +112,32 @@ describe("Engage → Agents", () => {
     }));
     render(<RemoteEngage />);
     fireEvent.click(await screen.findByRole("tab", { name: "Agents" }));
-    expect(await screen.findByText(/The day before an open deal.s booked call/)).toBeTruthy();
+    expect(await screen.findByText(/The day before an open deal.s booked call, or that morning/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Meeting prep" }));
     expect(screen.getByRole("button", { name: "A deal's next call is tomorrow" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Save agent" }));
     await waitFor(() => expect(posts.at(-1)).toEqual({ name: "Meeting prep", trigger: { kind: "next_call_tomorrow" }, actions: [{ kind: "brief" }, { kind: "notify", to: "rep" }] }));
+  });
+  it("the Fill-the-playbook template (E12) saves a call-linked agent that reads the playbook and tells the rep", async () => {
+    const posts: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ id: "a1" }));
+      }
+      const u = String(url);
+      if (u.includes("/on-demand-agents")) return new Response(JSON.stringify({ agents: [] }));
+      if (u.includes("/agents")) return new Response(JSON.stringify({ agents: [{ id: "c1", name: "Fill", trigger: { kind: "call_linked" }, actions: [{ kind: "playbook" }] }], runs: [] }));
+      if (u.includes("/trackers")) return new Response(JSON.stringify({ trackers: [] }));
+      if (u.includes("/prospects")) return new Response(JSON.stringify({ prospects: [] }));
+      return new Response(JSON.stringify({ items: [], outcomes: [], flows: [], viewerId: "me" }));
+    }));
+    render(<RemoteEngage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Agents" }));
+    expect(await screen.findByText(/When a call is added to a deal: read the playbook from the deal.s calls/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Fill the playbook from each call" }));
+    expect(screen.getByRole("button", { name: "A call is added to a deal" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Save agent" }));
+    await waitFor(() => expect(posts.at(-1)).toEqual({ name: "Fill the playbook from each call", trigger: { kind: "call_linked" }, actions: [{ kind: "playbook" }, { kind: "notify", to: "rep" }] }));
   });
 });

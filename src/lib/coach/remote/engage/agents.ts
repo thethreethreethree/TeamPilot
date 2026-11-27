@@ -2,6 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadDealCalls } from "../revenue/dealCalls";
 import { writeDealBrief } from "../revenue/dealBriefRun";
+import { reviewPlaybook } from "../revenue/playbookReview";
+import { REVIEW_CALLS, REVIEW_LINES } from "../revenue/playbook";
 import { hiddenFrom } from "../hidePhrases";
 import { webhooksConfigured } from "../webhooks";
 
@@ -19,8 +21,11 @@ export type Trigger =
   // 0389 (E8): dealRisk raises gone_quiet on an open deal (nightly, once per deal per quiet spell).
   | { kind: "deal_gone_quiet" }
   // 0390 (E11): an open deal's next call is booked for the company's tomorrow (nightly, once per deal and date).
-  | { kind: "next_call_tomorrow" };
-export type Action = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
+  | { kind: "next_call_tomorrow" }
+  // 0392 (E12): a call is added to a deal (right after the link; once per agent, deal and call).
+  | { kind: "call_linked" };
+// "playbook" (0392, E12; Gong F27.10): run the AI Deal Reviewer over the deal's calls the owner may hear.
+export type Action = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" } | { kind: "playbook" };
 export type StageEvent = { companyId: string; prospectId: string; status: string; label: string | null };
 
 /** Whether a stage change fires the trigger: every part the trigger names must match (stage names ignore case). Pure. */
@@ -119,6 +124,45 @@ export async function firstHeard(admin: SupabaseClient, companyId: string, sessi
   return ids.filter((id) => !before.has(id));
 }
 
+/** The fire key of a call-linked run (0392): the deal and the call. */
+export const callLinkedFireKey = (prospectId: string, sessionId: string) => `call:${prospectId}:${sessionId}`;
+
+/**
+ * 0392 (E12): a call was just linked to a deal — run the agents whose trigger is "a call is added to a deal". Once per
+ * agent, deal and call: the claim (agent_fires, 0383) is taken right before acting. A call hidden from the agent's owner
+ * never fires it (0337's rule, as the tracker trigger). Never throws: the link has already been saved.
+ */
+export async function runAgentsForCallLinked(admin: SupabaseClient, e: { companyId: string; prospectId: string; sessionId: string }): Promise<void> {
+  try {
+    const { data: agents, error } = await admin.from("agents").select("id, company_id, owner_id, name, trigger, actions").eq("company_id", e.companyId).eq("enabled", true).is("retired_at", null).limit(100);
+    if (error) {
+      console.error(`[agents] read failed company=${e.companyId}: ${error.message}`);
+      return;
+    }
+    const watching = ((agents ?? []) as AgentRow[]).filter((a) => a.trigger.kind === "call_linked");
+    for (const a of watching) {
+      let hidden: Set<string>;
+      try {
+        hidden = await hiddenFrom(admin, [e.sessionId], a.owner_id);
+      } catch {
+        console.error(`[agents] hidden check failed session=${e.sessionId} agent=${a.id}`);
+        continue;
+      }
+      if (hidden.has(e.sessionId)) continue;
+      const fireKey = callLinkedFireKey(e.prospectId, e.sessionId);
+      const claim = async () => {
+        const { error: cErr } = await admin.from("agent_fires").insert({ agent_id: a.id, fire_key: fireKey, company_id: e.companyId });
+        if (!cErr) return true;
+        if (cErr.code !== "23505") throw new Error(`claim failed: ${cErr.message}`);
+        return false;
+      };
+      await runAgent(admin, a, e.prospectId, false, { sessionId: e.sessionId, fireKey, claim });
+    }
+  } catch (err) {
+    console.error(`[agents] call-linked trigger failed session=${e.sessionId}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** Run one agent on one deal (test = say what would happen, without doing it). Returns the recorded result. */
 /**
  * `on.claim` (0383, the nightly job's date triggers): called once the deal is read and the owner may see it, right before
@@ -145,7 +189,7 @@ export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: s
   const results: ActionResult[] = [];
   for (const act of a.actions) {
     if (test) {
-      results.push({ kind: act.kind, ok: true, detail: act.kind === "brief" ? "Would write the deal brief." : act.kind === "notify" ? `Would notify the ${act.to === "rep" ? "deal's rep" : "agent's owner"}.` : act.kind === "todo" ? `Would add the to-do “${act.title}”.` : "Would send an agent.ran webhook." });
+      results.push({ kind: act.kind, ok: true, detail: act.kind === "brief" ? "Would write the deal brief." : act.kind === "notify" ? `Would notify the ${act.to === "rep" ? "deal's rep" : "agent's owner"}.` : act.kind === "todo" ? `Would add the to-do “${act.title}”.` : act.kind === "playbook" ? "Would read the playbook from the deal's calls." : "Would send an agent.ran webhook." });
       continue;
     }
     try {
@@ -170,6 +214,19 @@ async function doAction(admin: SupabaseClient, a: AgentRow, deal: { id: string; 
     if (r === "suppressed") return { kind: "brief", ok: true, detail: "The AI is off for this company; no brief written." };
     if (typeof r === "string") return { kind: "brief", ok: false, detail: "The brief couldn't be written." };
     return { kind: "brief", ok: true, detail: r.stored ? "The brief for these calls already existed." : "Wrote the deal brief." };
+  }
+  if (act.kind === "playbook") {
+    const dc = await loadDealCalls(admin, deal.id, { maxCalls: REVIEW_CALLS, maxLines: REVIEW_LINES });
+    if (dc === "failed") return { kind: "playbook", ok: false, detail: "Couldn't read the deal's calls." };
+    // Only the calls the owner may hear (a hide exempts the call's people and admins, 0337).
+    const hidden = await hiddenFrom(admin, dc.calls.map((c) => c.sessionId), a.owner_id);
+    const calls = dc.calls.filter((c) => !hidden.has(c.sessionId));
+    if (!calls.length) return { kind: "playbook", ok: true, detail: "No call transcripts yet; nothing to read." };
+    const r = await reviewPlaybook(admin, { companyId: a.company_id, prospectId: deal.id, actorId: a.owner_id, calls });
+    if (r === "no_playbook") return { kind: "playbook", ok: true, detail: "The company has no playbook yet; nothing to read." };
+    if (r === "suppressed") return { kind: "playbook", ok: true, detail: "The AI is off for this company; the playbook wasn't read." };
+    if (typeof r === "string") return { kind: "playbook", ok: false, detail: "The playbook couldn't be read." };
+    return { kind: "playbook", ok: true, detail: `Read the playbook: evidence for ${r.found} of ${r.of} element${r.of === 1 ? "" : "s"}.` };
   }
   if (act.kind === "notify") {
     const to = act.to === "rep" ? deal.rep_id : a.owner_id;

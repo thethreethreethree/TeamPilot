@@ -28,6 +28,7 @@
 | 2026-11-27 | Next batch | E7 people + stats API and usage report, E8 agent templates, E9 on-demand agents | Founder picker: "Yes: API + agents batch" |
 | 2026-11-27 | The "gone quiet" template's trigger | A fourth trigger kind, deal_gone_quiet (0389), fired nightly from dealRisk's gone_quiet verdict | The template in the picked batch needs a trigger that exists; consuming dealRisk's verdict keeps one rule for "quiet" (§2.2) |
 | 2026-11-27 | Next batch after the Gong P3 audit | E11 meeting-prep trigger (F13.6), with the revenue plan's phase 8 | Founder picker: "Deal-flow batch (Recommended)" |
+| 2026-11-27 | F27.10 AI data extractor | Mostly built already (0373's AI Deal Reviewer: cited answers per playbook element, rep validates); E12 adds running it automatically when a call is added, opt-in as an agent | P3 audit order after the deal-flow batch; an AI call per call only for companies that save the agent |
 | 2026-11-27 | Upload cost cap (E6) | At most 200 API uploads a day per key, counted before transcription | Review: the shared request limits didn't bound speech-to-text spend |
 | 2026-11-27 | Auto-score selection (F15.9) | Keep scoring every phone/video sales call with its channel's rubric | Founder picker (recommended) |
 

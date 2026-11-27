@@ -39,6 +39,13 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     actions: [{ kind: "brief" }, { kind: "notify", to: "rep" }],
   },
   {
+    key: "playbook_each_call",
+    name: "Fill the playbook from each call",
+    why: "When a call is added to a deal, the AI reads the deal's calls for each playbook element (with the lines it rests on) and the rep is told; the rep validates what's right.",
+    trigger: { kind: "call_linked" },
+    actions: [{ kind: "playbook" }, { kind: "notify", to: "rep" }],
+  },
+  {
     key: "gone_quiet",
     name: "Gone quiet",
     why: `When an open deal has had no call in ${QUIET_DAYS} days (or none at all after ${NEW_GRACE_DAYS} days in the pipeline), the rep is told and given a to-do to reach out.`,

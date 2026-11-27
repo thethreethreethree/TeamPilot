@@ -6,13 +6,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
-import { dealReviewCoach } from "@/lib/claude";
-import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
-import { numberedTranscript } from "@/lib/coach/remote/followThrough";
 import { loadDealCalls } from "@/lib/coach/remote/revenue/dealCalls";
 import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
+import { reviewPlaybook } from "@/lib/coach/remote/revenue/playbookReview";
 import {
-  allowed, DEAL_REVIEW_SYSTEM, parseReview, replayNotes, reviewPrompt, REVIEW_CALLS, REVIEW_LINES, withoutHiddenReads,
+  allowed, replayNotes, REVIEW_CALLS, REVIEW_LINES, withoutHiddenReads,
   type Element, type NoteEvent,
 } from "@/lib/coach/remote/revenue/playbook";
 
@@ -137,26 +135,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
   if (!dc.linked) return NextResponse.json({ error: "Link calls to this deal first — the reviewer reads its calls." }, { status: 409 });
   const calls = dc.calls;
   if (!calls.length) return NextResponse.json({ error: "This deal's calls have no transcripts to review yet." }, { status: 409 });
-  const ai = await dealReviewCoach({
-    companyId: ctx.companyId,
-    systemPrompt: DEAL_REVIEW_SYSTEM + CONVERSATION_IS_DATA,
-    userMessage: reviewPrompt(pb.elements, calls, numberedTranscript),
-    sessionId: calls[0]!.sessionId,
-  });
-  if (ai.suppressed) return NextResponse.json({ error: "The coach isn't answering on this account right now." }, { status: 409 });
-  const reads = ai.text.trim() ? parseReview(ai.text, pb.elements, calls) : null;
-  if (!reads) return NextResponse.json({ error: "The review didn't come back usable — try again." }, { status: 502 });
-  // Store only evidence (a cited line), and only where the note's state allows a new read (replayNotes is the rule).
-  const rows = reads
-    .map((read, element) => ({ read, element }))
-    .filter(({ read, element }) => read.cites.length > 0 && allowed(views[element]!.state, "ai_suggest"))
-    .map(({ read, element }) => ({ company_id: r.deal!.company_id, prospect_id: pid, playbook_id: pb.id, element, action: "ai_suggest", ai: read, actor_id: ctx.userId }));
-  if (rows.length) {
-    const { error } = await createAdminClient().from("deal_element_notes").insert(rows);
-    if (error) {
-      console.error(`[deal-playbook] review store failed deal=${pid}: ${error.message}`);
-      return NextResponse.json({ error: "The review ran but couldn't be saved — try again." }, { status: 500 });
-    }
-  }
-  return NextResponse.json({ ok: true, found: rows.length, of: pb.elements.length, calls: calls.length });
+  // One run, shared with the agent action (E12): pinned to the company, evidence-only, never over a person's note.
+  const rr = await reviewPlaybook(createAdminClient(), { companyId: r.deal.company_id, prospectId: pid, actorId: ctx.userId, calls });
+  if (rr === "suppressed") return NextResponse.json({ error: "The coach isn't answering on this account right now." }, { status: 409 });
+  if (rr === "unusable") return NextResponse.json({ error: "The review didn't come back usable — try again." }, { status: 502 });
+  if (rr === "no_playbook") return NextResponse.json({ error: "Your company hasn't chosen a playbook yet." }, { status: 409 });
+  if (rr === "failed") return NextResponse.json({ error: "The review ran but couldn't be saved — try again." }, { status: 500 });
+  return NextResponse.json({ ok: true, found: rr.found, of: rr.of, calls: rr.calls });
 }

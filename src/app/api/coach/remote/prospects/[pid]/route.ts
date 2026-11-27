@@ -9,7 +9,7 @@ import { readBody } from "@/lib/api/validate";
 import { isTaskClosed } from "@/lib/tasks/statusLabels";
 import { eventValue } from "@/lib/coach/remote/macroMode";
 import { AccountReadError, contactsOfDeal, DEAL_ROLES } from "@/lib/coach/remote/revenue/accounts";
-import { runAgentsForStage, stageChanged } from "@/lib/coach/remote/engage/agents";
+import { runAgentsForStage, runAgentsForCallLinked, stageChanged } from "@/lib/coach/remote/engage/agents";
 
 /**
  * /api/coach/remote/prospects/:pid — one prospect in the Remote Sales pipeline (Macro Mode, 0303).
@@ -159,6 +159,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
       // 0304: a call joins only the pipeline of the rep who took it.
       return NextResponse.json({ error: "Only a call this prospect's rep took can be linked to it." }, { status: 403 });
     }
+    // Engage plan E12 (0392): agents whose trigger is "a call is added to a deal", after the reply.
+    after(() => runAgentsForCallLinked(createAdminClient(), { companyId: String(p.company_id), prospectId: pid, sessionId: body.sessionId }));
     return NextResponse.json({ ok: true });
   }
 
