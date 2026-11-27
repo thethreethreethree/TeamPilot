@@ -33,7 +33,7 @@ doc_integrity:
   {
     "id": "§1.5.3",
     "source_file": "CLAUDE.md",
-    "line_range": "182-205",
+    "line_range": "174-197",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Fail loud: a claim table that can't be written stops sends with a 500.",
     "how_this_build_will_embody_it": "claimErrors → 500."
@@ -41,7 +41,7 @@ doc_integrity:
   {
     "id": "§0",
     "source_file": "CLAUDE.md",
-    "line_range": "10-20",
+    "line_range": "10-45",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Understand first: the close-date Save bug showed today's screens need their own render tests. Writing them for API keys and a deal's contacts found: revoking a key was one click and permanent; saving a contact's email re-posted the contact's role (an extra deal event each time) as a refresh.",
     "how_this_build_will_embody_it": "Revoke asks first; a plain reload replaces the re-post; render tests pin both."
@@ -49,7 +49,7 @@ doc_integrity:
   {
     "id": "§0.1",
     "source_file": "CLAUDE.md",
-    "line_range": "22-30",
+    "line_range": "22-45",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "The methodology must be in the tree and read this session.",
     "how_this_build_will_embody_it": "Read at read_at, after started_at."
@@ -57,7 +57,7 @@ doc_integrity:
   {
     "id": "§1.5",
     "source_file": "CLAUDE.md",
-    "line_range": "78-90",
+    "line_range": "69-74",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Holistic: the runner reuses listProspects (pinned), dealRisk, runAgent; drivers past and present share one rule.",
     "how_this_build_will_embody_it": "driversOf behind dealDrivers and driversFromSnapshots."
@@ -65,7 +65,7 @@ doc_integrity:
   {
     "id": "§1.5.1",
     "source_file": "CLAUDE.md",
-    "line_range": "92-150",
+    "line_range": "78-118",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Layer 4 / 2: an irreversible action (revoke) gets a confirm.",
     "how_this_build_will_embody_it": "Two-step revoke."
@@ -73,7 +73,7 @@ doc_integrity:
   {
     "id": "§1.5.2",
     "source_file": "CLAUDE.md",
-    "line_range": "152-180",
+    "line_range": "139-173",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Proactive review of today's changes; a test also caught a swapped-argument bug in the rewrite before commit.",
     "how_this_build_will_embody_it": "Test-first on the rewritten scan."
@@ -81,7 +81,7 @@ doc_integrity:
   {
     "id": "§2.2",
     "source_file": "CLAUDE.md",
-    "line_range": "260-280",
+    "line_range": "307-334",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "One matcher: which wordings are 'the same topic' is market.ts topicKey; SQL never re-derives it.",
     "how_this_build_will_embody_it": "The route computes the members with topicKey; the SQL only blanks the ones it is given."
@@ -89,7 +89,7 @@ doc_integrity:
   {
     "id": "§3.1",
     "source_file": "CLAUDE.md",
-    "line_range": "290-300",
+    "line_range": "339-346",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Events are immutable, so a junk event is permanent noise in the deal's history.",
     "how_this_build_will_embody_it": "Saving an email no longer writes a deal event."
@@ -97,7 +97,7 @@ doc_integrity:
   {
     "id": "§3.3",
     "source_file": "CLAUDE.md",
-    "line_range": "324-340",
+    "line_range": "368-379",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Agents act once per close date; the editor says it's checked each night.",
     "how_this_build_will_embody_it": "Editor copy."
@@ -105,7 +105,7 @@ doc_integrity:
   {
     "id": "§3.1.1",
     "source_file": "CLAUDE.md",
-    "line_range": "302-316",
+    "line_range": "347-362",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Legal erasure must reach every stored copy, including a retired group version the company can still read.",
     "how_this_build_will_embody_it": "Retirements are no longer filtered out."
@@ -113,7 +113,7 @@ doc_integrity:
   {
     "id": "§3.2",
     "source_file": "CLAUDE.md",
-    "line_range": "318-322",
+    "line_range": "363-367",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Nothing half-understood: a day with no record says so, never 'no warnings'.",
     "how_this_build_will_embody_it": "recorded: false → 'Nothing was recorded on …'."
@@ -121,7 +121,7 @@ doc_integrity:
   {
     "id": "§6",
     "source_file": "CLAUDE.md",
-    "line_range": "420-470",
+    "line_range": "450-473",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "The checklist before acting.",
     "how_this_build_will_embody_it": "Run in this record."
@@ -129,7 +129,7 @@ doc_integrity:
   {
     "id": "A19",
     "source_file": "ThinkerThinker.md",
-    "line_range": "455-459",
+    "line_range": "455-479",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "The methodology document must be read from the working tree this session, not recalled from cached labels.",
     "how_this_build_will_embody_it": "The teardown, evidence and migrations named in UNDERSTANDING were opened this session."
@@ -137,7 +137,7 @@ doc_integrity:
   {
     "id": "A22",
     "source_file": "ThinkerThinker.md",
-    "line_range": "594-598",
+    "line_range": "594-634",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "No citation without a session read.",
     "how_this_build_will_embody_it": "Every row was read at read_at."
@@ -145,7 +145,7 @@ doc_integrity:
   {
     "id": "A30",
     "source_file": "ThinkerThinker.md",
-    "line_range": "770-774",
+    "line_range": "770-792",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Views need security_invoker, or they read past RLS.",
     "how_this_build_will_embody_it": "accounts_current and contacts_current are security_invoker."
@@ -153,7 +153,7 @@ doc_integrity:
   {
     "id": "A31",
     "source_file": "ThinkerThinker.md",
-    "line_range": "793-800",
+    "line_range": "793-819",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Schema-complete isn't built: agents need a writer, a trigger point and a surface.",
     "how_this_build_will_embody_it": "Engage → Agents writes them; a stage change on a deal runs them; runs are listed."
@@ -161,7 +161,7 @@ doc_integrity:
   {
     "id": "A38",
     "source_file": "ThinkerThinker.md",
-    "line_range": "1001-1005",
+    "line_range": "1001-1025",
     "read_at": "2026-11-27T02:38:00Z",
     "why_it_governs": "Verified is a claim about a command that was run.",
     "how_this_build_will_embody_it": "check.md names each command with its result."

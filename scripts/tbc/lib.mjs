@@ -365,3 +365,26 @@ export function splitFindings(md) {
 export function newDirsWithoutThink(names, { hasThink, hasHistory }) {
   return names.filter((n) => !hasThink(n) && !hasHistory(n));
 }
+
+/**
+ * Where a cited id lives in a governing document (2026-11-27): its HEADING when it has one ("### 3.1 …", "## A19 …"),
+ * else its first exact mention. Exact: "3.1" never matches inside "3.1.1" (the old \b match did, so the stale-range
+ * note pointed at a mention of a different section). Returns a 1-based line, or 0 when the id isn't in the file.
+ */
+export function idHomeLine(lines, id) {
+  const bare = String(id).replace(/^§\s?/, "").trim();
+  const esc = bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // "## 0. The One Law" and "### 3.1 Data" are both headings for their id (a trailing dot, then a space or the end).
+  const heading = new RegExp(`^#{1,6}\\s+(§\\s?)?${esc}\\.?(?:\\s|$)`);
+  const mention = new RegExp(`(§\\s?)?${esc}(?!\\d)(?!\\.\\d)`);
+  const h = lines.findIndex((l) => heading.test(l));
+  if (h >= 0) return h + 1;
+  return lines.findIndex((l) => mention.test(l)) + 1;
+}
+
+/** The id, matched exactly (not as the start of a longer id), for range checks. */
+export function exactIdRe(id) {
+  const bare = String(id).replace(/^§\s?/, "").trim();
+  // Not followed by a digit, nor by "." and a digit: "0." and "3.1 " are the id; "3.1.1" is another.
+  return new RegExp(`(§\\s?)?${bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\d)(?!\\.\\d)`);
+}

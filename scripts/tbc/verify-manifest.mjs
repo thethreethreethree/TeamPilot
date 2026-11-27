@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { readdirSync } from "node:fs";
 import {
   REPO, exists, read, run, currentBuildDir, sessionCommitMessages,
-  extractCitations, normaliseId, frontMatter, jsonBlocks, rawJsonBlocks, loadAllowlist, repoRel,
+  extractCitations, normaliseId, frontMatter, jsonBlocks, rawJsonBlocks, loadAllowlist, repoRel, idHomeLine, exactIdRe,
 } from "./lib.mjs";
 
 // §3.1.2 — "Minimum set, always"
@@ -127,11 +127,13 @@ run("tbc:manifest", (r) => {
       continue;
     }
     const m = String(e.line_range).match(/^(\d+)\s*-\s*(\d+)$/);
+    // Exact match (2026-11-27): "3.1" in range must be §3.1, not §3.1.1; the note points at the id's heading.
+    const exact = exactIdRe(e.id);
     const inRange = m &&
       Number(m[1]) >= 1 && Number(m[2]) <= lines.length && Number(m[1]) <= Number(m[2]) &&
-      idRe.test(lines.slice(Number(m[1]) - 1, Number(m[2])).join("\n"));
+      exact.test(lines.slice(Number(m[1]) - 1, Number(m[2])).join("\n"));
     if (!inRange) {
-      const actual = lines.findIndex((l) => idRe.test(l)) + 1;
+      const actual = idHomeLine(lines, e.id);
       r.note(
         `${e.id}: line_range ${e.line_range} is stale — the id now lives near line ${actual} ` +
         `in ${e.source_file}. Advisory (F5); re-point when convenient.`);
