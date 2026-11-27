@@ -535,7 +535,7 @@ function AgentEditor({ onSaved, onCancel }: { onSaved: () => void; onCancel: () 
         <label className="flex items-center gap-1"><input type="checkbox" checked={webhook} onChange={(e) => setWebhook(e.currentTarget.checked)} /> Send an agent.ran webhook (to webhooks listening for it, on Protection)</label>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={!name.trim() || (when === "stage" ? !status && !label.trim() : !trackerId) || actions.length === 0} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Save agent</button>
+        <button type="button" disabled={!name.trim() || (when === "stage" ? !status && !label.trim() : when === "tracker" ? !trackerId : false) || actions.length === 0} onClick={() => void save()} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Save agent</button>
         <button type="button" onClick={onCancel} className="px-2 text-muted hover:text-primary">Cancel</button>
       </div>
       {err && <p className="text-amber-700 dark:text-amber-300">{err}</p>}
