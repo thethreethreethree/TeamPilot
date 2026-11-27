@@ -12,9 +12,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 const KEY = { id: "k1", name: "Warehouse", prefix: "els_abc123", scopes: ["read"], createdAt: "2026-11-27T00:00:00Z", revokedAt: null, requests24h: 3, lastUsedAt: null };
-function serve(status = 200) {
+function serve(status = 200, usage: unknown = { days: 7, lines: [], partial: false }) {
   const posts: Array<Record<string, unknown>> = [];
-  vi.stubGlobal("fetch", vi.fn(async (_u: string, init?: RequestInit) => {
+  vi.stubGlobal("fetch", vi.fn(async (u: string, init?: RequestInit) => {
+    if (String(u).endsWith("/usage")) return usage === "fail" ? new Response("{}", { status: 500 }) : new Response(JSON.stringify(usage));
     if (init?.method === "POST") {
       const b = JSON.parse(String(init.body)) as Record<string, unknown>;
       posts.push(b);
@@ -56,5 +57,17 @@ describe("ApiKeysPanel", () => {
     serve(500);
     render(<ApiKeysPanel />);
     expect(await screen.findByText(/Couldn.t load API keys/)).toBeTruthy();
+  });
+  it("usage (E7): the week by key and route, partial said aloud; a failed read says so", async () => {
+    serve(200, { days: 7, lines: [{ keyId: "k1", route: "/api/v1/deals", requests: 1200, errors: 4, limited: 2 }], partial: true });
+    render(<ApiKeysPanel />);
+    expect(await screen.findByText("Usage, last 7 days")).toBeTruthy();
+    expect(screen.getByText("/api/v1/deals")).toBeTruthy();
+    expect(screen.getByText((1200).toLocaleString())).toBeTruthy();
+    expect(screen.getByText(/newest 50,000 requests only/)).toBeTruthy();
+    cleanup();
+    serve(200, "fail");
+    render(<ApiKeysPanel />);
+    expect(await screen.findByText(/Couldn.t load API usage/)).toBeTruthy();
   });
 });

@@ -7,6 +7,7 @@ import { Copy, KeyRound } from "lucide-react";
  * Protection → API keys (Engage plan E3, 0378; Gong M31). Company admins make read-only keys for outside tools (and, with
  * "MCP", for AI assistants). A key is shown once; only its hash is kept. Each row says its use in the last 24 hours.
  */
+type UsageLine = { keyId: string; route: string; requests: number; errors: number; limited: number };
 type Key = { id: string; name: string; prefix: string; scopes: string[]; createdAt: string; revokedAt: string | null; requests24h: number; lastUsedAt: string | null };
 
 export function ApiKeysPanel() {
@@ -20,7 +21,16 @@ export function ApiKeysPanel() {
   const [msg, setMsg] = useState<string | null>(null);
   // Revoking can't be undone and stops an outside tool at once, so it asks first.
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  // Engage plan E7 (Gong F31.9): the last 7 days by key and route. Loaded with the keys; a failure says so on its own line.
+  const [usage, setUsage] = useState<{ lines: UsageLine[]; partial: boolean } | "failed" | null>(null);
   const load = useCallback(async () => {
+    void fetch("/api/coach/remote/settings/api-keys/usage", { cache: "no-store" })
+      .then(async (r) => {
+        if (r.status === 403) return;
+        const j = r.ok ? ((await r.json()) as { lines?: unknown; partial?: unknown }) : null;
+        setUsage(j && Array.isArray(j.lines) ? { lines: j.lines as UsageLine[], partial: j.partial === true } : "failed");
+      })
+      .catch(() => setUsage("failed"));
     try {
       const r = await fetch("/api/coach/remote/settings/api-keys", { cache: "no-store" });
       if (r.status === 403) return setState("hidden");
@@ -99,6 +109,28 @@ export function ApiKeysPanel() {
             </li>
           ))}
         </ul>
+      )}
+      {usage === "failed" ? <p className="mt-2 text-secondary">Couldn&apos;t load API usage. Refresh to try again.</p> : usage && keys && keys.length > 0 && (
+        <div className="mt-3">
+          <h4 className="font-semibold text-primary">Usage, last 7 days</h4>
+          {usage.lines.length === 0 ? <p className="mt-1 text-secondary">No requests in the last 7 days.</p> : (
+            <table className="mt-1 w-full text-left">
+              <thead className="text-muted"><tr><th className="py-0.5 font-medium">Key</th><th className="font-medium">Route</th><th className="text-right font-medium">Requests</th><th className="text-right font-medium">Errors</th><th className="text-right font-medium" title="Refused for more than 3 a second">Too fast</th></tr></thead>
+              <tbody>
+                {usage.lines.map((l) => (
+                  <tr key={`${l.keyId} ${l.route}`} className="border-t border-default">
+                    <td className="py-0.5 text-primary">{keys.find((k) => k.id === l.keyId)?.name ?? "A key"}</td>
+                    <td><code className="text-secondary">{l.route}</code></td>
+                    <td className="text-right text-primary">{l.requests.toLocaleString()}</td>
+                    <td className="text-right text-secondary">{l.errors.toLocaleString()}</td>
+                    <td className="text-right text-secondary">{l.limited.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {usage.partial && <p className="mt-1 text-muted">Counts cover the newest 50,000 requests only; the week had more.</p>}
+        </div>
       )}
     </section>
   );

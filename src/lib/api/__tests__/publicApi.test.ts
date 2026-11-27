@@ -14,6 +14,8 @@ const st = vi.hoisted(() => ({
   maker: { role: "CEO", status: "active" } as Record<string, unknown> | null,
   audit: [] as unknown[],
   lt: null as unknown,
+  stats: [] as unknown[],
+  people: [] as unknown[],
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenInCompanyFrom: vi.fn(async () => st.hidden) }));
@@ -24,9 +26,9 @@ vi.mock("@/lib/supabase/admin", () => ({
       for (const m of ["select", "order", "in", "gte"]) q[m] = () => q;
       q.eq = (col: string, v: unknown) => (st.eqs.push([table, col, v]), q);
       q.maybeSingle = async () => ({ data: table === "api_keys" ? st.key : table === "profiles" ? st.maker : null, error: null });
-      q.range = async () => ({ data: table === "coaching_sessions" ? st.sessions : table === "audit_log" ? st.audit : [], error: null });
+      q.range = async () => ({ data: table === "coaching_sessions" ? st.sessions : table === "audit_log" ? st.audit : table === "session_interaction_stats" ? st.stats : table === "profiles" ? st.people : [], error: null });
       q.lt = (_c: string, v: unknown) => ((st.lt = v), q);
-      q.limit = async () => ({ data: table === "audit_log" ? st.audit : [], error: null });
+      q.limit = async () => ({ data: table === "audit_log" ? st.audit : table === "profiles" ? st.people : [], error: null });
       q.then = (r: (v: unknown) => unknown) => r({ data: null, error: null, count: st.dayCount });
       q.insert = async (row: unknown) => (st.usage.push(row), { error: null });
       return q;
@@ -48,6 +50,8 @@ beforeEach(() => {
   st.sessions = [];
   st.hidden = new Set();
   st.usage = [];
+  st.stats = [];
+  st.people = [];
 });
 
 describe("public API keys", () => {
@@ -125,5 +129,32 @@ describe("public API keys", () => {
     await readResource(req("/api/v1/audit?before=100&limit=10"), "audit");
     expect(st.lt).toBe(100);
   });
+  it("people (E7): pinned to the key's company, and no way to reach them in the answer", async () => {
+    st.key = { ...st.key!, id: "k-users-1" };
+    st.people = [{ id: "u1", full_name: "Ana", role: "Member", sales_coach_role: "rep", status: "active", manager_id: "m1", created_at: "t" }];
+    const r = await readResource(req("/api/v1/users"), "users");
+    expect(r.status).toBe(200);
+    expect(st.eqs).toContainEqual(["profiles", "company_id", "co1"]);
+    const j = await r.json();
+    expect(j.data).toEqual([{ id: "u1", name: "Ana", role: "Member", salesCoachRole: "rep", status: "active", managerId: "m1", createdAt: "t" }]);
+    expect(JSON.stringify(j)).not.toMatch(/email|phone/i);
+  });
+  it("stats (E7): 7/30/90 days only; pinned; a call with an active hide is left out; latest transcript version counts", async () => {
+    st.key = { ...st.key!, id: "k-stats-1" };
+    expect((await readResource(req("/api/v1/stats?days=14"), "stats")).status).toBe(400);
+    st.key = { ...st.key!, id: "k-stats-2" };
+    const row = (session_id: string, rep_id: string, v: number, talk: number) => ({ id: 1, session_id, rep_id, transcript_version: v, talk_ratio_time: talk, longest_rep_monologue_ms: null, longest_customer_story_ms: null, interactivity: null, patience_ms: null, rep_questions_per_hour: null });
+    st.stats = [row("s1", "r1", 1, 0.9), row("s1", "r1", 2, 0.5), row("s2", "r1", 1, 0.7), row("hid", "r1", 1, 0.1)];
+    st.hidden = new Set(["hid"]);
+    st.people = [{ id: "r1", full_name: "Ana" }];
+    const r = await readResource(req("/api/v1/stats?days=7"), "stats");
+    expect(r.status).toBe(200);
+    expect(st.eqs).toContainEqual(["session_interaction_stats", "company_id", "co1"]);
+    const j = await r.json();
+    expect(j.days).toBe(7);
+    expect(j.reps).toEqual([expect.objectContaining({ repId: "r1", name: "Ana", calls: 2 })]);
+    expect(j.reps[0].talkRatioTime).toBeCloseTo(0.6);
+    expect(j.team.calls).toBe(2);
+    st.hidden = new Set();
+  });
 });
-

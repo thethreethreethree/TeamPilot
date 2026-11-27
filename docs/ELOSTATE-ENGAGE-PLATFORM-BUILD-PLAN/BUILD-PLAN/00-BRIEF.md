@@ -26,6 +26,7 @@
 | 2026-11-27 | Which voice is the rep on an API call (E10) | The rep picks it in the app | Founder picker (recommended) |
 | 2026-11-27 | How an API call's file arrives (E6) | A signed upload straight to storage, then finalize; multipart only under ~4 MB | Review: Vercel refuses request bodies over ~4.5 MB, so a one-request upload failed for any call past ~5 minutes (the app's own upload works the same way for the same reason) |
 | 2026-11-27 | Next batch | E7 people + stats API and usage report, E8 agent templates, E9 on-demand agents | Founder picker: "Yes: API + agents batch" |
+| 2026-11-27 | The "gone quiet" template's trigger | A fourth trigger kind, deal_gone_quiet (0389), fired nightly from dealRisk's gone_quiet verdict | The template in the picked batch needs a trigger that exists; consuming dealRisk's verdict keeps one rule for "quiet" (§2.2) |
 | 2026-11-27 | Upload cost cap (E6) | At most 200 API uploads a day per key, counted before transcription | Review: the shared request limits didn't bound speech-to-text spend |
 | 2026-11-27 | Auto-score selection (F15.9) | Keep scoring every phone/video sales call with its channel's rubric | Founder picker (recommended) |
 

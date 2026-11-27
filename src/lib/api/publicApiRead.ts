@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { isAdminRole } from "@/lib/roles";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
+import { teamCallStats, type StatRow } from "@/lib/coach/remote/teamStats";
 import { authenticateApiKey, OUTSIDE_READER, paging, recordApiUsage } from "./publicApi";
 
 /**
@@ -10,7 +12,7 @@ import { authenticateApiKey, OUTSIDE_READER, paging, recordApiUsage } from "./pu
  * company (the service role bypasses RLS, so this filter is the tenant boundary), lists are ordered by a unique key
  * last, and calls with an active hide are left out (OUTSIDE_READER). No transcripts leave through this API.
  */
-export type Resource = "deals" | "accounts" | "contacts" | "calls" | "audit";
+export type Resource = "deals" | "accounts" | "contacts" | "calls" | "audit" | "users" | "stats";
 
 export async function readResource(req: Request, resource: Resource): Promise<NextResponse> {
   const route = `/api/v1/${resource}`;
@@ -43,6 +45,54 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
     const { data, error } = await admin.from("contacts_current").select("id, name, title, account_id, email, phone, created_at").eq("company_id", caller.companyId).order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to);
     if (error) return done({ error: "Couldn't read contacts." }, 500);
     return done({ data: (data ?? []).map((c) => ({ id: c.id, name: c.name, title: c.title, accountId: c.account_id, email: c.email, phone: c.phone, createdAt: c.created_at })), page, limit });
+  }
+  if (resource === "users") {
+    // The company's people (Engage plan E7; Gong F31.2): who they are in EloState, not how to reach them (no email here).
+    const { data, error } = await admin.from("profiles").select("id, full_name, role, sales_coach_role, status, manager_id, created_at").eq("company_id", caller.companyId).order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to);
+    if (error) return done({ error: "Couldn't read people." }, 500);
+    return done({ data: (data ?? []).map((u) => ({ id: u.id, name: u.full_name, role: u.role, salesCoachRole: u.sales_coach_role, status: u.status, managerId: u.manager_id, createdAt: u.created_at })), page, limit });
+  }
+  if (resource === "stats") {
+    // Per rep and team: calls and the interaction stats over 7 / 30 / 90 days (Engage plan E7; Gong F31.2) — the same
+    // averages as the app's Team stats (teamCallStats, one rule), phone and video calls only, a call with an active hide
+    // left out (OUTSIDE_READER), as everywhere in this API.
+    const days = Number(url.searchParams.get("days") ?? 30);
+    if (![7, 30, 90].includes(days)) return done({ error: "`days` is 7, 30 or 90." }, 400);
+    const since = new Date(Date.now() - days * 86_400_000).toISOString();
+    let hiddenS: Set<string>;
+    try {
+      hiddenS = await hiddenInCompanyFrom(admin, caller.companyId, OUTSIDE_READER);
+    } catch {
+      return done({ error: "Couldn't read stats." }, 500);
+    }
+    type R = { id: number; session_id: string; rep_id: string; transcript_version: number; talk_ratio_time: number | null; longest_rep_monologue_ms: number | null; longest_customer_story_ms: number | null; interactivity: number | null; patience_ms: number | null; rep_questions_per_hour: number | null };
+    const { data, error } = await fetchAllPagedResult<R>(
+      (f, t) =>
+        admin
+          .from("session_interaction_stats")
+          .select("id, session_id, rep_id, transcript_version, talk_ratio_time, longest_rep_monologue_ms, longest_customer_story_ms, interactivity, patience_ms, rep_questions_per_hour, coaching_sessions!inner(started_at, context)")
+          .eq("company_id", caller.companyId)
+          .gte("coaching_sessions.started_at", since)
+          .in("coaching_sessions.context", ["phone", "video"])
+          .order("id", { ascending: true })
+          .range(f, t),
+      { label: "api stats", maxRows: 50_000 },
+    );
+    if (error) return done({ error: "Couldn't read stats." }, 500);
+    const { data: people, error: pErr } = await fetchAllPagedResult<{ id: string; full_name: string | null }>(
+      (f, t) => admin.from("profiles").select("id, full_name").eq("company_id", caller.companyId).order("id", { ascending: true }).range(f, t),
+      { label: "api stats names", maxRows: 20_000 },
+    );
+    if (pErr) return done({ error: "Couldn't read stats." }, 500);
+    const names = new Map(((people ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [String(p.id), p.full_name ?? "Unnamed teammate"]));
+    const num = (v: unknown) => (v == null ? null : Number(v));
+    const rows: StatRow[] = (data ?? []).filter((r) => !hiddenS.has(String(r.session_id))).map((r) => ({
+      sessionId: String(r.session_id), repId: String(r.rep_id), version: Number(r.transcript_version),
+      talkRatioTime: num(r.talk_ratio_time), longestRepMonologueMs: num(r.longest_rep_monologue_ms), longestCustomerStoryMs: num(r.longest_customer_story_ms),
+      interactivity: num(r.interactivity), patienceMs: num(r.patience_ms), repQuestionsPerHour: num(r.rep_questions_per_hour),
+    }));
+    const stats = teamCallStats(rows, names);
+    return done({ days, reps: stats.reps, team: stats.team, note: "Phone and video calls; calls with an active hide are left out." });
   }
   if (resource === "audit") {
     // The audit log (0284; Gong F31.5) is for company admins: the key's maker must still be one (a key outlives a role
