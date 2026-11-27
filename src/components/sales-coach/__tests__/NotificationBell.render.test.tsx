@@ -494,3 +494,13 @@ describe("NotificationBell — searches you follow (F12.7, 2026-11-26)", () => {
     expect(screen.getByRole("link", { name: /50\+ new calls match “Busy”/ }).getAttribute("href")).toBe("/dashboard/remote-sales/search?saved=s1");
   });
 });
+
+describe("the forecast reminder (0391; F22.4)", () => {
+  it("says the quarter is due today and opens the forecast board", async () => {
+    respond([{ id: "n9", agent_id: "me", session_id: null, type: "forecast_due", payload: { period: "2026-Q4" }, created_at: new Date().toISOString(), read_at: null }]);
+    render(<NotificationBell />);
+    await openBell();
+    const line = await screen.findByText(/Your forecast for 2026 Q4 is due today/);
+    expect(line.closest("a")?.getAttribute("href")).toBe("/dashboard/remote-sales/pipeline?view=forecast");
+  });
+});

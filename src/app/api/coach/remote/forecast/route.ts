@@ -17,6 +17,8 @@ import { periodRange, shiftPeriod } from "@/lib/coach/remote/revenue/forecast";
  *   POST { kind: "submit", period, category, amount } → the caller's number; the open deals behind it (the
  *        caller's own, expected to close in that quarter) are read here from their pipeline and stored with it, so each
  *        submission is the snapshot accuracy is measured from.
+ *   POST { kind: "due_day", weekday } → the weekday forecasts are due (0391; company admins). GET carries
+ *        dueWeekday and canSetDue.
  *   POST { kind: "target", period, userId, amount } → a target (an admin or Sales Coach manager, for themselves or a rep
  *        the tree allows: 0376's policy is the gate).
  */
@@ -25,6 +27,8 @@ const Body = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("submit"), period: z.string().regex(PERIOD), category: z.enum(["commit", "best_case"]), amount: z.number().min(0).max(1e12) }),
   // team (0386, revenue phase 7): the target is for userId's team (their reporting tree), not for them alone.
   z.object({ kind: z.literal("target"), period: z.string().regex(PERIOD), userId: z.string().uuid(), amount: z.number().min(0).max(1e12), team: z.boolean().optional() }),
+  // 0391 (revenue phase 8; Gong F22.4): the weekday forecasts are due (0 Sunday … 6 Saturday). Company admins only.
+  z.object({ kind: z.literal("due_day"), weekday: z.number().int().min(0).max(6) }),
 ]);
 
 export async function GET(req: NextRequest) {
@@ -45,12 +49,17 @@ export async function GET(req: NextRequest) {
     console.error(`[forecast] read failed company=${ctx.companyId}: ${(subs.error ?? targets.error)?.message}`);
     return NextResponse.json({ error: "Couldn't load the forecast." }, { status: 500 });
   }
+  // 0391: the company's due weekday (Monday when unset or unreadable — the board says it either way).
+  const { data: co } = await db.from("companies").select("forecast_due_weekday").eq("id", ctx.companyId).maybeSingle();
+  const dueWeekday = typeof co?.forecast_due_weekday === "number" ? co.forecast_due_weekday : 1;
   // The latest target per person (or team), and quarter.
   const t = new Map<string, { userId: string; period: string; amount: number; team?: boolean }>();
   for (const x of targets.data ?? []) t.set(`${x.user_id}|${x.period}|${x.for_team ? "team" : "person"}`, { userId: x.user_id, period: x.period, amount: Number(x.amount), ...(x.for_team ? { team: true } : {}) });
   return NextResponse.json({
     period,
     viewerId: ctx.userId,
+    dueWeekday,
+    canSetDue: ctx.isAdmin,
     submissions: (subs.data ?? []).map((x) => ({
       userId: x.user_id, period: x.period, category: x.category, amount: Number(x.amount), createdAt: x.created_at,
       // The open deals behind the number when it was submitted (F22.3); names come from the deals the reader can see.
@@ -68,6 +77,16 @@ export async function POST(req: NextRequest) {
   const body = await readBody(req, Body);
   if (body instanceof NextResponse) return body;
   const db = callerScopedDb(req) ?? (await createClient());
+  if (body.kind === "due_day") {
+    // Company admins (isAdminRole), as 0391's guard trigger enforces again in the database.
+    if (!ctx.isAdmin) return NextResponse.json({ error: "Only a company admin can change when forecasts are due." }, { status: 403 });
+    const { error } = await db.from("companies").update({ forecast_due_weekday: body.weekday }).eq("id", ctx.companyId);
+    if (error) {
+      console.error(`[forecast] due day failed company=${ctx.companyId}: ${error.message}`);
+      return NextResponse.json({ error: "Couldn't save the due day." }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
   if (body.kind === "target") {
     // A team target is the caller's own team's (review 2026-11-27): a manager sets theirs; one on a rep means nothing.
     if (body.team && body.userId !== ctx.userId) return NextResponse.json({ error: "A team target is set for your own team." }, { status: 400 });

@@ -72,5 +72,22 @@ describe("ForecastBoard", () => {
     expect(screen.queryByText(/of team target/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Set team target|4,000/ })).toBeNull();
   });
+  it("the due day (0391): read-only for most; an admin picks it and it's saved", async () => {
+    const posts: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_u: string, init?: RequestInit) => {
+      if (init?.method === "POST") return (posts.push(JSON.parse(String(init.body))), new Response(JSON.stringify({ ok: true })));
+      return new Response(JSON.stringify({ period: "2026-Q4", viewerId: "me", submissions: [], targets: [], dueWeekday: 4, canSetDue: false }));
+    }));
+    render(<ForecastBoard deals={deals} people={["me"]} isManager={false} nameOf={() => null} today="2026-11-27" />);
+    expect(await screen.findByText("Due every Thursday")).toBeTruthy();
+    expect(screen.queryByLabelText("Forecast due day")).toBeNull();
+    cleanup();
+    vi.stubGlobal("fetch", vi.fn(async (_u: string, init?: RequestInit) => {
+      if (init?.method === "POST") return (posts.push(JSON.parse(String(init.body))), new Response(JSON.stringify({ ok: true })));
+      return new Response(JSON.stringify({ period: "2026-Q4", viewerId: "me", submissions: [], targets: [], dueWeekday: 1, canSetDue: true }));
+    }));
+    render(<ForecastBoard deals={deals} people={["me"]} isManager nameOf={() => null} today="2026-11-27" />);
+    fireEvent.change(await screen.findByLabelText("Forecast due day"), { target: { value: "5" } });
+    await vi.waitFor(() => expect(posts).toEqual([{ kind: "due_day", weekday: 5 }]));
+  });
 });
-

@@ -149,7 +149,8 @@ and "What you represent" (ai_product_context).
   scenario stage tags offer the company list · six-hour recording cap · /api/v1/audit · topic sections on request ·
   team revenue targets (Revenue phase 7) · upload a call by API, the rep picks their voice (Engage E6/E10) · people and team stats in the API, the
   API usage report by key and route (Engage E7) · agent templates and a gone-quiet trigger (Engage E8) · on-demand agents in the deal's
-  Ask box (Engage E9) · a deal's field history (revenue phase 8) · meeting prep agents (Engage E11).
+  Ask box (Engage E9) · a deal's field history (revenue phase 8) · meeting prep agents (Engage E11) · forecast due day and
+  bell reminder (revenue phase 8).
   Founder pickers recorded in both plans' decisions logs. To check next: the nightly job's first run (05:15 UTC
   2026-11-28) and one API upload with a real key and file. Still open by decision or outside setting: OPEN.md
   "Filed by the Gong P1/P2 gap audit".

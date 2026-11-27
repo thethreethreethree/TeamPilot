@@ -10,10 +10,13 @@ const st = vi.hoisted(() => ({
   inserts: [] as Array<{ table: string; row: Record<string, unknown> }>,
   insertError: null as { code?: string; message: string } | null,
   targets: [] as unknown[],
+  isAdmin: false,
+  due: 1 as number | null,
+  updates: [] as Array<{ table: string; row: Record<string, unknown>; eqs: Array<[string, unknown]> }>,
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
-vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "u1", companyId: "co1" })) }));
+vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "u1", companyId: "co1", isAdmin: st.isAdmin })) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/coach/remote/prospects", () => ({ listProspects: vi.fn(async () => st.pipeline) }));
 vi.mock("@/lib/api/callerScopedDb", () => ({
@@ -25,6 +28,15 @@ vi.mock("@/lib/api/callerScopedDb", () => ({
       q.range = (f: number, t: number) => ((win = [f, t]), q);
       q.then = (r: (v: unknown) => unknown) => r({ data: (table === "forecast_targets" ? st.targets : []).slice(win[0], win[1] + 1), error: null });
       q.insert = async (row: Record<string, unknown>) => (st.inserts.push({ table, row }), { error: st.insertError });
+      const eqs: Array<[string, unknown]> = [];
+      q.eq = (c: string, v: unknown) => (eqs.push([c, v]), q);
+      q.maybeSingle = async () => ({ data: table === "companies" ? { forecast_due_weekday: st.due } : null, error: null });
+      q.update = (row: Record<string, unknown>) => {
+        const u = { table, row, eqs: [] as Array<[string, unknown]> };
+        st.updates.push(u);
+        const w: Record<string, unknown> = { eq: (c: string, v: unknown) => (u.eqs.push([c, v]), Promise.resolve({ error: null })) };
+        return w;
+      };
       return q;
     },
   }),
@@ -37,6 +49,9 @@ beforeEach(() => {
   st.inserts = [];
   st.insertError = null;
   st.targets = [];
+  st.isAdmin = false;
+  st.due = 1;
+  st.updates = [];
 });
 
 describe("forecast", () => {
@@ -85,5 +100,15 @@ describe("forecast", () => {
     const r = await post({ kind: "target", period: "2026-Q4", userId: "22222222-2222-4222-8222-222222222222", amount: 1, team: true });
     expect(r.status).toBe(400);
   });
+  it("the due day (0391): GET says it and whether you may change it; only an admin sets it, pinned to their company", async () => {
+    st.due = 3;
+    const g = await (await GET(new NextRequest("http://x/api?period=2026-Q4"))).json();
+    expect(g).toMatchObject({ dueWeekday: 3, canSetDue: false });
+    expect((await post({ kind: "due_day", weekday: 5 })).status).toBe(403);
+    expect(st.updates).toEqual([]);
+    st.isAdmin = true;
+    expect((await post({ kind: "due_day", weekday: 5 })).status).toBe(200);
+    expect(st.updates).toEqual([{ table: "companies", row: { forecast_due_weekday: 5 }, eqs: [["id", "co1"]] }]);
+    expect((await post({ kind: "due_day", weekday: 7 })).status).toBe(400);
+  });
 });
-

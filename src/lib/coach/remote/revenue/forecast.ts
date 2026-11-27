@@ -5,6 +5,8 @@
  * moment ÷ what actually closed by the quarter's end, coloured as Gong's (green 85–115%). Pure, so it is tested.
  */
 export type Category = "commit" | "best_case";
+/** Forecast due day names (0391), indexed 0 Sunday … 6 Saturday as companies.forecast_due_weekday. */
+export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 export type Submission = { userId: string; period: string; category: Category; amount: number; createdAt: string; deals?: Array<{ id: string; amount: number | null }> };
 export type FDeal = { id?: string; name?: string | null; repId: string; status: "open" | "won" | "lost"; amount: number | null; closeDate?: string | null; closedAt?: string | null };
 

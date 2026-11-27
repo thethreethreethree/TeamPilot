@@ -4,6 +4,7 @@ import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { dealRisk } from "../dealRisk";
 import { listProspects, type ProspectRow } from "../prospects";
 import { runAgent, type AgentRow } from "../engage/agents";
+import { sendForecastReminders } from "./forecastReminders";
 
 /**
  * The nightly revenue job (0382; revenue plan Phase 3a "nightly" warnings and Phase 4 drivers over 30 / 90 days; Engage
@@ -16,7 +17,7 @@ import { runAgent, type AgentRow } from "../engage/agents";
  * Each company is dated by its own timezone.
  * Runs only from the cron route (CRON_SECRET). A company whose read fails is counted and skipped, never half-written.
  */
-export type DailyResult = { companies: number; snapshots: number; failedCompanies: number; fired: number; remaining?: number; lookupFailed?: boolean };
+export type DailyResult = { companies: number; snapshots: number; failedCompanies: number; fired: number; reminded?: number; remaining?: number; lookupFailed?: boolean };
 
 const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
@@ -108,8 +109,8 @@ export const RUN_BUDGET_MS = 200_000;
  */
 export async function runRevenueDaily(admin: SupabaseClient, now: Date, budgetMs = RUN_BUDGET_MS): Promise<DailyResult> {
   const started = Date.now();
-  const res: DailyResult = { companies: 0, snapshots: 0, failedCompanies: 0, fired: 0, remaining: 0 };
-  const { data: cos, error } = await fetchAllPagedResult<{ id: string; timezone: string | null }>((f, t) => admin.from("companies").select("id, timezone").order("id").range(f, t), { label: "companies" });
+  const res: DailyResult = { companies: 0, snapshots: 0, failedCompanies: 0, fired: 0, reminded: 0, remaining: 0 };
+  const { data: cos, error } = await fetchAllPagedResult<{ id: string; timezone: string | null; forecast_due_weekday?: number | null }>((f, t) => admin.from("companies").select("id, timezone, forecast_due_weekday").order("id").range(f, t), { label: "companies" });
   if (error) return { ...res, lookupFailed: true };
   for (const co of cos ?? []) {
     if (Date.now() - started > budgetMs) {
@@ -121,6 +122,11 @@ export async function runRevenueDaily(admin: SupabaseClient, now: Date, budgetMs
       const { count, error: cErr } = await admin.from("deal_warning_snapshots").select("id", { count: "exact", head: true }).eq("company_id", co.id).eq("day", day);
       if (cErr) throw new Error(cErr.message);
       if ((count ?? 0) > 0) continue; // done by an earlier run today
+      // 0391 (F22.4): the forecast reminder on the company's due day — before the deals, which it doesn't need. Claimed
+      // per person and date, so a later slot re-running a company with no deals never sends it twice.
+      const reminded = await sendForecastReminders(admin, co.id, day, co.forecast_due_weekday ?? 1);
+      if (reminded === null) throw new Error("forecast reminders failed");
+      res.reminded! += reminded;
       const deals = await listProspects(admin, undefined, { companyId: co.id, sentiment: true });
       if (deals === null) throw new Error("deals read failed");
       if (!deals.length) continue;

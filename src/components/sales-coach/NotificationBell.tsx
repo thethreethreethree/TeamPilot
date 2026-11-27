@@ -56,10 +56,13 @@ type Notif = {
     | "call_scored"
     | "call_access_granted"
     | "agent_ran"
-    | "call_needs_voice";
+    | "call_needs_voice"
+    | "forecast_due";
   pattern_id?: string | null;
   payload: {
     agent_name?: string | null;
+    /** 0391 forecast_due: the quarter the reminder is for. */
+    period?: string;
     /** 0379 agent_ran: the deal the agent acted on. */
     deal_id?: string;
     total?: number;
@@ -162,6 +165,11 @@ function text(n: Notif): string {
     return `An admin gave ${who} access to your call${label}`;
   }
   // Engage plan E5 (0379): an agent acted on a deal (it wrote the brief, added a to-do, ...).
+  // Revenue phase 8 (0391; F22.4): today is the company's forecast due day and this person hasn't submitted this week.
+  if (n.type === "forecast_due") {
+    const period = typeof n.payload.period === "string" ? ` for ${n.payload.period.replace("-", " ")}` : "";
+    return `Your forecast${period} is due today — open the forecast board and submit your Commit and Best case`;
+  }
   // Engage plan E6 (0387): a call an outside tool uploaded for this rep waits for them to pick their voice.
   if (n.type === "call_needs_voice") {
     const label = typeof n.payload.client_label === "string" && n.payload.client_label ? ` (${n.payload.client_label})` : "";
@@ -254,6 +262,7 @@ function destination(n: Notif): string | null {
       : `/dashboard/sales-coach/coach-assessment${n.payload.pitch_id ? `#dispute-${n.payload.pitch_id}` : ""}`;
   }
   // An agent's notice lands on the deal it acted on (0379).
+  if (n.type === "forecast_due") return "/dashboard/remote-sales/pipeline?view=forecast";
   if (n.type === "call_needs_voice") return n.session_id ? `/dashboard/remote-sales/calls/${n.session_id}` : null;
   if (n.type === "agent_ran") return typeof n.payload.deal_id === "string" ? `/dashboard/remote-sales/pipeline?p=${n.payload.deal_id}` : null;
   // A dispute answer on a pitch with no call (a door-log pitch): its report card shows the answer.

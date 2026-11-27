@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { accuracyBand, accuracyOverQuarter, latest, metrics, movement, periodOf, rollUp, shiftPeriod, type FDeal, type Submission } from "@/lib/coach/remote/revenue/forecast";
+import { accuracyBand, accuracyOverQuarter, latest, metrics, movement, periodOf, rollUp, shiftPeriod, type FDeal, type Submission, WEEKDAYS } from "@/lib/coach/remote/revenue/forecast";
 
 /**
  * Pipeline → Forecast → the board (revenue Phase 6, 0376; Gong M22). One row per person in view — you, or your team —
@@ -17,7 +17,7 @@ const money = (n: number) => new Intl.NumberFormat(undefined, { style: "currency
 const BAND = { green: "bg-brand/20 text-primary", pink: "bg-amber-500/15 text-amber-700 dark:text-amber-300", red: "border border-amber-500/40 text-amber-700 dark:text-amber-300" } as const;
 const BAND_WORD = { green: "on target", pink: "close", red: "off" } as const;
 
-type Data = { period: string; viewerId: string; submissions: Submission[]; targets: Array<{ userId: string; period: string; amount: number; team?: boolean }> };
+type Data = { period: string; viewerId: string; submissions: Submission[]; targets: Array<{ userId: string; period: string; amount: number; team?: boolean }>; dueWeekday?: number; canSetDue?: boolean };
 
 export function ForecastBoard({ deals, people, isManager, nameOf, today, teamView = true }: { deals: FDeal[]; people: string[]; isManager: boolean; nameOf: (id: string) => string | null; today: string; teamView?: boolean }) {
   const [period, setPeriod] = useState(periodOf(today));
@@ -76,6 +76,21 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today, teamVie
     }
   };
 
+  const setDueDay = async (weekday: number) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/coach/remote/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "due_day", weekday }) });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(j.error ?? "Couldn't save the due day.");
+      await load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't save the due day.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (failed) return <p className="text-xs text-secondary">Couldn&apos;t load the forecast. Refresh to try again.</p>;
   if (!data) return <p className="flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading the forecast…</p>;
 
@@ -108,7 +123,20 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today, teamVie
   return (
     <section aria-label="Forecast board" className="space-y-2 rounded-xl border border-default bg-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-primary">Forecast board</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold text-primary">Forecast board</p>
+          {/* 0391 (F22.4): when forecasts are due; anyone who forecasts and hasn't submitted that week gets a bell reminder that morning. */}
+          {data.canSetDue ? (
+            <label className="flex items-center gap-1 text-[11px] text-secondary">
+              Due every
+              <select value={data.dueWeekday ?? 1} disabled={busy} aria-label="Forecast due day" onChange={(e) => void setDueDay(Number(e.currentTarget.value))} className="rounded border border-default bg-base px-1 py-0.5 text-[11px] text-primary">
+                {WEEKDAYS.map((w, i) => <option key={w} value={i}>{w}</option>)}
+              </select>
+            </label>
+          ) : (
+            <span className="text-[11px] text-secondary">Due every {WEEKDAYS[data.dueWeekday ?? 1]}</span>
+          )}
+        </div>
         <div role="group" aria-label="Quarter" className="inline-flex overflow-hidden rounded-lg border border-default text-[11px]">
           {[-1, 0, 1].map((k) => {
             const p = shiftPeriod(periodOf(today), k);

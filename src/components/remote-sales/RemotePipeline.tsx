@@ -96,7 +96,8 @@ export function RemotePipeline() {
   const simple = macro === true;
 
   const [tab, setTab] = useState<"open" | "won" | "lost">("open");
-  const [view, setView] = useState<"list" | "board" | "calendar" | "sources" | "forecast" | "drivers">("list");
+  // ?view=forecast (0391): the forecast reminder in the bell opens the board directly.
+  const [view, setView] = useState<"list" | "board" | "calendar" | "sources" | "forecast" | "drivers">(() => (params.get("view") === "forecast" ? "forecast" : "list"));
   // The company's stage list (0371). A failed read leaves stage names as free text, and says so on the board.
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [stagesFailed, setStagesFailed] = useState(false);
