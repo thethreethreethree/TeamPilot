@@ -447,7 +447,7 @@ function Agents() {
                 </span>
               </div>
               <p className="mt-1 text-secondary">
-                {a.trigger.kind === "deal_gone_quiet" ? <>When an open deal goes quiet — no call in {QUIET_DAYS} days, or none after {NEW_GRACE_DAYS} days in the pipeline (checked each night, once per quiet spell): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "close_date_near" ? <>When an open deal&apos;s close date is {a.trigger.days} day{a.trigger.days === 1 ? "" : "s"} away (checked each night): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
+                {a.trigger.kind === "next_call_tomorrow" ? <>The day before an open deal&apos;s booked call (checked each night, once per deal and date): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "deal_gone_quiet" ? <>When an open deal goes quiet — no call in {QUIET_DAYS} days, or none after {NEW_GRACE_DAYS} days in the pipeline (checked each night, once per quiet spell): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "close_date_near" ? <>When an open deal&apos;s close date is {a.trigger.days} day{a.trigger.days === 1 ? "" : "s"} away (checked each night): {a.actions.map(ACTION_WORD).join(", then ")}.</> : a.trigger.kind === "tracker_heard" ? <>When a tracker{trackerName(a.trigger.tracker_id) ? ` (“${trackerName(a.trigger.tracker_id)}”)` : ""} is first heard on a deal&apos;s call: {a.actions.map(ACTION_WORD).join(", then ")}.</> : <>
                 When a deal {a.trigger.label ? `reaches “${a.trigger.label}”` : ""}{a.trigger.label && a.trigger.status ? " and " : ""}{a.trigger.status ? (a.trigger.status === "won" ? "is won" : a.trigger.status === "lost" ? "is lost" : "is open") : ""}: {a.actions.map(ACTION_WORD).join(", then ")}.</>}
               </p>
               <ul className="mt-1 space-y-0.5">
@@ -538,7 +538,7 @@ function AgentEditor({ start, onSaved, onCancel }: { start?: AgentTemplate | nul
   const has = (k: AgentAction["kind"]) => start?.actions.find((a) => a.kind === k);
   const startTodo = has("todo") as Extract<AgentAction, { kind: "todo" }> | undefined;
   const startNotify = has("notify") as Extract<AgentAction, { kind: "notify" }> | undefined;
-  const [when, setWhen] = useState<"stage" | "tracker" | "close" | "quiet">(t?.kind === "close_date_near" ? "close" : t?.kind === "deal_gone_quiet" ? "quiet" : t?.kind === "tracker_heard" ? "tracker" : "stage");
+  const [when, setWhen] = useState<"stage" | "tracker" | "close" | "quiet" | "prep">(t?.kind === "close_date_near" ? "close" : t?.kind === "deal_gone_quiet" ? "quiet" : t?.kind === "next_call_tomorrow" ? "prep" : t?.kind === "tracker_heard" ? "tracker" : "stage");
   const [closeDays, setCloseDays] = useState(t?.kind === "close_date_near" ? t.days : 7);
   const [trackerId, setTrackerId] = useState("");
   const [name, setName] = useState(start?.name ?? "");
@@ -558,7 +558,7 @@ function AgentEditor({ start, onSaved, onCancel }: { start?: AgentTemplate | nul
   ];
   const save = async () => {
     setErr(null);
-    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: when === "quiet" ? { kind: "deal_gone_quiet" } : when === "close" ? { kind: "close_date_near", days: closeDays } : when === "tracker" ? { kind: "tracker_heard", tracker_id: trackerId } : { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
+    const r = await fetch("/api/coach/remote/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), trigger: when === "prep" ? { kind: "next_call_tomorrow" } : when === "quiet" ? { kind: "deal_gone_quiet" } : when === "close" ? { kind: "close_date_near", days: closeDays } : when === "tracker" ? { kind: "tracker_heard", tracker_id: trackerId } : { kind: "deal_stage", ...(status ? { status } : {}), ...(label.trim() ? { label: label.trim() } : {}) }, actions }) });
     const j = (await r.json().catch(() => ({}))) as { error?: string };
     if (!r.ok) return setErr(j.error ?? "Couldn't save the agent.");
     onSaved();
@@ -567,11 +567,13 @@ function AgentEditor({ start, onSaved, onCancel }: { start?: AgentTemplate | nul
     <div className="space-y-2 rounded-xl border border-default bg-surface p-3">
       <input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={80} placeholder="Agent name, e.g. Proposal prep" aria-label="Agent name" className={`${field} w-full`} />
       <div role="group" aria-label="When it runs" className="inline-flex overflow-hidden rounded-lg border border-default">
-        {(["stage", "tracker", "close", "quiet"] as const).map((w) => (
-          <button key={w} type="button" aria-pressed={when === w} onClick={() => setWhen(w)} className={`px-2.5 py-1 ${when === w ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>{w === "stage" ? "A deal reaches a stage" : w === "tracker" ? "A tracker is heard on a deal's call" : w === "close" ? "A close date is near" : "A deal goes quiet"}</button>
+        {(["stage", "tracker", "close", "quiet", "prep"] as const).map((w) => (
+          <button key={w} type="button" aria-pressed={when === w} onClick={() => setWhen(w)} className={`px-2.5 py-1 ${when === w ? "bg-brand/15 font-semibold text-primary" : "text-secondary hover:text-primary"}`}>{w === "stage" ? "A deal reaches a stage" : w === "tracker" ? "A tracker is heard on a deal's call" : w === "close" ? "A close date is near" : w === "quiet" ? "A deal goes quiet" : "A deal's next call is tomorrow"}</button>
         ))}
       </div>
-      {when === "quiet" ? (
+      {when === "prep" ? (
+        <p className="text-secondary">The day before an open deal&apos;s booked next call (by your company&apos;s day). Checked each night, once per deal and date — a call moved to another day runs again the night before it.</p>
+      ) : when === "quiet" ? (
         <div className="space-y-1 text-secondary">
           <p>When an open deal has had no call in {QUIET_DAYS} days, or none at all after {NEW_GRACE_DAYS} days in the pipeline — the same rule as the deal&apos;s “gone quiet” warning. Checked each night, once per quiet spell (a new call starts a new one).</p>
           <p className="text-[11px] text-muted">Its first night, it runs on every open deal that is already quiet.</p>

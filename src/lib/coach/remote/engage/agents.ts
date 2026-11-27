@@ -17,7 +17,9 @@ export type Trigger =
   // 0382: an open deal's expected close date is `days` away (run by the nightly job, once per deal and close date).
   | { kind: "close_date_near"; days: number }
   // 0389 (E8): dealRisk raises gone_quiet on an open deal (nightly, once per deal per quiet spell).
-  | { kind: "deal_gone_quiet" };
+  | { kind: "deal_gone_quiet" }
+  // 0390 (E11): an open deal's next call is booked for the company's tomorrow (nightly, once per deal and date).
+  | { kind: "next_call_tomorrow" };
 export type Action = { kind: "brief" } | { kind: "notify"; to: "rep" | "owner" } | { kind: "todo"; title: string; due_days?: number } | { kind: "webhook" };
 export type StageEvent = { companyId: string; prospectId: string; status: string; label: string | null };
 

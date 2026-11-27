@@ -24,7 +24,8 @@ Phases        E1–E5
 | E6 Upload a call by API ("upload calls" key scope; the rep picks their voice in the app, E10) | ec9c69f5 | 0387 |
 | E7 People and team stats in the API; the usage report | 466b5296 | — |
 | E8 Agent templates; the gone-quiet trigger | 6492121e | 0389 |
-| E9 On-demand agents from the deal's Ask box | (this commit) | 0389 |
+| E9 On-demand agents from the deal's Ask box | d4ead497 | 0389 |
+| E11 Meeting prep (next call tomorrow trigger; template) | (this commit) | 0390 |
 
 Waiting on outside setup (each named in docs/00 and docs/08): automatic email (Postmark), the dialer (Twilio), per-person
 MCP keys (a JWT secret), CRM sync (a client's CRM). Date-based agent triggers and warning history are built (0382, 92249504) and run nightly; CRON_SECRET is set in production (the cron route answers 401 without it).

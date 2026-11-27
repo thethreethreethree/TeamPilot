@@ -32,6 +32,13 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     actions: [{ kind: "notify", to: "rep" }, { kind: "todo", title: "Confirm the close date with the customer", due_days: 1 }],
   },
   {
+    key: "meeting_prep",
+    name: "Meeting prep",
+    why: "The day before a deal's booked call, the brief is written fresh and the rep is told, so they walk in prepared.",
+    trigger: { kind: "next_call_tomorrow" },
+    actions: [{ kind: "brief" }, { kind: "notify", to: "rep" }],
+  },
+  {
     key: "gone_quiet",
     name: "Gone quiet",
     why: `When an open deal has had no call in ${QUIET_DAYS} days (or none at all after ${NEW_GRACE_DAYS} days in the pipeline), the rep is told and given a to-do to reach out.`,

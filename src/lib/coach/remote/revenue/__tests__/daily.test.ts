@@ -15,7 +15,7 @@ vi.mock("../../engage/agents", () => ({
     return { ok: true, skipped: null, results: [], acted: true };
   }),
 }));
-import { closeDateFires, closeFireKey, dayIn, quietFireKey, quietFires, runRevenueDaily, snapshotRows } from "../daily";
+import { closeDateFires, closeFireKey, dayIn, nextCallFireKey, nextCallFires, quietFireKey, quietFires, runRevenueDaily, snapshotRows } from "../daily";
 
 const DAY = "2026-11-27";
 const NOW = new Date("2026-11-27T12:00:00Z");
@@ -95,7 +95,29 @@ describe("quietFires (0389, E8)", () => {
   });
 });
 
+describe("nextCallFires (0390, E11)", () => {
+  const agent = { id: "ap", company_id: "co1", owner_id: "m", name: "Meeting prep", trigger: { kind: "next_call_tomorrow" as const }, actions: [] };
+  it("fires on open deals whose next call is the company's tomorrow, once per deal and date", () => {
+    const deals = [deal("tmrw", { nextCallDate: "2026-11-28" }), deal("today", { nextCallDate: "2026-11-27" }), deal("later", { nextCallDate: "2026-11-29" }), deal("won", { status: "won", nextCallDate: "2026-11-28" })] as never;
+    expect(nextCallFires([agent], deals, DAY, new Set()).map((f) => f.fireKey)).toEqual([nextCallFireKey("tmrw", "2026-11-28")]);
+    expect(nextCallFires([agent], deals, DAY, new Set([`ap|${nextCallFireKey("tmrw", "2026-11-28")}`]))).toEqual([]);
+    // moved to another day: a new key, so it runs again the night before
+    expect(nextCallFireKey("tmrw", "2026-12-02")).not.toBe(nextCallFireKey("tmrw", "2026-11-28"));
+  });
+  it("other triggers never fire here", () => {
+    expect(nextCallFires([{ ...agent, trigger: { kind: "deal_gone_quiet" } }] as never, [deal("tmrw", { nextCallDate: "2026-11-28" })] as never, DAY, new Set())).toEqual([]);
+  });
+});
+
 describe("runRevenueDaily", () => {
+  it("runs meeting-prep agents once per deal and date", async () => {
+    st.deals = { co1: [deal("m", { nextCallDate: "2026-11-28" })] };
+    st.agents = [{ id: "ap", company_id: "co1", owner_id: "m", name: "x", trigger: { kind: "next_call_tomorrow" }, actions: [] }];
+    expect((await runRevenueDaily(admin, NOW)).fired).toBe(1);
+    expect(st.ran).toEqual([{ agent: "ap", pid: "m", test: false, fireKey: nextCallFireKey("m", "2026-11-28") }]);
+    st.ran = [];
+    expect((await runRevenueDaily(admin, NOW)).fired).toBe(0);
+  });
   it("runs gone-quiet agents once per spell, with the fire key", async () => {
     st.deals = { co1: [deal("q", { lastCallAt: "2026-10-01T00:00:00Z" })] };
     st.agents = [{ id: "aq", company_id: "co1", owner_id: "m", name: "x", trigger: { kind: "deal_gone_quiet" }, actions: [] }];

@@ -7,8 +7,8 @@ import { ActionZ, TriggerZ } from "../agentSchema";
 const AgentZ = z.object({ name: z.string().trim().min(1).max(80), trigger: TriggerZ, actions: z.array(ActionZ).min(1).max(5) });
 
 describe("agent templates", () => {
-  it("the four in the plan, each with its own key", () => {
-    expect(AGENT_TEMPLATES.map((t) => t.key)).toEqual(["proposal_prep", "won_handoff", "close_in_7", "gone_quiet"]);
+  it("the ones in the plan (E8's four, E11's meeting prep), each with its own key", () => {
+    expect(AGENT_TEMPLATES.map((t) => t.key)).toEqual(["proposal_prep", "won_handoff", "close_in_7", "meeting_prep", "gone_quiet"]);
   });
   it.each(AGENT_TEMPLATES.map((t) => [t.name, t] as const))("%s passes the route's checks unchanged", (_n, t) => {
     const r = AgentZ.safeParse({ name: t.name, trigger: t.trigger, actions: t.actions });

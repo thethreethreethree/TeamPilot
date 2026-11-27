@@ -12,6 +12,8 @@ export const TriggerZ = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("close_date_near"), days: z.number().int().min(1).max(60) }),
   // 0389 (E8): an open deal has gone quiet (dealRisk's rule, checked nightly). Nothing but the kind.
   z.object({ kind: z.literal("deal_gone_quiet") }),
+  // 0390 (E11): an open deal's next call is tomorrow (the company's day, checked nightly). Nothing but the kind.
+  z.object({ kind: z.literal("next_call_tomorrow") }),
 ]);
 export const ActionZ = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("brief") }),

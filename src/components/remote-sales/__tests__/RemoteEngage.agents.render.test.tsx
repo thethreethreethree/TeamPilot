@@ -96,4 +96,26 @@ describe("Engage → Agents", () => {
     // retiring keeps the draft being typed
     await waitFor(() => expect((screen.getByLabelText("On-demand agent name") as HTMLInputElement).value).toBe("Draft"));
   });
+  it("the Meeting prep template (E11) saves a next-call-tomorrow agent that writes the brief and tells the rep", async () => {
+    const posts: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ id: "a1" }));
+      }
+      const u = String(url);
+      if (u.includes("/on-demand-agents")) return new Response(JSON.stringify({ agents: [] }));
+      if (u.includes("/agents")) return new Response(JSON.stringify({ agents: [{ id: "p1", name: "Prep", trigger: { kind: "next_call_tomorrow" }, actions: [{ kind: "brief" }], enabled: true }], runs: [] }));
+      if (u.includes("/trackers")) return new Response(JSON.stringify({ trackers: [] }));
+      if (u.includes("/prospects")) return new Response(JSON.stringify({ prospects: [] }));
+      return new Response(JSON.stringify({ items: [], outcomes: [], flows: [], viewerId: "me" }));
+    }));
+    render(<RemoteEngage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Agents" }));
+    expect(await screen.findByText(/The day before an open deal.s booked call/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Meeting prep" }));
+    expect(screen.getByRole("button", { name: "A deal's next call is tomorrow" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Save agent" }));
+    await waitFor(() => expect(posts.at(-1)).toEqual({ name: "Meeting prep", trigger: { kind: "next_call_tomorrow" }, actions: [{ kind: "brief" }, { kind: "notify", to: "rep" }] }));
+  });
 });
