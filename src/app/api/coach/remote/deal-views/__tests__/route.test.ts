@@ -33,4 +33,9 @@ describe("saved deal views", () => {
     st.error = { message: "boom" };
     expect((await post({ name: "X", filters: {} })).status).toBe(500);
   });
+  it("the search text isn't kept with a view (0388: a search is usually a name, and would outlive erasure)", async () => {
+    await post({ name: "Acme ones", filters: { q: "Betty Smith", risk: "flagged" } });
+    expect(st.rows).toEqual([{ company_id: "co1", user_id: "u1", name: "Acme ones", filters: { risk: "flagged" }, removed: false }]);
+  });
 });
+

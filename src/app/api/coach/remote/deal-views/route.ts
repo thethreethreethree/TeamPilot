@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
   const db = callerScopedDb(req) ?? (await createClient());
   const row = "removed" in body
     ? { company_id: ctx.companyId, user_id: ctx.userId, name: body.name, filters: {}, removed: true }
-    : { company_id: ctx.companyId, user_id: ctx.userId, name: body.name, filters: body.filters, removed: false };
+    // The search box isn't kept with a view (0388): a search is usually a name, and a saved one would outlive erasure.
+    : { company_id: ctx.companyId, user_id: ctx.userId, name: body.name, filters: withoutSearch(body.filters), removed: false };
   const { error } = await db.from("deal_board_views").insert(row);
   if (error) {
     console.error(`[deal-views] save failed user=${ctx.userId}: ${error.message}`);
@@ -57,3 +58,11 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ ok: true });
 }
+
+/** A view's filters without the search text (0388). */
+function withoutSearch(f: z.infer<typeof Filters>): Omit<z.infer<typeof Filters>, "q"> {
+  const { q: _q, ...rest } = f;
+  void _q;
+  return rest;
+}
+

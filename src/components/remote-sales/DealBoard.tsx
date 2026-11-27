@@ -138,7 +138,8 @@ export function DealBoard({
           </span>
         ))}
         <input value={viewName} onChange={(e) => setViewName(e.currentTarget.value)} maxLength={40} placeholder="Name this view" aria-label="View name" className={`${field} w-36`} />
-        <button type="button" disabled={saving || !viewName.trim()} onClick={() => void saveView()} className="rounded-lg border border-default px-2 py-1 text-primary disabled:opacity-50">Save view</button>
+        <button type="button" disabled={saving || !viewName.trim()} onClick={() => void saveView()} title="Saves the filters; the search box isn't kept (a search is often someone's name)" className="rounded-lg border border-default px-2 py-1 text-primary disabled:opacity-50">Save view</button>
+        {f.q?.trim() ? <span className="text-[11px] text-muted">The search isn&apos;t saved with a view.</span> : null}
         {canEditStages && (
           <span className="ml-auto inline-flex items-center gap-3">
             <button type="button" onClick={() => setEditPlaybook((v) => !v)} className="inline-flex items-center gap-1 text-secondary hover:text-primary">

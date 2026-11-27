@@ -24,6 +24,7 @@
 | 2026-11-27 | What to build to compete with Gong | The revenue stack the remote sales plan set aside | Founder: "I WANT YOU TO BUILD A SYSTEM COMPETITIVE TO GONG" |
 | 2026-11-27 | Order | Deals + accounts first, then ask-anything, forecast, Engage, CRM / API / MCP, agents | Founder picker |
 | 2026-11-27 | Forecast notes | Not taken (0381) | Free text erasure can't reach (review) |
+| 2026-11-27 | A saved view's search text | Not kept (0388); the view keeps its filters | A search is usually a name, and a saved one would outlive erasure (erasure audit of 0370–0387) |
 | 2026-11-27 | Targets (F23.4) | Team quarterly revenue targets on the forecast board; no targets on other metrics (no metric builder stays) | Founder picker (recommended) |
 | 2026-11-27 | Topic sections (F11.11) | On request per call | Founder picker (recommended) |
 | 2026-11-27 | Share a personal folder (F12.8) | Managers only (today's rule) | Founder picker (recommended) |
