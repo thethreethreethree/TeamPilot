@@ -49,6 +49,7 @@ import {
   type CallAudioState,
 } from "@/lib/coach/v5/callAudio";
 import { keytermsQuery } from "@/lib/coach/remote/vocabulary";
+import { CALL_CAP_MESSAGE, msUntilCap } from "@/lib/coach/v5/callCap";
 
 /**
  * useLiveCoaching — Live Sales Coach S1b (the realtime loop).
@@ -395,6 +396,8 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const audioChunkSeqRef = useRef(0);
   // When MediaRecorder.start ran (browser clock, like spokenAt) — sent with chunk 0 as the audio clock's start (0300).
   const recorderStartedAtRef = useRef(0);
+  // When this call first went live (kept across reconnects): the six-hour cap counts from here (callCap.ts, F5.7).
+  const callLiveAtRef = useRef(0);
   // iOS Safari IGNORES MediaRecorder.start(timeslice) → no periodic chunks → the review-recording is lost on iOS
   // (same class as the Door Log fix 34a8ab71). Force a chunk via requestData() when the timeslice hasn't delivered.
   // Self-guarding (no-ops off a stopped/null recorder) + adaptive via lastAudioDataAt (INERT on Chrome/Android that
@@ -1059,6 +1062,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
 
   const start = useCallback(async (opts?: { callAudio?: boolean }) => {
     setError(null);
+    if (!reconnectingRef.current) callLiveAtRef.current = 0; // a fresh call starts its six-hour clock again
     // Fresh readout per call — clear the prior session's traces + summary.
     cueTracesRef.current = [];
     setCueSummary(null);
@@ -2001,6 +2005,17 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     // (OFF) tone so the rep knows the state without seeing the screen.
     playToggleBeep(next);
   }, []);
+
+  // Six-hour cap (Gong F5.7): a call still live at six hours stops, and says so (the not-recording banner shows it).
+  useEffect(() => {
+    if (status !== "live") return;
+    if (!callLiveAtRef.current) callLiveAtRef.current = Date.now();
+    const t = setTimeout(() => {
+      stop();
+      setError(CALL_CAP_MESSAGE);
+    }, msUntilCap(callLiveAtRef.current, Date.now()));
+    return () => clearTimeout(t);
+  }, [status, stop]);
 
   return {
     agentSpeaking,

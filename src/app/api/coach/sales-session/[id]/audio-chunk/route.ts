@@ -6,6 +6,7 @@ import { getSession } from "@/lib/data/salesCoach";
 import { uploadAssetBytes } from "@/lib/storage/assets";
 import { chunkObjectPath } from "@/lib/coach/v5/stitchSessionAudio";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CALL_CAP_MESSAGE, pastCap } from "@/lib/coach/v5/callCap";
 
 /**
  * POST /api/coach/sales-session/[id]/audio-chunk?seq=N — append one live-recording audio chunk.
@@ -49,6 +50,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
   if (session.agentId !== auth.user.id) {
     return NextResponse.json({ error: "Only the session's own rep can upload its recording." }, { status: 403 });
+  }
+
+  // Six-hour cap (callCap.ts, Gong F5.7): the recorder stops itself at six hours; this refuses audio from one that
+  // didn't, so a call can't keep filling storage. Counted from when the RECORDER started (audio_started_at, set by
+  // chunk 0) — a session can be created long before it records, so its started_at alone would refuse a real first
+  // chunk. Until that is known, nothing is refused. 409 with a reason the recorder can show.
+  if (pastCap(session.audioStartedAt, Date.now())) {
+    return NextResponse.json({ error: CALL_CAP_MESSAGE, capped: true }, { status: 409 });
   }
 
   const buf = await req.arrayBuffer();
