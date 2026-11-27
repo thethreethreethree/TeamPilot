@@ -11,3 +11,5 @@
 | `/api/coach/remote/agents` and the agent runner | E5 |
 
 Pages: `/dashboard/remote-sales/engage` (Today, Flows, Analytics), plus an "Add to a flow" action on the deal panel.
+| `POST /api/v1/calls` (multipart: file, repId, channel, startedAt?, title?; key scope "upload") | E6 — creates the call for one of the company's reps, stores and transcribes it; the rep picks their voice in the app (E10), which scores it |
+
