@@ -22,6 +22,8 @@
 |---|---|---|---|
 | 2026-11-27 | Order | Engage, then CRM / API / MCP, then agents | Founder picker |
 | 2026-11-27 | Email and dialer | Manual email and phone `tel:` until the services are set up | §1.5.3: no silent dependence on unset config |
+| 2026-11-27 | Create calls by API (F6.9) | An "upload calls" key scope (phase E6) | Founder picker: "Add an 'upload calls' key scope" |
+| 2026-11-27 | Auto-score selection (F15.9) | Keep scoring every phone/video sales call with its channel's rubric | Founder picker (recommended) |
 
 ## Open questions
 | # | Question | Blocks |

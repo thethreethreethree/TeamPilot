@@ -10,4 +10,5 @@ Each phase is one TBC record. It's committed only after `npm run check` passes, 
 | 4 | 0373 activity level; win/loss; deal drivers | Analytics (gated) |
 | 5 | Ask Anything over a deal or an account | "Ask about this deal / account" |
 | 6 | 0374 forecast boards, submissions, snapshots, accuracy | Forecast |
-| 7+ | Engage, CRM / API / MCP, agents: their own plan | — |
+| 7 | Team revenue targets (F23.4; founder picker 2026-11-27) | The forecast board's team row with its target |
+| 8+ | Engage, CRM / API / MCP, agents: their own plan | — |

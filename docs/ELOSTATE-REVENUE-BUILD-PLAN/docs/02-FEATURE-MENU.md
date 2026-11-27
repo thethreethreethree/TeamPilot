@@ -27,4 +27,5 @@ Gong IDs are the teardown's (`reference/gong-teardown.json`). SETTLED = founder-
 | 6 | Submit with a note; the deals behind each cell | F22.3 | DESIGNED |
 | 6 | Weekly snapshot; category movement; accuracy (green 85–115%) | F22.5–F22.7 | DESIGNED |
 | 6 | Due day and reminder (in-app) | F22.4 | DESIGNED |
+| 7 | Team revenue target per quarter on the forecast board (a manager sets their team's; the team row shows progress) | F23.4 | DESIGNED (founder picker 2026-11-27) |
 | — | Likelihood score, revenue predictor, red flag email, CRM write-back, splits | F20.9 F22.8 F20.5 F20.2 F20.12 | PROPOSAL (00, deliberately not built) |

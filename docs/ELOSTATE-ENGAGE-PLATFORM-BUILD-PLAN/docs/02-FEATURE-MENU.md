@@ -12,5 +12,6 @@
 | E3 | Public read API with company keys (hashed), rate limits and a usage log | F31.1–F31.6, F31.9 | DESIGNED |
 | E3 | Outbound webhooks per event (existing "Send to CRM" webhook, extended to deal events) | F31.8 | DESIGNED |
 | E4 | MCP server: ask_deal, ask_account, generate_brief, find_calls, as the key's person | F32.1–F32.3 | DESIGNED |
+| E6 | Upload a call by API: a key with the "upload calls" scope creates a phone/video call for one of the company's reps from an audio file, processed and scored like an upload | F6.9 | DESIGNED (founder picker 2026-11-27) |
 | E5 | Agents: trigger (deal stage change, close date near, tracker heard) → actions (write the brief, notify, add a to-do, send a webhook); test, enable, run history | F27.3–F27.6 | DESIGNED |
 | — | Auto email, tracking, dialer, Enrich, AI flow builder, CRM sync | F26.1 F26.2 M25 F26.5 F24.8 M29 | PROPOSAL (00) |

@@ -11,7 +11,7 @@ screen says plainly that the outside service is off. The rules live in `elostate
 | E4 | The dialer | **None in the app.** A call step opens the phone's own dialer (`tel:`) and asks for the outcome. A Twilio dialer (F25.1–F25.6) waits on an account, numbers and per-region recording rules. | High. Numbers, carriers and recording consent are a product of their own. |
 | E5 | LinkedIn steps | Not built (needs Sales Navigator). | Low. |
 | E6 | Who builds company flows | Admins and Sales Coach managers; reps build their own and use the company's. | Low. |
-| E7 | Public API auth | Company API keys, created by an admin, stored only as a hash, scoped read-only. | Medium. OAuth apps (F31.7) come later. |
+| E7 | Public API auth | Company API keys, created by an admin, stored only as a hash, scoped read-only — plus, DECIDED 2026-11-27 (founder picker), an optional "upload calls" scope that creates a call with its audio for one rep of the company (phase E6). | Medium. OAuth apps (F31.7) come later. |
 | E8 | MCP access | Personal keys that act as the user who made them, so they see only what that person can see. | High if loosened. Gong's "shared" org-wide token isn't built. |
 | E9 | Agents' run-as user | The agent's creator. It sees only what they can. | High if loosened. |
 

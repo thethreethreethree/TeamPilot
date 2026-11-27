@@ -15,7 +15,7 @@ The build doesn't make up an answer to any of these. Each one has a stand-in tod
 | R9 | Multiple owners and revenue splits (F20.12) | One owner per deal (today's `rep_id`). | Medium. Splits change every amount roll-up. |
 | R10 | Which playbooks ship | MEDDICC, BANT, SPICED and a custom one. These are public sales methods; each letter's wording is ours. | Low. Templates are data. |
 | R11 | Who may see an account | Whoever can see one of its deals or calls (RLS through the existing tree). Gong shows every account to everyone (F21.5, a weakness). | High after Phase 1 if loosened. Keep it tight. |
-| R12 | Forecast (Gong M22): which boards, period, due day | Phase 8 onward. Stand-in: one board per company, quarterly, submissions by managers. | Medium. Snapshots taken under one layout can't be re-cut. |
+| R12 | Forecast (Gong M22): which boards, period, due day | Phase 8 onward. Stand-in: one board per company, quarterly, submissions by managers. Targets: DECIDED 2026-11-27 (founder picker) — per person and per team, quarterly revenue only (phase 7). | Medium. Snapshots taken under one layout can't be re-cut. |
 
 ## R1 — Deal = prospect
 **Options.** (a) Extend `remote_prospects`. (b) A new `deals` table and a migration of prospects into it.
