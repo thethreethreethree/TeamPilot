@@ -75,14 +75,13 @@ export function DealPlaybook({ dealId }: { dealId: string }) {
           {busy ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : <Sparkles className="h-3 w-3 text-brand" aria-hidden />} Review with AI
         </button>
       </div>
-      <div role="list" aria-label="Playbook elements" className="flex flex-wrap gap-1.5">
+      <div role="group" aria-label="Playbook elements" className="flex flex-wrap gap-1.5">
         {els.map((e, i) => {
           const st = data.notes[i]?.state ?? "empty";
           const tone = st === "validated" ? "border-brand bg-brand text-black" : st === "noted" ? "border-brand/60 bg-brand/15 text-primary" : "border-default text-secondary";
           return (
             <button
               key={i}
-              role="listitem"
               type="button"
               aria-pressed={open === i}
               aria-label={`${e.name}: ${STATE_WORD[st]}`}

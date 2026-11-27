@@ -62,9 +62,18 @@ export function pipelineChanges(events: ProspectEvent[], from: string, to: strin
 export function summarize(changes: Change[]) {
   const s = { new: 0, newValue: 0, won: 0, wonValue: 0, lost: 0, lostValue: 0, moved: 0, slipped: 0 };
   for (const c of changes) {
-    if (c.kind === "new") (s.new++, (s.newValue += c.amount ?? 0));
-    if (c.kind === "won") (s.won++, (s.wonValue += c.amount ?? 0));
-    if (c.kind === "lost") (s.lost++, (s.lostValue += c.amount ?? 0));
+    if (c.kind === "new") {
+      s.new++;
+      s.newValue += c.amount ?? 0;
+    }
+    if (c.kind === "won") {
+      s.won++;
+      s.wonValue += c.amount ?? 0;
+    }
+    if (c.kind === "lost") {
+      s.lost++;
+      s.lostValue += c.amount ?? 0;
+    }
     if (c.kind === "stage") s.moved++;
     if (c.kind === "close_slipped") s.slipped++;
   }
