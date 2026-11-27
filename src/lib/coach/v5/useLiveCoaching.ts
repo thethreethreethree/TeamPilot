@@ -396,7 +396,7 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
   const audioChunkSeqRef = useRef(0);
   // When MediaRecorder.start ran (browser clock, like spokenAt) — sent with chunk 0 as the audio clock's start (0300).
   const recorderStartedAtRef = useRef(0);
-  // When this call first went live (kept across reconnects): the six-hour cap counts from here (callCap.ts, F5.7).
+  // When this call's recorder first ran (kept across reconnects): the six-hour cap counts from here (callCap.ts, F5.7).
   const callLiveAtRef = useRef(0);
   // iOS Safari IGNORES MediaRecorder.start(timeslice) → no periodic chunks → the review-recording is lost on iOS
   // (same class as the Door Log fix 34a8ab71). Force a chunk via requestData() when the timeslice hasn't delivered.
@@ -2006,16 +2006,17 @@ export function useLiveCoaching(sessionId: string, context?: SalesContext) {
     playToggleBeep(next);
   }, []);
 
-  // Six-hour cap (Gong F5.7): a call still live at six hours stops, and says so (the not-recording banner shows it).
+  // Six-hour cap (Gong F5.7): a call still RECORDING at six hours stops, and says so (the not-recording banner shows
+  // it). Armed on the recorder, not on "live" (review 2026-11-27): a dropped call in "error" keeps recording.
   useEffect(() => {
-    if (status !== "live") return;
+    if (!audioCapturing) return;
     if (!callLiveAtRef.current) callLiveAtRef.current = Date.now();
     const t = setTimeout(() => {
       stop();
       setError(CALL_CAP_MESSAGE);
     }, msUntilCap(callLiveAtRef.current, Date.now()));
     return () => clearTimeout(t);
-  }, [status, stop]);
+  }, [audioCapturing, stop]);
 
   return {
     agentSpeaking,

@@ -52,14 +52,29 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
     if (!maker || maker.status === "removed" || !isAdminRole(maker.role as string | null)) {
       return done({ error: "The audit log is for company admins; the person who made this key isn't one now." }, 403);
     }
-    const { data, error } = await admin
-      .from("audit_log")
-      .select("id, actor_id, action, object_type, object_id, meta, created_at")
-      .eq("company_id", caller.companyId)
-      .order("id", { ascending: false })
-      .range(from, to);
+    // ?before=<id> pages by id (review 2026-11-27): the log grows while a tool reads it, and page offsets would repeat
+    // rows. ?page still works for the first page.
+    const before = Number(url.searchParams.get("before"));
+    let q = admin.from("audit_log").select("id, actor_id, action, object_type, object_id, meta, created_at").eq("company_id", caller.companyId).order("id", { ascending: false });
+    q = Number.isInteger(before) && before > 0 ? q.lt("id", before).limit(limit) : q.range(from, to);
+    const { data, error } = await q;
     if (error) return done({ error: "Couldn't read the audit log." }, 500);
-    return done({ data: (data ?? []).map((r) => ({ id: r.id, at: r.created_at, action: r.action, actorId: r.actor_id, objectType: r.object_type, objectId: r.object_id, meta: r.meta })), page, limit });
+    // What leaves keeps this API's own rule (review 2026-11-27): a row about a call with an active hide is left out, and
+    // free text or secrets in the details (a hide phrase, a grant's reason, a webhook URL, an erasure hint) are removed.
+    let hidden: Set<string>;
+    try {
+      hidden = await hiddenInCompanyFrom(admin, caller.companyId, OUTSIDE_READER);
+    } catch {
+      return done({ error: "Couldn't read the audit log." }, 500);
+    }
+    const rows = (data ?? []).filter((r) => !(r.object_type === "coaching_session" && hidden.has(String(r.object_id))));
+    const last = (data ?? []).at(-1);
+    return done({
+      data: rows.map((r) => ({ id: r.id, at: r.created_at, action: r.action, actorId: r.actor_id, objectType: r.object_type, objectId: r.object_id, meta: auditMetaForApi(r.meta) })),
+      page,
+      limit,
+      next: (data ?? []).length === limit && last ? `?before=${last.id}&limit=${limit}` : null,
+    });
   }
   let hidden: Set<string>;
   try {
@@ -83,3 +98,19 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
     note: "Calls with an active hide are left out.",
   });
 }
+
+/** Audit details keys that hold free text or secrets: never sent through the API (the app's admin view keeps them). */
+export const AUDIT_META_WITHHELD = ["phrase", "reason", "url", "hint", "note", "text", "value", "query", "name", "email"] as const;
+
+/** An audit row's details with the withheld keys removed (one level; nested objects are dropped). Pure. */
+export function auditMetaForApi(meta: unknown): Record<string, unknown> {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return {};
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(meta as Record<string, unknown>)) {
+    if ((AUDIT_META_WITHHELD as readonly string[]).includes(k)) continue;
+    if (v !== null && typeof v === "object") continue;
+    out[k] = v;
+  }
+  return out;
+}
+

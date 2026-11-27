@@ -25,7 +25,8 @@ Return exactly: {"sections": [{"label": "...", "from": <line number>, "to": <lin
   "Objections", "Next steps"). Never a person's name, a company's name, a number or a quote from the call.
 - Use the [numbers] shown before each line. Never invent a line number.`;
 
-const LABEL = /^[\p{L}][\p{L}\p{N} '&/,-]{0,39}$/u;
+// Letters only (review 2026-11-27): no digits, so no figures, dates or prices; names rest on the prompt.
+const LABEL = /^[\p{L}][\p{L} '&/,-]{0,39}$/u;
 
 /** The sections the AI returned, checked against the call's lines. Null when fewer than two usable ones came back. Pure. */
 export function parseSections(text: string, lines: Line[]): TopicSection[] | null {
@@ -51,13 +52,22 @@ export function parseSections(text: string, lines: Line[]): TopicSection[] | nul
     next = to + 1;
   }
   if (kept.length < 2) return null;
-  const covered = next; // lines from the first to the end of the last kept section
+  // Shares are of every line sent (review 2026-11-27): a split that stops short doesn't read as the whole call.
+  const sent = lines.length;
   return kept.map((k) => ({
     label: k.label,
     fromSeq: lines[k.from]!.seq,
     toSeq: lines[k.to]!.seq,
     startMs: lines[k.from]!.atMs,
     endMs: lines[k.to]!.atMs,
-    share: (k.to - k.from + 1) / covered,
+    share: (k.to - k.from + 1) / sent,
   }));
 }
+
+/** How many of the lines sent the sections cover (from the first line to the last section's end). Pure. */
+export function coveredLines(sections: TopicSection[], lines: Line[]): number {
+  const last = sections.at(-1);
+  if (!last) return 0;
+  return lines.findIndex((l) => l.seq === last.toSeq) + 1;
+}
+

@@ -84,7 +84,7 @@ export function TopicSections({ sessionId, onSeek }: { sessionId: string; onSeek
             ))}
           </ol>
           {state.lines !== null && state.of !== null && state.lines < state.of && (
-            <p className="text-[11px] text-muted">Split from the first {state.lines} of the call&apos;s {state.of} lines.</p>
+            <p className="text-[11px] text-muted">These sections cover the first {state.lines} of the call&apos;s {state.of} lines.</p>
           )}
         </>
       )}

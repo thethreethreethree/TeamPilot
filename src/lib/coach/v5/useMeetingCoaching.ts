@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CALL_CAP_MESSAGE, msUntilCap } from "@/lib/coach/v5/callCap";
 import type { CueMode } from "@/lib/data/salesCoach";
 import { persistRecording } from "@/lib/coach/v5/persistRecording";
 import { reportCaptureDiag, buildCaptureDiag } from "@/lib/coach/captureDiag";
@@ -89,6 +90,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const [partial, setPartial] = useState("");
   const [currentCue, setCurrentCue] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const meetingStartedAtRef = useRef(0);
   const [micLevel, setMicLevel] = useState(0);
   const [autoCoach, setAutoCoach] = useState(true);
   const [cueMode] = useState<CueMode>("suggestion");
@@ -267,6 +269,7 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
   const start = useCallback(
     async (isReconnect = false) => {
       if (!isReconnect) {
+        meetingStartedAtRef.current = 0; // a fresh meeting starts its six-hour clock again
         // FRESH session — reset every per-session ref/state so nothing bleeds from a prior meeting in this same
         // mount (the panel keeps the hook mounted across endSession). Findings #1 (cue latch + epoch) and #4.
         stoppedRef.current = false;
@@ -527,6 +530,18 @@ export function useMeetingCoaching(sessionId: string, kind: "meeting" | "huddle"
     setCueStatus("");
     setMicLevel(0);
   }, [teardown]);
+
+  // Six-hour cap (Gong F5.7; callCap.ts), as on calls: a meeting still running at six hours stops and says so.
+  // Counted from the fresh start (a reconnect keeps the clock).
+  useEffect(() => {
+    if (status === "idle") return;
+    if (!meetingStartedAtRef.current) meetingStartedAtRef.current = Date.now();
+    const t = setTimeout(() => {
+      stop();
+      setError(CALL_CAP_MESSAGE);
+    }, msUntilCap(meetingStartedAtRef.current, Date.now()));
+    return () => clearTimeout(t);
+  }, [status, stop]);
 
   const requestCue = useCallback(() => void invokeCue(true), [invokeCue]);
   const markNearingEnd = useCallback((v: boolean) => {

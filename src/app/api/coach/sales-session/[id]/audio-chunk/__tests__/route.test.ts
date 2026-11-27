@@ -80,18 +80,15 @@ describe("POST audio-chunk", () => {
     expect(uploadAssetBytes).not.toHaveBeenCalled();
   });
 
-  it("six-hour cap (F5.7): audio from a recorder that started over six hours (+ grace) ago is refused, not stored", async () => {
-    const longAgo = new Date(Date.now() - (6 * 60 + 20) * 60_000).toISOString();
-    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "s1", agentId: OWNER, startedAt: longAgo, audioStartedAt: longAgo });
-    const r = await POST(req({ seq: "1500" }), ctx);
+  it("six-hour cap (F5.7): a chunk past six hours (+15 min) of 15-second chunks is refused, not stored", async () => {
+    const r = await POST(req({ seq: "1501" }), ctx);
     expect(r.status).toBe(409);
     expect((await r.json()).capped).toBe(true);
     expect(uploadAssetBytes).not.toHaveBeenCalled();
   });
-  it("a session made long before it records still takes its first chunk (the cap counts from the recorder's start)", async () => {
-    const longAgo = new Date(Date.now() - 10 * 3_600_000).toISOString();
-    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "s1", agentId: OWNER, startedAt: longAgo, audioStartedAt: null });
-    expect((await POST(req({ seq: "0" }), ctx)).status).toBe(200);
+  it("chunk 1500 is still kept; no clock is involved (a session made long ago records normally)", async () => {
+    (getSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "s1", agentId: OWNER, startedAt: "2026-01-01T00:00:00Z", audioStartedAt: null });
+    expect((await POST(req({ seq: "1500" }), ctx)).status).toBe(200);
   });
 
   it("400 on a non-numeric seq and on an empty body", async () => {

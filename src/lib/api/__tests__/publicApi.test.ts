@@ -12,6 +12,8 @@ const st = vi.hoisted(() => ({
   hidden: new Set<string>(),
   usage: [] as unknown[],
   maker: { role: "CEO", status: "active" } as Record<string, unknown> | null,
+  audit: [] as unknown[],
+  lt: null as unknown,
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenInCompanyFrom: vi.fn(async () => st.hidden) }));
@@ -22,7 +24,9 @@ vi.mock("@/lib/supabase/admin", () => ({
       for (const m of ["select", "order", "in", "gte"]) q[m] = () => q;
       q.eq = (col: string, v: unknown) => (st.eqs.push([table, col, v]), q);
       q.maybeSingle = async () => ({ data: table === "api_keys" ? st.key : table === "profiles" ? st.maker : null, error: null });
-      q.range = async () => ({ data: table === "coaching_sessions" ? st.sessions : [], error: null });
+      q.range = async () => ({ data: table === "coaching_sessions" ? st.sessions : table === "audit_log" ? st.audit : [], error: null });
+      q.lt = (_c: string, v: unknown) => ((st.lt = v), q);
+      q.limit = async () => ({ data: table === "audit_log" ? st.audit : [], error: null });
       q.then = (r: (v: unknown) => unknown) => r({ data: null, error: null, count: st.dayCount });
       q.insert = async (row: unknown) => (st.usage.push(row), { error: null });
       return q;
@@ -38,6 +42,8 @@ beforeEach(() => {
   st.key = { id: "k1", company_id: "co1", created_by: "admin-1", scopes: ["read"], revoked_at: null };
   st.dayCount = 0;
   st.maker = { role: "CEO", status: "active" };
+  st.audit = [];
+  st.lt = null;
   st.eqs = [];
   st.sessions = [];
   st.hidden = new Set();
@@ -98,6 +104,26 @@ describe("public API keys", () => {
     st.maker = { role: "CEO", status: "removed" };
     st.key = { ...st.key!, id: "k-audit-3" };
     expect((await readResource(req("/api/v1/audit"), "audit")).status).toBe(403);
+  });
+  it("the audit log keeps the API's own rule: hidden calls' rows are left out, free text and secrets are removed", async () => {
+    st.key = { ...st.key!, id: "k-audit-4" };
+    st.hidden = new Set(["hidden-call"]);
+    st.audit = [
+      { id: 9, actor_id: "a", action: "call.hide_phrase_add", object_type: "company", object_id: "co1", meta: { phrase: "card number", count: 2 }, created_at: "t" },
+      { id: 8, actor_id: "a", action: "webhook.add", object_type: "webhook_endpoint", object_id: "w1", meta: { url: "https://x/hook?token=s3cret", events: ["deal.closed"] }, created_at: "t" },
+      { id: 7, actor_id: "a", action: "recording.trim", object_type: "coaching_session", object_id: "hidden-call", meta: {}, created_at: "t" },
+    ];
+    const j = await (await readResource(req("/api/v1/audit"), "audit")).json();
+    expect(j.data.map((r: { id: number }) => r.id)).toEqual([9, 8]);
+    expect(j.data[0].meta).toEqual({ count: 2 });
+    expect(JSON.stringify(j)).not.toContain("s3cret");
+    expect(JSON.stringify(j)).not.toContain("card number");
+    st.hidden = new Set();
+  });
+  it("the audit log pages by ?before=<id>, so a growing log never repeats rows", async () => {
+    st.key = { ...st.key!, id: "k-audit-5" };
+    await readResource(req("/api/v1/audit?before=100&limit=10"), "audit");
+    expect(st.lt).toBe(100);
   });
 });
 

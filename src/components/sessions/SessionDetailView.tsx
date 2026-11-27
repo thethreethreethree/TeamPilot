@@ -555,7 +555,7 @@ export function SessionDetailView({ module }: { module: SessionModule }) {
         )}
         {/* Brief templates (0364, F13.2): the company's own questions, answered from this call with the lines cited. */}
         {session && isRemoteContext(session.context) && session.status !== "active" && <CustomBriefs sessionId={id} onSeek={seekTo} />}
-        {session && isRemoteContext(session.context) && session.status !== "active" && <TopicSections sessionId={id} onSeek={seekTo} />}
+        {session && isRemoteContext(session.context) && session.status !== "active" && isSalesCall(session.sessionKind) && <TopicSections sessionId={id} onSeek={seekTo} />}
         {/* Manager comments on the call (F9.8). Coach Assessment → Recordings lists in-person calls only since 0301, so
             without this a remote call's feedback request had nowhere to be answered. */}
         {session && isRemoteContext(session.context) && session.status !== "active" && (

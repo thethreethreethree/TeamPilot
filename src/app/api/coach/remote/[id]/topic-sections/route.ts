@@ -11,7 +11,7 @@ import { loadLines, numberedTranscript } from "@/lib/coach/remote/followThrough"
 import { audioBaseIso } from "@/lib/coach/v5/segmentTiming";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { topicSectionsCoach } from "@/lib/claude";
-import { parseSections, SECTION_LINES, TOPIC_SECTIONS_SYSTEM, type TopicSection } from "@/lib/coach/remote/topicSections";
+import { coveredLines, parseSections, SECTION_LINES, TOPIC_SECTIONS_SYSTEM, type TopicSection } from "@/lib/coach/remote/topicSections";
 
 export const maxDuration = 60;
 
@@ -90,7 +90,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (ai.suppressed) return NextResponse.json({ error: "The coach isn't answering on this account right now." }, { status: 409 });
   const sections = ai.text.trim() ? parseSections(ai.text, lines) : null;
   if (!sections) return NextResponse.json({ error: "The topic split didn't come back usable — try again." }, { status: 502 });
-  const payload: Stored = { sections, transcript_version: o.loaded.version, lines: lines.length, of: o.loaded.lines.length };
+  // `lines`: how much of the call the sections cover (they may stop before the last line sent); `of`: the whole call.
+  const payload: Stored = { sections, transcript_version: o.loaded.version, lines: coveredLines(sections, lines), of: o.loaded.lines.length };
   const { error } = await createAdminClient().from("events").insert({
     company_id: o.session.companyId,
     actor: ctx.userId,
