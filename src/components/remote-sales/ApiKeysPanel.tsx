@@ -16,6 +16,8 @@ export function ApiKeysPanel() {
   const [mcp, setMcp] = useState(false);
   const [shown, setShown] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  // Revoking can't be undone and stops an outside tool at once, so it asks first.
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
       const r = await fetch("/api/coach/remote/settings/api-keys", { cache: "no-store" });
@@ -37,6 +39,8 @@ export function ApiKeysPanel() {
     if (!r.ok) return setMsg(j.error ?? "Couldn't save that.");
     if (j.key) setShown(j.key);
     setName("");
+    setMcp(false);
+    setConfirmRevoke(null);
     void load();
   };
   if (state === "hidden") return null;
@@ -77,7 +81,15 @@ export function ApiKeysPanel() {
               <code className="text-muted">{k.prefix}…</code>
               <span className="text-muted">{k.scopes.join(" + ")}</span>
               <span className="text-secondary">{k.revokedAt ? `revoked ${new Date(k.revokedAt).toLocaleDateString()}` : `${k.requests24h} request${k.requests24h === 1 ? "" : "s"} in 24 h${k.lastUsedAt ? ` · last ${new Date(k.lastUsedAt).toLocaleString()}` : " · never used"}`}</span>
-              {!k.revokedAt && <button type="button" onClick={() => void post({ revoke: k.id })} className="ml-auto text-muted hover:text-primary">Revoke</button>}
+              {!k.revokedAt && (confirmRevoke === k.id ? (
+                <span className="ml-auto flex items-center gap-2">
+                  <span className="text-secondary">Revoke it? Anything using it stops working now.</span>
+                  <button type="button" onClick={() => void post({ revoke: k.id })} className="font-semibold text-primary hover:underline">Revoke</button>
+                  <button type="button" onClick={() => setConfirmRevoke(null)} className="text-muted hover:text-primary">Keep it</button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirmRevoke(k.id)} className="ml-auto text-muted hover:text-primary">Revoke…</button>
+              ))}
             </li>
           ))}
         </ul>

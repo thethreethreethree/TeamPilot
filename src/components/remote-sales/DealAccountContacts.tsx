@@ -24,12 +24,15 @@ export function DealAccountContacts({
   contacts,
   busy,
   post,
+  reload,
 }: {
   dealId: string;
   account: { id: string; name: string } | null;
   contacts: DealContact[];
   busy: boolean;
   post: (body: Record<string, unknown>) => Promise<boolean>;
+  /** Re-read the deal after a contact's email or phone is saved (that save isn't a deal event). */
+  reload: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [accName, setAccName] = useState("");
@@ -146,7 +149,7 @@ export function DealAccountContacts({
               <button type="button" disabled={busy} onClick={() => void post({ action: "contact", contactId: c.id, role: "removed" })} aria-label={`Take ${c.name} off this deal`} className="text-muted hover:text-primary">
                 <X className="h-3.5 w-3.5" aria-hidden />
               </button>
-              <ContactReach dealId={dealId} contact={c} onSaved={() => void post({ action: "contact", contactId: c.id, role: c.role })} />
+              <ContactReach dealId={dealId} contact={c} onSaved={reload} />
             </li>
           ))}
         </ul>

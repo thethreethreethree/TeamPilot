@@ -663,7 +663,7 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
       </>)}
 
       {shown === "Warnings" && <DealWarnings risk={risk} />}
-      {shown === "Contacts" && <DealAccountContacts dealId={p.id} account={d.account ?? null} contacts={d.contacts ?? []} busy={busy} post={post} />}
+      {shown === "Contacts" && <DealAccountContacts dealId={p.id} account={d.account ?? null} contacts={d.contacts ?? []} busy={busy} post={post} reload={() => { void load(); onChanged(); }} />}
       {shown === "Playbook" && <DealPlaybook dealId={p.id} />}
       {shown === "Brief" && (
         <>
