@@ -12,6 +12,8 @@ import { Building2, UserPlus, X } from "lucide-react";
  * Every change is an event through /api/coach/remote/prospects/:id; the panel reloads from the server after each.
  */
 export type DealContact = { id: string; name: string; title: string | null; rank: string; role: string; email?: string | null; phone?: string | null };
+/** Revenue phase 9 (F26.6): someone on the account heard on its calls, not on this deal. */
+export type SuggestedContact = { id: string; name: string; title: string | null; rank: string; calls: number; lastCallAt: string | null };
 type Option = { id: string; name: string };
 
 const ROLES: Array<[string, string]> = [["decision_maker", "Decision maker"], ["champion", "Champion"], ["user", "User"], ["other", "Other"]];
@@ -25,7 +27,10 @@ export function DealAccountContacts({
   busy,
   post,
   reload,
+  suggested = [],
 }: {
+  /** null = the suggestions couldn't be read (said, not hidden). */
+  suggested?: SuggestedContact[] | null;
   dealId: string;
   account: { id: string; name: string } | null;
   contacts: DealContact[];
@@ -153,6 +158,26 @@ export function DealAccountContacts({
             </li>
           ))}
         </ul>
+        {suggested === null ? (
+          <p className="mt-2 text-[11px] text-muted">Couldn&apos;t check who else was on this account&apos;s calls.</p>
+        ) : suggested.length > 0 && (
+          <div className="mt-2 rounded-lg border border-dashed border-default p-2" aria-label="Heard on this account's calls">
+            <p className="text-[11px] font-semibold text-secondary">Heard on this account&apos;s calls, not on this deal</p>
+            <ul className="mt-1 space-y-1">
+              {suggested.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-primary">{c.name}</span>
+                  {c.title && <span className="text-muted">{c.title}</span>}
+                  {RANK_WORD[c.rank] && <span className="rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] text-primary">{RANK_WORD[c.rank]}</span>}
+                  <span className="text-muted">on {c.calls} call{c.calls === 1 ? "" : "s"}</span>
+                  <button type="button" disabled={busy} onClick={() => void post({ action: "contact", contactId: c.id, role: "other" })} className="inline-flex items-center gap-1 text-[11px] text-secondary underline-offset-2 hover:text-primary hover:underline">
+                    <UserPlus className="h-3 w-3" aria-hidden /> Add to deal
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {adding ? (
           <AddContact
             accountId={account?.id ?? null}

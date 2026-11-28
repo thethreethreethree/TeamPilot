@@ -52,4 +52,16 @@ describe("DealAccountContacts", () => {
     await waitFor(() => expect(reload).toHaveBeenCalled());
     expect(post).not.toHaveBeenCalled();
   });
+  it("suggests people heard on the account's calls (F26.6); Add to deal gives them a role; a failed read says so", async () => {
+    const post = vi.fn(async () => true);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ flows: [] }))));
+    render(<DealAccountContacts dealId="d1" account={{ id: "a1", name: "Acme" }} contacts={[C]} busy={false} post={post} reload={vi.fn()} suggested={[{ id: "c9", name: "Sam Lee", title: "CFO", rank: "c_level", calls: 3, lastCallAt: "2026-11-20T00:00:00Z" }]} />);
+    const box = screen.getByLabelText("Heard on this account's calls");
+    expect(box.textContent).toMatch(/Sam Lee.*CFO.*C-level.*on 3 calls/);
+    fireEvent.click(screen.getByRole("button", { name: "Add to deal" }));
+    expect(post).toHaveBeenCalledWith({ action: "contact", contactId: "c9", role: "other" });
+    cleanup();
+    render(<DealAccountContacts dealId="d1" account={{ id: "a1", name: "Acme" }} contacts={[C]} busy={false} post={post} reload={vi.fn()} suggested={null} />);
+    expect(screen.getByText(/Couldn.t check who else was on this account.s calls/)).toBeTruthy();
+  });
 });

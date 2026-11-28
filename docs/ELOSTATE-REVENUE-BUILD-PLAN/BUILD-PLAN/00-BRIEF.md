@@ -29,6 +29,7 @@
 | 2026-11-27 | Topic sections (F11.11) | On request per call | Founder picker (recommended) |
 | 2026-11-27 | Share a personal folder (F12.8) | Managers only (today's rule) | Founder picker (recommended) |
 | 2026-11-27 | Next batch after the Gong P3 audit | Deal-flow batch: field history (F23.11), forecast due day and reminder (F22.4) here; meeting-prep trigger (F13.6) in the Engage plan E11 | Founder picker: "Deal-flow batch (Recommended)" |
+| 2026-11-28 | F26.6 recommended contacts | From our own calls only (call_contacts), not an enrichment partner | Gong's uses enrichment; ours needs no outside service and claims nothing it didn't hear |
 
 ## Open questions
 | # | Question | Blocks |

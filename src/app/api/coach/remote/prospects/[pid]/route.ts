@@ -9,6 +9,7 @@ import { readBody } from "@/lib/api/validate";
 import { isTaskClosed } from "@/lib/tasks/statusLabels";
 import { eventValue } from "@/lib/coach/remote/macroMode";
 import { AccountReadError, contactsOfDeal, DEAL_ROLES } from "@/lib/coach/remote/revenue/accounts";
+import { recommendedContacts, type Suggested } from "@/lib/coach/remote/revenue/recommendedContacts";
 import { runAgentsForStage, runAgentsForCallLinked, stageChanged } from "@/lib/coach/remote/engage/agents";
 
 /**
@@ -93,6 +94,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
     console.error(`[prospect] account/contacts read failed id=${pid}: ${e.message}`);
     return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
   }
+  // Revenue phase 9 (F26.6): the account's people heard on its calls who aren't on this deal. A failed read is said on
+  // the Contacts tab (null), never "no one to suggest", and doesn't take the deal down with it.
+  let suggested: Suggested[] | null = [];
+  if (account) {
+    try {
+      suggested = await recommendedContacts(db, account.id, new Set(contacts.map((c) => c.id)));
+    } catch (e) {
+      if (!(e instanceof AccountReadError)) throw e;
+      console.error(`[prospect] suggested contacts read failed id=${pid}: ${e.message}`);
+      suggested = null;
+    }
+  }
   // Revenue phase 8 (F23.11): who made each change, for the Activity tab's field history. Names only; a failed read
   // shows "A teammate" rather than hiding the history.
   const actorIds = [...new Set(((ev.data ?? []) as Array<{ actor_id: string | null }>).map((e) => e.actor_id).filter((x): x is string => !!x))];
@@ -109,6 +122,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
     account,
     contacts,
     history: ev.data ?? [],
+    suggested,
     actors: Object.fromEntries(actorRows.map((a) => [String(a.id), a.full_name || "Unnamed teammate"])),
     accounts: Object.fromEntries(accountRows.map((a) => [String(a.id), a.name || "(no name)"])),
     calls: ((sess.data ?? []) as Array<Record<string, unknown>>).map((s) => ({

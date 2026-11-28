@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { DealAccountContacts, type DealContact } from "./DealAccountContacts";
+import { DealAccountContacts, type DealContact, type SuggestedContact } from "./DealAccountContacts";
 import { DealBoard } from "./DealBoard";
 import { DealPlaybook } from "./DealPlaybook";
 import { DealBrief } from "./DealBrief";
@@ -432,6 +432,8 @@ type Detail = {
   history?: HistoryEvent[];
   actors?: Record<string, string>;
   accounts?: Record<string, string>;
+  // Revenue phase 9 (F26.6): null = couldn't be read.
+  suggested?: SuggestedContact[] | null;
 };
 
 /** The deal's field changes (revenue plan phase 8; Gong F23.11), newest first; the 8 newest, the rest behind "Show all". */
@@ -696,7 +698,7 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
       </>)}
 
       {shown === "Warnings" && <DealWarnings risk={risk} />}
-      {shown === "Contacts" && <DealAccountContacts dealId={p.id} account={d.account ?? null} contacts={d.contacts ?? []} busy={busy} post={post} reload={() => { void load(); onChanged(); }} />}
+      {shown === "Contacts" && <DealAccountContacts dealId={p.id} account={d.account ?? null} contacts={d.contacts ?? []} suggested={d.suggested === undefined ? [] : d.suggested} busy={busy} post={post} reload={() => { void load(); onChanged(); }} />}
       {shown === "Playbook" && <DealPlaybook dealId={p.id} />}
       {shown === "Brief" && (
         <>
