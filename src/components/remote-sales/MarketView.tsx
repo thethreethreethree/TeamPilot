@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { TopicGroups } from "./TopicGroups";
-import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer";
+import { CitedAnswer, citedPlainText, type Citation } from "@/components/sales-coach/CitedAnswer";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 
 /**
@@ -24,7 +24,7 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
   const isManager = useIsSalesCoachManager();
   const [tracked, setTracked] = useState<Record<string, "saving" | "done" | string>>({});
   // Engage plan E14 (Gong F13.11): a battlecard for one competitor, written on request from its calls; not saved.
-  const [card, setCard] = useState<{ competitor: string; busy: boolean; text?: string; citations?: Citation[]; calls?: number; error?: string } | null>(null);
+  const [card, setCard] = useState<{ competitor: string; busy: boolean; text?: string; citations?: Citation[]; calls?: number; error?: string; copied?: boolean } | null>(null);
   const battlecard = async (competitor: string) => {
     setCard({ competitor, busy: true });
     try {
@@ -146,7 +146,15 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
                   <div role="region" aria-label={`Battlecard: ${card.competitor}`} className="mt-2 rounded-lg border border-default bg-base/40 p-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs font-semibold text-primary">Battlecard: {card.competitor}</p>
-                      <button type="button" onClick={() => setCard(null)} className="text-[11px] text-muted hover:text-primary">Close</button>
+                      <span className="flex items-center gap-3">
+                        {/* E14 residual R2: the card isn't saved, so it can be copied out (citations as call times). */}
+                        {card.text && (
+                          <button type="button" onClick={() => void navigator.clipboard.writeText(`Battlecard: ${card.competitor}\n\n${citedPlainText(card.text ?? "", card.citations ?? [])}`).then(() => setCard((c) => (c ? { ...c, copied: true } : c))).catch(() => setCard((c) => (c ? { ...c, error: "Couldn't copy — select the text instead." } : c)))} className="text-[11px] text-secondary hover:text-primary">
+                            {card.copied ? "Copied" : "Copy"}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => setCard(null)} className="text-[11px] text-muted hover:text-primary">Close</button>
+                      </span>
                     </div>
                     {card.busy ? (
                       <p className="mt-1 flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Reading the calls that named {card.competitor}…</p>
