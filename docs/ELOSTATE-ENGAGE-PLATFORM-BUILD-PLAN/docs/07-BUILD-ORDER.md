@@ -15,4 +15,5 @@
 | E12 | Fill the playbook from each call (F27.10): a "call added to a deal" trigger and a "read the playbook" action | Engage → Agents: the "Fill the playbook from each call" template; the deal's Playbook tab fills itself |
 | E13 | Call scores in the public API (F15.19) | `GET /api/v1/scores` from an outside tool |
 | E14 | A competitor battlecard from the calls (F13.11) | Market → a competitor's "Battlecard" |
+| E15 | Trusted addresses per API key (F33.10) | Settings → API keys: "Only from these addresses" |
 | later | Auto email (needs E1 in 00), dialer (E4 in 00), CRM sync | — |

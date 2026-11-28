@@ -8,7 +8,7 @@ import { Copy, KeyRound } from "lucide-react";
  * "MCP", for AI assistants). A key is shown once; only its hash is kept. Each row says its use in the last 24 hours.
  */
 type UsageLine = { keyId: string; route: string; requests: number; errors: number; limited: number };
-type Key = { id: string; name: string; prefix: string; scopes: string[]; createdAt: string; revokedAt: string | null; requests24h: number; lastUsedAt: string | null };
+type Key = { id: string; name: string; prefix: string; scopes: string[]; createdAt: string; revokedAt: string | null; requests24h: number; lastUsedAt: string | null; allowedIps?: string[] | null };
 
 export function ApiKeysPanel() {
   const [keys, setKeys] = useState<Key[] | null>(null);
@@ -17,6 +17,8 @@ export function ApiKeysPanel() {
   const [mcp, setMcp] = useState(false);
   // Engage plan E6 (0387): a key that can also upload calls for the company's reps.
   const [upload, setUpload] = useState(false);
+  // Engage plan E15 (0393): trusted addresses, set when the key is made; empty = anywhere.
+  const [ips, setIps] = useState("");
   const [shown, setShown] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   // Revoking can't be undone and stops an outside tool at once, so it asks first.
@@ -53,6 +55,7 @@ export function ApiKeysPanel() {
     setName("");
     setMcp(false);
     setUpload(false);
+    setIps("");
     setConfirmRevoke(null);
     void load();
   };
@@ -86,8 +89,9 @@ export function ApiKeysPanel() {
         <input value={name} onChange={(e) => setName(e.currentTarget.value)} maxLength={60} placeholder="What it's for, e.g. Data warehouse" aria-label="Key name" className="min-w-0 flex-1 rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />
         <label className="flex items-center gap-1 text-secondary"><input type="checkbox" checked={mcp} onChange={(e) => setMcp(e.currentTarget.checked)} /> Also for AI assistants (MCP)</label>
         <label className="flex items-center gap-1 text-secondary"><input type="checkbox" checked={upload} onChange={(e) => setUpload(e.currentTarget.checked)} /> Also uploads calls</label>
-        <button type="button" disabled={!name.trim()} onClick={() => void post({ name: name.trim(), scopes: ["read", ...(mcp ? ["mcp"] : []), ...(upload ? ["upload"] : [])] })} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Make a key</button>
+        <button type="button" disabled={!name.trim()} onClick={() => void post({ name: name.trim(), scopes: ["read", ...(mcp ? ["mcp"] : []), ...(upload ? ["upload"] : [])], ...(ips.trim() ? { allowedIps: ips.split(/[\s,]+/).filter(Boolean) } : {}) })} className="rounded-lg bg-brand px-3 py-1 font-semibold text-black disabled:opacity-50">Make a key</button>
       </div>
+      <input value={ips} onChange={(e) => setIps(e.currentTarget.value)} maxLength={600} placeholder="Only from these addresses (optional): 203.0.113.7, 198.51.100.0/24" aria-label="Trusted addresses" className="mt-1 w-full rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary" />
       {msg && <p className="mt-1 text-amber-700 dark:text-amber-300">{msg}</p>}
       {state === "failed" ? <p className="mt-2 text-secondary">Couldn&apos;t load API keys. Refresh to try again.</p> : keys && keys.length > 0 && (
         <ul className="mt-2 space-y-1">
@@ -96,6 +100,7 @@ export function ApiKeysPanel() {
               <span className="font-medium text-primary">{k.name}</span>
               <code className="text-muted">{k.prefix}…</code>
               <span className="text-muted">{k.scopes.join(" + ")}</span>
+              {k.allowedIps && k.allowedIps.length > 0 && <span className="text-muted" title={k.allowedIps.join(", ")}>only from {k.allowedIps.length === 1 ? k.allowedIps[0] : `${k.allowedIps.length} addresses`}</span>}
               <span className="text-secondary">{k.revokedAt ? `revoked ${new Date(k.revokedAt).toLocaleDateString()}` : `${k.requests24h} request${k.requests24h === 1 ? "" : "s"} in 24 h${k.lastUsedAt ? ` · last ${new Date(k.lastUsedAt).toLocaleString()}` : " · never used"}`}</span>
               {!k.revokedAt && (confirmRevoke === k.id ? (
                 <span className="ml-auto flex items-center gap-2">

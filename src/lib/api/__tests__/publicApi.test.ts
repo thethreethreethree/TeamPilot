@@ -184,4 +184,13 @@ describe("public API keys", () => {
     expect(asked).not.toMatch(/transcript|audio_url|evidence|not_qualifying_reason/);
     st.hidden = new Set();
   });
+  it("trusted addresses (E15): a key with a list works only from it; refused requests are recorded", async () => {
+    st.key = { id: "k-ip-1", company_id: "co1", created_by: "admin-1", scopes: ["read"], revoked_at: null, allowed_ips: ["203.0.113.0/24"] };
+    const at = (ip?: string) => new Request("http://x/api/v1/deals", { headers: { authorization: `Bearer ${KEY}`, ...(ip ? { "x-real-ip": ip } : {}) } });
+    expect((await readResource(at("198.51.100.1"), "deals")).status).toBe(403);
+    expect((await readResource(at(), "deals")).status).toBe(403);
+    expect(st.usage).toContainEqual(expect.objectContaining({ key_id: "k-ip-1", status: 403 }));
+    st.key = { ...st.key!, id: "k-ip-2" };
+    expect((await readResource(at("203.0.113.9"), "deals")).status).toBe(200);
+  });
 });

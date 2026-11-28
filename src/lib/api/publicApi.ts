@@ -1,4 +1,5 @@
 import "server-only";
+import { ipAllowed, requestIp } from "./ipAllow";
 import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,12 +29,18 @@ export async function authenticateApiKey(req: Request, scope: "read" | "mcp" | "
   const key = bearerToken(req);
   if (!/^els_[A-Za-z0-9_-]{40,}$/.test(key)) return NextResponse.json({ error: "Send a valid API key as 'Authorization: Bearer els_…'." }, { status: 401 });
   const admin = createAdminClient();
-  const { data, error } = await admin.from("api_keys").select("id, company_id, created_by, scopes, revoked_at").eq("key_hash", hashApiKey(key)).maybeSingle();
+  const { data, error } = await admin.from("api_keys").select("id, company_id, created_by, scopes, revoked_at, allowed_ips").eq("key_hash", hashApiKey(key)).maybeSingle();
   if (error) return NextResponse.json({ error: "The API is unavailable. Try again." }, { status: 503 });
   if (!data || data.revoked_at) return NextResponse.json({ error: "That API key isn't valid." }, { status: 401 });
   const scopes = (data.scopes as string[]) ?? [];
   if (!scopes.includes(scope)) return NextResponse.json({ error: `That key can't use the ${scope === "mcp" ? "MCP server" : scope === "upload" ? "call upload" : "read API"}.` }, { status: 403 });
   const caller = { keyId: String(data.id), companyId: String(data.company_id), createdBy: String(data.created_by), scopes };
+  // 0393 (E15; Gong F33.10): a key with trusted addresses works only from them. Refused and recorded, so the usage
+  // report shows the attempts.
+  if (!ipAllowed(requestIp(req), (data.allowed_ips as string[] | null) ?? null)) {
+    await recordApiUsage(caller, route, 403);
+    return NextResponse.json({ error: "This key can't be used from this address." }, { status: 403 });
+  }
   if (!underPerSecond(caller.keyId)) {
     await recordApiUsage(caller, route, 429);
     return NextResponse.json({ error: `At most ${API_PER_SECOND} requests a second per key.` }, { status: 429, headers: { "Retry-After": "1" } });

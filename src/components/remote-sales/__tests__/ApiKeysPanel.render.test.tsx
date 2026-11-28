@@ -70,4 +70,12 @@ describe("ApiKeysPanel", () => {
     render(<ApiKeysPanel />);
     expect(await screen.findByText(/Couldn.t load API usage/)).toBeTruthy();
   });
+  it("trusted addresses (E15) are sent with a new key and shown on it", async () => {
+    const posts = serve();
+    render(<ApiKeysPanel />);
+    fireEvent.change(await screen.findByLabelText("Key name"), { target: { value: "Warehouse" } });
+    fireEvent.change(screen.getByLabelText("Trusted addresses"), { target: { value: "203.0.113.7, 198.51.100.0/24" } });
+    fireEvent.click(screen.getByRole("button", { name: "Make a key" }));
+    await waitFor(() => expect(posts[0]).toEqual({ name: "Warehouse", scopes: ["read"], allowedIps: ["203.0.113.7", "198.51.100.0/24"] }));
+  });
 });

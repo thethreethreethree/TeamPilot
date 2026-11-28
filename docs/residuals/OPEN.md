@@ -702,3 +702,9 @@ founder decision, 12 open and buildable now.
       7 days get one; production has 0 forecast submissions today, so the first real one needs a team using the board.
 - [ ] 2026-11-27 · engage-e11 · the first meeting-prep run needs a saved "Meeting prep" agent and an open deal with a
       next call booked for the company's tomorrow (0 agents today).
+
+## Filed by Engage E15 (2026-11-28: trusted addresses per API key)
+
+- [ ] 2026-11-28 · engage-e15 · OUTSIDE PRECONDITION (§1.5.3): the trusted-address check reads x-real-ip, which Vercel
+      sets to the connecting address. To verify once a company admin makes a key with a list: a request from a listed
+      address answers 200, one from elsewhere 403 (and shows as a refusal in Settings → API keys → Usage).

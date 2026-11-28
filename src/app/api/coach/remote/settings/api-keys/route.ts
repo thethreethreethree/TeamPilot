@@ -6,6 +6,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
 import { recordAudit } from "@/lib/audit/recordAudit";
 import { newApiKey } from "@/lib/api/publicApi";
+import { validEntry } from "@/lib/api/ipAllow";
 
 /**
  * /api/coach/remote/settings/api-keys — the company's API keys (Engage plan E3, 0378). Company admins only.
@@ -15,7 +16,8 @@ import { newApiKey } from "@/lib/api/publicApi";
  * Writes use the service role after the admin check, pinned to the admin's company (0378 has no write policy).
  */
 const Body = z.union([
-  z.object({ name: z.string().trim().min(1).max(60), scopes: z.array(z.enum(["read", "mcp", "upload"])).min(1).max(3) }),
+  // allowedIps (0393, E15): trusted addresses or CIDR ranges; none = anywhere.
+  z.object({ name: z.string().trim().min(1).max(60), scopes: z.array(z.enum(["read", "mcp", "upload"])).min(1).max(3), allowedIps: z.array(z.string().trim().min(2).max(50)).max(20).optional() }),
   z.object({ revoke: z.string().uuid() }),
 ]);
 
@@ -26,17 +28,17 @@ export async function GET(req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   if (!ctx.isAdmin) return NextResponse.json({ error: "Only a company admin can manage API keys." }, { status: 403 });
   const admin = createAdminClient();
-  const { data, error } = await admin.from("api_keys").select("id, name, prefix, scopes, created_at, revoked_at").eq("company_id", ctx.companyId).order("created_at", { ascending: false }).limit(100);
+  const { data, error } = await admin.from("api_keys").select("id, name, prefix, scopes, created_at, revoked_at, allowed_ips").eq("company_id", ctx.companyId).order("created_at", { ascending: false }).limit(100);
   if (error) return NextResponse.json({ error: "Couldn't load API keys." }, { status: 500 });
   const since = new Date(Date.now() - 86_400_000).toISOString();
   const keys = [];
-  for (const k of (data ?? []) as Array<{ id: string; name: string; prefix: string; scopes: string[]; created_at: string; revoked_at: string | null }>) {
+  for (const k of (data ?? []) as Array<{ id: string; name: string; prefix: string; scopes: string[]; created_at: string; revoked_at: string | null; allowed_ips: string[] | null }>) {
     const [{ count, error: cErr }, { data: last, error: lErr }] = await Promise.all([
       admin.from("api_usage").select("id", { count: "exact", head: true }).eq("company_id", ctx.companyId).eq("key_id", k.id).gte("at", since),
       admin.from("api_usage").select("at").eq("company_id", ctx.companyId).eq("key_id", k.id).order("at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (cErr || lErr) return NextResponse.json({ error: "Couldn't load API key usage." }, { status: 500 });
-    keys.push({ id: k.id, name: k.name, prefix: k.prefix, scopes: k.scopes, createdAt: k.created_at, revokedAt: k.revoked_at, requests24h: count ?? 0, lastUsedAt: last?.at ?? null });
+    keys.push({ id: k.id, name: k.name, prefix: k.prefix, scopes: k.scopes, createdAt: k.created_at, revokedAt: k.revoked_at, requests24h: count ?? 0, lastUsedAt: last?.at ?? null, allowedIps: k.allowed_ips ?? null });
   }
   return NextResponse.json({ keys });
 }
@@ -57,12 +59,15 @@ export async function POST(req: NextRequest) {
     await recordAudit(admin, { companyId: ctx.companyId, actorId: ctx.userId, action: "api_key.revoke", objectType: "api_key", objectId: body.revoke });
     return NextResponse.json({ ok: true });
   }
+  const ips = [...new Set((body.allowedIps ?? []).map((x) => x.trim()).filter(Boolean))];
+  const bad = ips.find((x) => !validEntry(x));
+  if (bad) return NextResponse.json({ error: `“${bad}” isn't an IP address or range (e.g. 203.0.113.7 or 203.0.113.0/24).` }, { status: 400 });
   const k = newApiKey();
-  const { data, error } = await admin.from("api_keys").insert({ company_id: ctx.companyId, name: body.name, prefix: k.prefix, key_hash: k.hash, scopes: [...new Set(body.scopes)], created_by: ctx.userId }).select("id").single();
+  const { data, error } = await admin.from("api_keys").insert({ company_id: ctx.companyId, name: body.name, prefix: k.prefix, key_hash: k.hash, scopes: [...new Set(body.scopes)], created_by: ctx.userId, allowed_ips: ips.length ? ips : null }).select("id").single();
   if (error || !data) {
     console.error(`[api-keys] create failed company=${ctx.companyId}: ${error?.message}`);
     return NextResponse.json({ error: "Couldn't make the key." }, { status: 500 });
   }
-  await recordAudit(admin, { companyId: ctx.companyId, actorId: ctx.userId, action: "api_key.create", objectType: "api_key", objectId: String(data.id), meta: { name: body.name, scopes: body.scopes } });
+  await recordAudit(admin, { companyId: ctx.companyId, actorId: ctx.userId, action: "api_key.create", objectType: "api_key", objectId: String(data.id), meta: { name: body.name, scopes: body.scopes, trusted_addresses: ips.length } });
   return NextResponse.json({ id: String(data.id), key: k.key });
 }
