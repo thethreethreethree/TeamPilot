@@ -10,6 +10,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * The five generation engines are mocked (no LLM); appendTranscriptSegment is captured.
  */
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
+// Engage E12: the call-added agents run after the reply; recorded here, not run.
+const afterCalls = vi.hoisted(() => ({ n: 0 }));
+vi.mock("next/server", async (orig) => ({
+  ...(await orig<typeof import("next/server")>()),
+  after: () => {
+    afterCalls.n += 1;
+  },
+}));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth-helpers", () => ({ getCurrentCompanyId: vi.fn(async () => "co1") }));
 vi.mock("@/lib/data/salesCoach", () => ({
@@ -86,6 +94,8 @@ describe("POST /finalize — owner-only (A18 transcript-injection defense)", () 
     expect(res.status).toBe(200);
     expect(appendTranscriptSegment).toHaveBeenCalledTimes(1); // the one segment in BODY
     expect(runAndStoreDissect).toHaveBeenCalledTimes(1); // first finalize → the engines run
+    // Engage E12: the call-added agents are handed to after(), not run in the reply
+    expect(afterCalls.n).toBeGreaterThan(0);
   });
 
   it("IDEMPOTENT (finding 9): a second finalize with the dissect already generated appends but does NOT re-run the 5 engines", async () => {

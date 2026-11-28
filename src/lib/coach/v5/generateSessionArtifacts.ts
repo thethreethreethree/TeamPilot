@@ -46,6 +46,11 @@ export async function generateSessionArtifacts(args: {
   sessionId: string;
   session: Pick<SalesSession, "clientLabel" | "context" | "outcome" | "sessionKind">;
   segments: TranscriptSegment[];
+  /**
+   * The caller runs the call-added agents itself, after its reply (review residual 2026-11-28): /finalize answers the
+   * rep, so an agent's AI read mustn't add to that request. Every other caller already runs this after its reply.
+   */
+  agentsLater?: boolean;
 }) {
   const { companyId, actorId, sessionId, session, segments } = args;
 
@@ -242,6 +247,6 @@ export async function generateSessionArtifacts(args: {
   // Engage E12 (0392): a call already on a deal runs its "call added" agents now that there's a transcript to read —
   // last, after the hide scan above (so a hidden call stays hidden from the agent's owner) and after the rep's own
   // coaching. Never throws; once per transcript version.
-  await fireCallLinkedOnTranscript(null, { companyId, sessionId });
+  if (!args.agentsLater) await fireCallLinkedOnTranscript(null, { companyId, sessionId });
   return { dissect, summary, moments, pivot, intel };
 }

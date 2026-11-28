@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { fireCallLinkedOnTranscript } from "@/lib/coach/remote/engage/agents";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId } from "@/lib/supabase/auth-helpers";
@@ -166,7 +167,10 @@ export async function POST(
     sessionId: id,
     session,
     segments,
+    agentsLater: true,
   });
+  // Engage E12: the call-added agents (an AI read when one fills the playbook) after the reply, never in it.
+  after(() => fireCallLinkedOnTranscript(null, { companyId, sessionId: id }));
 
   /**
    * SCORE THE PITCH HERE, because "when the recording is finished" is when it should happen.
