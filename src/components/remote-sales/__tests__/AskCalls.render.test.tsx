@@ -54,4 +54,16 @@ describe("AskCalls", () => {
     expect(screen.queryByRole("group", { name: "On-demand agents" })).toBeNull();
     expect(screen.getByRole("button", { name: "Ask" })).toBeTruthy();
   });
+  it("past 10 calls, deep asks up to 50 of them in one question (E18); off by default", async () => {
+    const many = Array.from({ length: 23 }, (_, i) => ({ sessionId: `m${i}`, label: `Call ${i}` }));
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_u: string, init?: RequestInit) => (bodies.push(JSON.parse(String(init!.body))), new Response(JSON.stringify({ answer: "Deep answer.", citations: [] })))));
+    render(<AskCalls title="Ask about this account" calls={many} starters={["Who decides?"]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Who decides?" }));
+    await waitFor(() => expect(bodies[0]).toEqual({ question: "Who decides?", sessionIds: many.slice(0, 10).map((c) => c.sessionId) }));
+    fireEvent.click(screen.getByLabelText(/Ask all 23 calls \(deep/));
+    fireEvent.click(screen.getByRole("button", { name: "Who decides?" }));
+    await waitFor(() => expect(bodies[1]).toEqual({ question: "Who decides?", sessionIds: many.map((c) => c.sessionId), deep: true }));
+    expect(screen.getByText(/deep: 23 of 23 calls, read 10 at a time/)).toBeTruthy();
+  });
 });

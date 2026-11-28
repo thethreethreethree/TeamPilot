@@ -33,6 +33,9 @@ export function AskCalls({ title, calls, starters = [], onDemand = false }: { ti
   }, [onDemand]);
   const unique = [...new Map(calls.map((c) => [c.sessionId, c])).values()];
   const asked = unique.slice(0, 10);
+  // Engage plan E18: past 10 calls, the question can read up to 50 of them, 10 at a time, combined.
+  const [deep, setDeep] = useState(false);
+  const deepCalls = unique.slice(0, 50);
   if (asked.length === 0) return null;
   const ask = async (question: string, agentId?: string) => {
     if (!agentId && question.trim().length < 3) return;
@@ -43,7 +46,7 @@ export function AskCalls({ title, calls, starters = [], onDemand = false }: { ti
     try {
       const r = agentId
         ? await fetch("/api/coach/remote/on-demand-agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ run: agentId, sessionIds: asked.map((c) => c.sessionId) }) })
-        : await fetch("/api/coach/remote/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: question.trim(), sessionIds: asked.map((c) => c.sessionId) }) });
+        : await fetch("/api/coach/remote/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(deep && deepCalls.length > 10 ? { question: question.trim(), sessionIds: deepCalls.map((c) => c.sessionId), deep: true } : { question: question.trim(), sessionIds: asked.map((c) => c.sessionId) }) });
       const j = (await r.json().catch(() => ({}))) as { answer?: string | null; citations?: Citation[]; error?: string };
       if (!r.ok) setErr(j.error ?? "The coach couldn't answer.");
       else setAnswer({ text: j.answer ?? "The coach isn't answering on this account right now.", citations: j.citations ?? [] });
@@ -64,7 +67,7 @@ export function AskCalls({ title, calls, starters = [], onDemand = false }: { ti
     >
       <label className="block text-[11px] text-muted">
         <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3 text-brand" aria-hidden /> {title}</span>
-        {unique.length > asked.length ? ` (the ${asked.length} most recent of ${unique.length} calls)` : ` (${asked.length} call${asked.length === 1 ? "" : "s"})`}
+        {deep && unique.length > 10 ? ` (deep: ${deepCalls.length} of ${unique.length} calls, read 10 at a time)` : unique.length > asked.length ? ` (the ${asked.length} most recent of ${unique.length} calls)` : ` (${asked.length} call${asked.length === 1 ? "" : "s"})`}
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={2000} placeholder="e.g. What did they say about budget?" className="mt-1 w-full rounded-lg border border-default bg-surface px-2 py-1.5 text-xs text-primary" />
       </label>
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -77,6 +80,12 @@ export function AskCalls({ title, calls, starters = [], onDemand = false }: { ti
           </button>
         ))}
       </div>
+      {unique.length > 10 && (
+        <label className="mt-1 flex items-center gap-1 text-[11px] text-secondary">
+          <input type="checkbox" checked={deep} disabled={busy} onChange={(e) => setDeep(e.currentTarget.checked)} />
+          Ask all {deepCalls.length} calls (deep{unique.length > 50 ? ", the newest 50" : ""}; slower, read 10 at a time)
+        </label>
+      )}
       {agents.length > 0 && (
         <div role="group" aria-label="On-demand agents" className="mt-1 flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-muted">Your team&apos;s agents:</span>

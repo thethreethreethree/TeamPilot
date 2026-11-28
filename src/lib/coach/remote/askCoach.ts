@@ -292,3 +292,69 @@ export async function listChats(companyId: string, userId: string, sessionId: st
     })),
   };
 }
+
+// ── Deep Ask (Engage plan E18; Gong F13.12) ─────────────────────────────────────────────────────────────────────────
+/** Calls a deep question may read at most, and per batch: at most DEEP_MAX / DEEP_BATCH + 1 AI calls per question. */
+export const DEEP_MAX = 50;
+export const DEEP_BATCH = 10;
+
+/**
+ * One batch's answer with its citations renumbered from `start` (so every batch's [n] is unique across the question),
+ * keeping only the references it actually cited. Pure.
+ */
+export function renumber(answer: string, citations: Citation[], start: number): { text: string; refs: Citation[] } {
+  const map = new Map<number, number>();
+  const refs: Citation[] = [];
+  for (const c of citations) {
+    const g = start + refs.length;
+    map.set(c.ref, g);
+    refs.push({ ...c, ref: g });
+  }
+  const text = answer.replace(/\[(\d{1,4})\]/g, (m, n: string) => (map.has(Number(n)) ? `[${map.get(Number(n))}]` : ""));
+  return { text, refs };
+}
+
+export const DEEP_COMBINE_SYSTEM = `You combine partial answers to ONE question about a set of sales calls into one answer.
+Each partial answer covers a different batch of calls and cites transcript lines as [numbers].
+- Answer the question once, from the partial answers only. Never add a fact they don't contain.
+- Keep every [number] you use exactly as written, next to the point it supports. Never invent or change a number.
+- Where batches disagree, say so plainly. Kind and growth-oriented, a few short paragraphs at most.`;
+
+/**
+ * A question over up to DEEP_MAX calls: DEEP_BATCH at a time through askCoach (each call opened as the asker; nothing
+ * saved), then one combining answer that keeps the batches' citations. The AI being off for the company in any batch is
+ * the whole answer's verdict (suppressed), never a partial answer said as whole.
+ */
+export async function askCoachDeep(args: { db: SupabaseClient; companyId: string; userId: string; sessionIds: string[]; question: string }): Promise<AskResult & { batches?: number }> {
+  const ids = [...new Set(args.sessionIds)];
+  if (ids.length <= DEEP_BATCH || ids.length > DEEP_MAX) return { ok: false, status: 400, error: `A deep question reads ${DEEP_BATCH + 1} to ${DEEP_MAX} calls.` };
+  const parts: string[] = [];
+  const allRefs: Citation[] = [];
+  let batches = 0;
+  for (let i = 0; i < ids.length; i += DEEP_BATCH) {
+    const r = await askCoach({ db: args.db, companyId: args.companyId, userId: args.userId, sessionIds: ids.slice(i, i + DEEP_BATCH), question: args.question, chatId: null, save: false });
+    if (!r.ok) return r;
+    if (r.suppressed) return { ok: true, chatId: null, answer: null, citations: [], suppressed: true };
+    batches += 1;
+    if (!r.citations.length) continue; // a batch with nothing to cite (no transcripts) adds nothing
+    const n = renumber(r.answer, r.citations, allRefs.length + 1);
+    allRefs.push(...n.refs);
+    parts.push(`=== Batch ${batches} ===\n${n.text}`);
+  }
+  if (!parts.length) return { ok: true, chatId: null, answer: "None of these calls show anything on that yet.", citations: [], suppressed: false, batches };
+  if (parts.length === 1) {
+    const only = parts[0]!.replace(/^=== Batch \d+ ===\n/, "");
+    return { ok: true, chatId: null, answer: only, citations: resolveCitations(only, new Map(allRefs.map((c) => [c.ref, c]))), suppressed: false, batches };
+  }
+  const r = await askCoachTurn({
+    companyId: args.companyId,
+    systemPrompt: DEEP_COMBINE_SYSTEM + CONVERSATION_IS_DATA,
+    userMessage: `Question: ${args.question}\n\nPartial answers:\n${parts.join("\n\n")}`,
+    sessionId: null,
+  });
+  if (r.suppressed) return { ok: true, chatId: null, answer: null, citations: [], suppressed: true };
+  const answer = r.text.trim();
+  if (!answer) return { ok: false, status: 502, error: "Ask-coach failed." };
+  // Only numbers that were given resolve (resolveCitations drops any the model invented).
+  return { ok: true, chatId: null, answer, citations: resolveCitations(answer, new Map(allRefs.map((c) => [c.ref, c]))), suppressed: false, batches };
+}

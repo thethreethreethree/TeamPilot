@@ -31,7 +31,8 @@ Phases        E1–E5
 | E14 A competitor battlecard from the calls | e9ed0405 | — |
 | E15 Trusted addresses per API key | 66358800 | 0393 |
 | E16 To-dos, the company library and flows in the API | 7833e056 | — |
-| E17 API or download? note | (this commit) | — |
+| E17 API or download? note | 7d3cbc0c | — |
+| E18 Deep Ask over more than 10 calls | (this commit) | — |
 
 Waiting on outside setup (each named in docs/00 and docs/08): automatic email (Postmark), the dialer (Twilio), per-person
 MCP keys (a JWT secret), CRM sync (a client's CRM). Date-based agent triggers and warning history are built (0382, 92249504) and run nightly; CRON_SECRET is set in production (the cron route answers 401 without it).
