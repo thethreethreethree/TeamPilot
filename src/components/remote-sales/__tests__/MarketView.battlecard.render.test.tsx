@@ -41,11 +41,11 @@ describe("Market → Battlecard", () => {
   it("Copy puts the card on the clipboard with call times for citations (E14 R2)", async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    vi.stubGlobal("fetch", vi.fn((url: string) => (url === "/api/coach/remote/market/battlecard" ? json({ answer: "Price went up [1]", citations: [{ ref: 1, sessionId: "s1", seq: 4, atMs: 65_000 }], calls: 3 }) : url.includes("/market/topic-groups") ? json({ canManage: false, groups: [] }) : json(MARKET))));
+    vi.stubGlobal("fetch", vi.fn((url: string) => (url === "/api/coach/remote/market/battlecard" ? json({ answer: "Price went up [1]", citations: [{ ref: 1, sessionId: "s1", seq: 4, atMs: 65_000 }], calls: 3, labels: { s1: "2026-11-20 · Acme" } }) : url.includes("/market/topic-groups") ? json({ canManage: false, groups: [] }) : json(MARKET))));
     render(<MarketView module="remote_sales" />);
     fireEvent.click(await screen.findByRole("button", { name: "Battlecard" }));
     fireEvent.click(await screen.findByRole("button", { name: "Copy" }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("Battlecard: Spectrum\n\nPrice went up (1:05)"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("Battlecard: Spectrum\n\nPrice went up (2026-11-20 · Acme, 1:05)"));
     expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
   });
 });

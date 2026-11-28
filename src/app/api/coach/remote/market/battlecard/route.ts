@@ -43,5 +43,9 @@ export async function POST(req: NextRequest) {
   const r = await askCoach({ db, companyId: ctx.companyId, userId: ctx.userId, sessionIds: calls.map((c) => c.sessionId), question: BATTLECARD_INSTRUCTION(body.competitor), chatId: null, save: false, focus: [body.competitor] });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
   if (r.suppressed) return NextResponse.json({ answer: null, suppressed: true });
-  return NextResponse.json({ answer: r.answer, citations: r.citations, calls: calls.length });
+  // Which call each cited line is on (date and label), through the caller's client — the chips and the copy name it.
+  const cited = [...new Set(r.citations.map((c) => c.sessionId))];
+  const { data: sess } = cited.length ? await db.from("coaching_sessions").select("id, client_label, started_at").in("id", cited) : { data: [] };
+  const labels = Object.fromEntries(((sess ?? []) as Array<{ id: string; client_label: string | null; started_at: string }>).map((s) => [String(s.id), `${s.started_at.slice(0, 10)}${s.client_label ? ` · ${s.client_label}` : ""}`]));
+  return NextResponse.json({ answer: r.answer, citations: r.citations, calls: calls.length, labels });
 }

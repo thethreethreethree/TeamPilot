@@ -12,11 +12,13 @@ export type Citation = { ref: number; sessionId: string; seq: number; atMs: numb
 const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
 /** The answer as plain text for copying: each resolved [n] as its call time (or line), the rest unchanged. Pure. */
-export function citedPlainText(text: string, citations: Citation[]): string {
+export function citedPlainText(text: string, citations: Citation[], labelFor?: (c: Citation) => string | undefined): string {
   const byRef = new Map(citations.map((c) => [c.ref, c]));
   return text.replace(/\[(\d{1,4})\]/g, (m, n: string) => {
     const c = byRef.get(Number(n));
-    return c ? `(${c.atMs !== null ? mmss(c.atMs) : `line ${c.seq}`})` : m;
+    if (!c) return m;
+    const where = labelFor?.(c);
+    return `(${where ? `${where}, ` : ""}${c.atMs !== null ? mmss(c.atMs) : `line ${c.seq}`})`;
   });
 }
 

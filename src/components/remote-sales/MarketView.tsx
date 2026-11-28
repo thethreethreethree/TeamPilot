@@ -24,15 +24,15 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
   const isManager = useIsSalesCoachManager();
   const [tracked, setTracked] = useState<Record<string, "saving" | "done" | string>>({});
   // Engage plan E14 (Gong F13.11): a battlecard for one competitor, written on request from its calls; not saved.
-  const [card, setCard] = useState<{ competitor: string; busy: boolean; text?: string; citations?: Citation[]; calls?: number; error?: string; copied?: boolean } | null>(null);
+  const [card, setCard] = useState<{ competitor: string; busy: boolean; text?: string; citations?: Citation[]; calls?: number; error?: string; copied?: boolean; labels?: Record<string, string> } | null>(null);
   const battlecard = async (competitor: string) => {
     setCard({ competitor, busy: true });
     try {
       const r = await fetch("/api/coach/remote/market/battlecard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitor, module, days }) });
-      const j = (await r.json().catch(() => ({}))) as { answer?: string | null; citations?: Citation[]; calls?: number; error?: string; suppressed?: boolean };
+      const j = (await r.json().catch(() => ({}))) as { answer?: string | null; citations?: Citation[]; calls?: number; error?: string; suppressed?: boolean; labels?: Record<string, string> };
       if (!r.ok) return setCard({ competitor, busy: false, error: j.error ?? "Couldn't write the battlecard." });
       if (j.suppressed || !j.answer) return setCard({ competitor, busy: false, error: "The coach isn't answering on this account right now." });
-      setCard({ competitor, busy: false, text: j.answer, citations: j.citations ?? [], calls: j.calls });
+      setCard({ competitor, busy: false, text: j.answer, citations: j.citations ?? [], calls: j.calls, labels: j.labels ?? {} });
     } catch {
       setCard({ competitor, busy: false, error: "Couldn't reach the server." });
     }
@@ -149,7 +149,7 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
                       <span className="flex items-center gap-3">
                         {/* E14 residual R2: the card isn't saved, so it can be copied out (citations as call times). */}
                         {card.text && (
-                          <button type="button" onClick={() => void navigator.clipboard.writeText(`Battlecard: ${card.competitor}\n\n${citedPlainText(card.text ?? "", card.citations ?? [])}`).then(() => setCard((c) => (c ? { ...c, copied: true } : c))).catch(() => setCard((c) => (c ? { ...c, error: "Couldn't copy — select the text instead." } : c)))} className="text-[11px] text-secondary hover:text-primary">
+                          <button type="button" onClick={() => void navigator.clipboard.writeText(`Battlecard: ${card.competitor}\n\n${citedPlainText(card.text ?? "", card.citations ?? [], (c) => card.labels?.[c.sessionId])}`).then(() => setCard((c) => (c ? { ...c, copied: true } : c))).catch(() => setCard((c) => (c ? { ...c, error: "Couldn't copy — select the text instead." } : c)))} className="text-[11px] text-secondary hover:text-primary">
                             {card.copied ? "Copied" : "Copy"}
                           </button>
                         )}
@@ -163,7 +163,7 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
                     ) : (
                       <>
                         <p className="mt-0.5 text-[10px] text-muted">From the {card.calls} newest call{card.calls === 1 ? "" : "s"} that named it · written now, not saved</p>
-                        <div className="mt-1"><CitedAnswer text={card.text ?? ""} citations={card.citations ?? []} /></div>
+                        <div className="mt-1"><CitedAnswer text={card.text ?? ""} citations={card.citations ?? []} labelFor={(c) => card.labels?.[c.sessionId] ?? "call"} /></div>
                       </>
                     )}
                   </div>
