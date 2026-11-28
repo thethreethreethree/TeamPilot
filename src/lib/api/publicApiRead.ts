@@ -7,6 +7,7 @@ import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { teamCallStats, type StatRow } from "@/lib/coach/remote/teamStats";
 import { rubricByVersion } from "@/lib/coach/pitchScore/rubricRegistry";
 import { archivedFolderIds, underArchived } from "@/lib/coach/remote/library";
+import { replayEnrolment, type Activity, type Step } from "@/lib/coach/remote/engage/flows";
 import { authenticateApiKey, OUTSIDE_READER, paging, recordApiUsage } from "./publicApi";
 
 /**
@@ -215,9 +216,29 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
       admin.from("engage_enrolments").select("id, flow_id, prospect_id, contact_id, rep_id, created_at").eq("company_id", caller.companyId).order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to),
     ]);
     if (flows.error || enrolments.error) return done({ error: "Couldn't read flows." }, 500);
+    // Each enrolment's state, step and next due time (E16 residual R2): the app's own replay (replayEnrolment) over its
+    // activities and its flow's steps — any flow, personal ones too, since only the state is said, not their text.
+    const ens = (enrolments.data ?? []) as Array<{ id: string; flow_id: string; prospect_id: string; contact_id: string; rep_id: string; created_at: string }>;
+    const flowIds = [...new Set(ens.map((e) => String(e.flow_id)))];
+    const [stepsRead, actsRead] = ens.length
+      ? await Promise.all([
+          admin.from("engage_flows").select("id, steps").eq("company_id", caller.companyId).in("id", flowIds),
+          fetchAllPagedResult<{ id: number; enrolment_id: string; step_index: number; action: string; created_at: string }>(
+            (f, t) => admin.from("engage_activities").select("id, enrolment_id, step_index, action, created_at").eq("company_id", caller.companyId).in("enrolment_id", ens.map((e) => e.id)).order("id").range(f, t),
+            { label: "api enrolment activities", maxRows: 50_000 },
+          ),
+        ])
+      : [{ data: [], error: null }, { data: [], error: null }];
+    if (stepsRead.error || actsRead.error) return done({ error: "Couldn't read flows." }, 500);
+    const stepsOf = new Map(((stepsRead.data ?? []) as Array<{ id: string; steps: Step[] }>).map((f) => [String(f.id), f.steps ?? []]));
+    const actsOf = new Map<string, Activity[]>();
+    for (const a of actsRead.data ?? []) actsOf.set(String(a.enrolment_id), [...(actsOf.get(String(a.enrolment_id)) ?? []), { stepIndex: a.step_index, action: a.action as Activity["action"], createdAt: a.created_at }]);
     return done({
       flows: (flows.data ?? []).map((f) => ({ id: f.id, name: f.name, steps: f.steps, ownerId: f.owner_id, createdAt: f.created_at })),
-      enrolments: (enrolments.data ?? []).map((e) => ({ id: e.id, flowId: e.flow_id, dealId: e.prospect_id, contactId: e.contact_id, repId: e.rep_id, createdAt: e.created_at })),
+      enrolments: ens.map((e) => {
+        const r = replayEnrolment(stepsOf.get(String(e.flow_id)) ?? [], e.created_at, actsOf.get(String(e.id)) ?? []);
+        return { id: e.id, flowId: e.flow_id, dealId: e.prospect_id, contactId: e.contact_id, repId: e.rep_id, createdAt: e.created_at, state: r.state, step: r.stepIndex, dueAt: r.dueAt };
+      }),
       page,
       limit,
       more: (enrolments.data ?? []).length === limit,

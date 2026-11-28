@@ -229,10 +229,12 @@ describe("public API keys", () => {
   });
   it("flows (E16): company flows and enrolments, pinned", async () => {
     st.key = { ...st.key!, id: "k-flows" };
-    st.t = { engage_flows: [{ id: "fl1", name: "New lead", steps: [{ kind: "call" }], owner_id: "m1", created_at: "t" }], engage_enrolments: [{ id: "e1", flow_id: "fl1", prospect_id: "d1", contact_id: "c1", rep_id: "r1", created_at: "t" }] };
+    // one step, completed → finished (the app's replayEnrolment)
+    st.t = { engage_flows: [{ id: "fl1", name: "New lead", steps: [{ kind: "call", delay: { amount: 0, unit: "hours" }, title: "Call" }], owner_id: "m1", created_at: "t" }], engage_enrolments: [{ id: "e1", flow_id: "fl1", prospect_id: "d1", contact_id: "c1", rep_id: "r1", created_at: "2026-11-20T00:00:00Z" }], engage_activities: [{ id: 1, enrolment_id: "e1", step_index: 0, action: "complete_step", created_at: "2026-11-21T00:00:00Z" }] };
     const j = await (await readResource(req("/api/v1/flows"), "flows")).json();
-    expect(j.flows).toEqual([{ id: "fl1", name: "New lead", steps: [{ kind: "call" }], ownerId: "m1", createdAt: "t" }]);
-    expect(j.enrolments).toEqual([{ id: "e1", flowId: "fl1", dealId: "d1", contactId: "c1", repId: "r1", createdAt: "t" }]);
+    expect(j.flows).toEqual([expect.objectContaining({ id: "fl1", name: "New lead", ownerId: "m1" })]);
+    expect(j.enrolments).toEqual([expect.objectContaining({ id: "e1", flowId: "fl1", dealId: "d1", contactId: "c1", repId: "r1", createdAt: "2026-11-20T00:00:00Z", state: "finished", step: 1 })]);
+    expect(st.eqs).toContainEqual(["engage_activities", "company_id", "co1"]);
     expect(st.eqs).toContainEqual(["engage_flows", "is_company", true]);
     expect(st.eqs).toContainEqual(["engage_enrolments", "company_id", "co1"]);
   });
