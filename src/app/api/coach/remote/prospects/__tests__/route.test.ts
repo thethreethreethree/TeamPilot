@@ -16,6 +16,7 @@ const st = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
+const co = vi.hoisted(() => ({ ids: [] as string[], rows: [] as Array<Record<string, unknown>> }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "rep-1", companyId: "co1" })) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/api/callerScopedDb", () => ({
@@ -25,10 +26,18 @@ vi.mock("@/lib/api/callerScopedDb", () => ({
   }),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ rpc: async (fn: string, args: Record<string, unknown>) => (st.adminRpc.push({ fn, args }), { data: fn === "rss_co_owned_deals" ? [] : "acc-1", error: null }) }),
+  createAdminClient: () => ({
+    rpc: async (fn: string, args: Record<string, unknown>) => (st.adminRpc.push({ fn, args }), { data: fn === "rss_co_owned_deals" ? co.ids : "acc-1", error: null }),
+    from: () => {
+      const q: Record<string, unknown> = {};
+      for (const m of ["select", "in"]) q[m] = () => q;
+      q.limit = async () => ({ data: [], error: null });
+      return q;
+    },
+  }),
 }));
 vi.mock("@/lib/coach/remote/prospects", () => ({
-  listProspects: vi.fn(async (_db: unknown, repId: unknown) => ((st.listArg = repId), st.list)),
+  listProspects: vi.fn(async (_db: unknown, repId: unknown, opts?: { ids?: string[] }) => (opts?.ids ? co.rows : ((st.listArg = repId), st.list))),
 }));
 vi.mock("@/lib/coach/remote/macroMode", () => ({ pipelineTotals: () => ({}) }));
 
@@ -119,5 +128,14 @@ describe("reading the pipeline", () => {
   it("a failed read is a 500, never an empty pipeline", async () => {
     st.list = null;
     expect((await get()).status).toBe(500);
+  });
+  it("your own pipeline carries your co-owned deals, without signals or sentiment read past a hide (0395 review)", async () => {
+    co.ids = ["c9"];
+    co.rows = [{ id: "c9", repId: "other", signals: { pricingMentioned: true }, sentiment: { trend: "down" } }];
+    const j = await (await get()).json();
+    expect(j.coOwned).toEqual([expect.objectContaining({ id: "c9", sentiment: null })]);
+    expect(j.coOwned[0].signals).toBeUndefined();
+    co.ids = [];
+    co.rows = [];
   });
 });

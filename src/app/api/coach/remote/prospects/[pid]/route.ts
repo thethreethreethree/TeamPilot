@@ -112,7 +112,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
   const taskIds = ((links.data ?? []) as Array<{ task_id: string }>).map((l) => l.task_id);
   const [sess, tasks] = await Promise.all([
     sessionIds.length
-      ? db.from("coaching_sessions").select("id, client_label, context, started_at, outcome").in("id", sessionIds).order("started_at", { ascending: false })
+      ? db.from("coaching_sessions").select("id, client_label, context, started_at, outcome").eq("company_id", ctx.companyId).in("id", sessionIds).order("started_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
     taskIds.length ? db.from("tasks").select("id, title, status, due_date").in("id", taskIds).is("deleted_at", null) : Promise.resolve({ data: [], error: null }),
   ]);

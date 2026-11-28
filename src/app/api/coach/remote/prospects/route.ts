@@ -61,7 +61,13 @@ export async function GET(req: NextRequest) {
       const extra = await listProspects(admin, undefined, { companyId: ctx.companyId, ids: others });
       const extraSplits = extra ? await splitsFor(admin, extra) : null;
       if (!extra || !extraSplits) return NextResponse.json({ error: "Couldn't load the pipeline." }, { status: 500 });
-      for (const r of extra) r.split = extraSplits.get(r.id) ?? null;
+      // No signals or sentiment on someone else's deal (review 2026-11-28): they're read from its calls with the service
+      // role, which a hide doesn't stop — a call hidden from you must not shape what you see.
+      for (const r of extra) {
+        r.split = extraSplits.get(r.id) ?? null;
+        r.signals = undefined;
+        r.sentiment = null;
+      }
       coOwned = extra;
     }
   }

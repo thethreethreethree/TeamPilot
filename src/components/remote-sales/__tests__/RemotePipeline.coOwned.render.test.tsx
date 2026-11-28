@@ -28,5 +28,10 @@ describe("deals you co-own", () => {
     const box = await screen.findByRole("region", { name: "Deals you co-own" });
     expect(box.textContent).toMatch(/Globex.*your share 30%/);
     expect(await screen.findByText(/You co-own this deal: you can read it/)).toBeTruthy();
+    // read only (review 2026-11-28): no AI tabs that would refuse, every control disabled rather than refused
+    expect(screen.queryByRole("tab", { name: "Brief" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Playbook" })).toBeNull();
+    // a disabled fieldset disables its controls (the :disabled state), not each control's own attribute
+    expect((screen.getByLabelText("Next call date") as HTMLInputElement).matches(":disabled")).toBe(true);
   });
 });

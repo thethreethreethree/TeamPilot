@@ -491,6 +491,8 @@ function FieldHistory({ history, actors, accounts }: { history: HistoryEvent[]; 
 const PANEL_TABS = ["Overview", "Warnings", "Contacts", "Activity", "Playbook", "Brief"] as const;
 type PanelTab = (typeof PANEL_TABS)[number];
 const SIMPLE_TABS: ReadonlySet<PanelTab> = new Set(["Overview", "Contacts", "Activity"]);
+/** A co-owner's read-only view (0395): what they may read; the AI tabs check access by the deal's own rules and refuse. */
+const READ_ONLY_TABS: ReadonlySet<PanelTab> = new Set(["Overview", "Contacts", "Activity"]);
 
 function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed?: Prospect; onChanged: () => void; onClose: () => void }) {
   const simple = useContext(SimpleView);
@@ -565,7 +567,7 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
   if (!d) return <p className="mt-1 px-3 py-2 text-xs text-muted">{err ?? "Loading…"}</p>;
   const p = d.prospect;
   const field = "rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary";
-  const tabs = PANEL_TABS.filter((t) => !simple || SIMPLE_TABS.has(t));
+  const tabs = PANEL_TABS.filter((t) => (!simple || SIMPLE_TABS.has(t)) && (!d?.readOnly || READ_ONLY_TABS.has(t)));
   const shown: PanelTab = tabs.includes(tab) ? tab : "Overview";
   const risk = listed ? dealRisk(listed, today()) : null;
   return (
@@ -584,6 +586,8 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
           </button>
         ))}
       </div>
+      {/* Read only (0395, review 2026-11-28): every control in the panel is disabled at once, rather than shown and refused. */}
+      <fieldset disabled={d.readOnly === true} className="m-0 min-w-0 space-y-3 border-0 p-0">
       {shown === "Overview" && (<>
       <div className="grid grid-cols-1 gap-2 text-xs text-secondary sm:grid-cols-2">
         {stageList?.length ? (
@@ -763,6 +767,7 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
           </ul>
         )}
       </div>}
+      </fieldset>
       {err && <p className="text-xs text-amber-700 dark:text-amber-300">{err}</p>}
     </div>
   );
