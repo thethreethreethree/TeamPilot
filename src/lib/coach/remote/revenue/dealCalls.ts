@@ -18,7 +18,8 @@ export const DEAL_LINES = 900;
 export async function loadDealCalls(
   db: SupabaseClient,
   prospectId: string,
-  opts: { maxCalls?: number; maxLines?: number } = {},
+  // exclude (review 2026-11-28): calls to drop before the newest are picked (an agent's owner's hidden calls).
+  opts: { maxCalls?: number; maxLines?: number; exclude?: (ids: string[]) => Promise<Set<string>> } = {},
 ): Promise<{ calls: Array<CallLines & { version: number }>; linked: number } | "failed"> {
   const maxCalls = opts.maxCalls ?? DEAL_CALLS;
   const maxLines = opts.maxLines ?? DEAL_LINES;
@@ -26,7 +27,16 @@ export async function loadDealCalls(
   if (lErr) return "failed";
   const ids = ((links ?? []) as Array<{ session_id: string }>).map((l) => l.session_id);
   if (!ids.length) return { calls: [], linked: 0 };
-  const calls = await loadCallsByIds(db, ids, { maxCalls, maxLines });
+  let keep = ids;
+  if (opts.exclude) {
+    try {
+      const drop = await opts.exclude(ids);
+      keep = ids.filter((id) => !drop.has(id));
+    } catch {
+      return "failed"; // a check that couldn't run never lets every call through
+    }
+  }
+  const calls = await loadCallsByIds(db, keep, { maxCalls, maxLines });
   return calls === "failed" ? "failed" : { calls, linked: ids.length };
 }
 

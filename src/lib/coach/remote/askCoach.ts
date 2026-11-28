@@ -49,16 +49,37 @@ export type AskResult =
 
 const MAX_LINES = 900;
 
-/** Number lines across calls, keeping each call's share proportional when the total is over the cap. Pure. */
-export function numberAcross(calls: Array<{ sessionId: string; label: string; lines: Line[] }>): { text: string; refs: Map<number, Citation> } {
+/** The lines kept from one call: its opening, or — with `focus` — the lines around each mention first. Pure. */
+export function keepLines(lines: Line[], keep: number, focus?: string[]): { lines: Line[]; around: boolean } {
+  if (keep >= lines.length) return { lines, around: false };
+  const terms = (focus ?? []).map((t) => t.trim().toLowerCase()).filter((t) => t.length >= 2);
+  if (!terms.length) return { lines: lines.slice(0, keep), around: false };
+  const W = 6; // lines either side of a mention
+  const pick = new Set<number>();
+  lines.forEach((l, i) => {
+    if (pick.size >= keep) return;
+    if (!terms.some((t) => l.text.toLowerCase().includes(t))) return;
+    for (let j = Math.max(0, i - W); j <= Math.min(lines.length - 1, i + W) && pick.size < keep; j++) pick.add(j);
+  });
+  if (!pick.size) return { lines: lines.slice(0, keep), around: false };
+  return { lines: [...pick].sort((a, b) => a - b).map((i) => lines[i]!), around: true };
+}
+
+/**
+ * Number lines across calls, keeping each call's share proportional when the total is over the cap. With `focus`
+ * (review 2026-11-28; the battlecard's competitor), a long call keeps the lines around each mention, not its opening.
+ * Pure.
+ */
+export function numberAcross(calls: Array<{ sessionId: string; label: string; lines: Line[] }>, focus?: string[]): { text: string; refs: Map<number, Citation> } {
   const total = calls.reduce((n, c) => n + c.lines.length, 0);
   const refs = new Map<number, Citation>();
   const parts: string[] = [];
   let n = 0;
   for (const c of calls) {
     const keep = total > MAX_LINES ? Math.max(20, Math.floor((c.lines.length / total) * MAX_LINES)) : c.lines.length;
-    const lines = c.lines.slice(0, keep);
-    parts.push(`=== Call: ${c.label}${keep < c.lines.length ? ` (first ${keep} of ${c.lines.length} lines)` : ""} ===`);
+    const kept = keepLines(c.lines, keep, focus);
+    const lines = kept.lines;
+    parts.push(`=== Call: ${c.label}${lines.length < c.lines.length ? (kept.around ? ` (${lines.length} of ${c.lines.length} lines, around the mentions)` : ` (first ${lines.length} of ${c.lines.length} lines)`) : ""} ===`);
     for (const l of lines) {
       n += 1;
       refs.set(n, { ref: n, sessionId: c.sessionId, seq: l.seq, atMs: l.atMs });
@@ -112,6 +133,8 @@ export async function askCoach(args: {
   chatId: string | null;
   /** false (Engage E9, on-demand agents): answer without keeping a chat — nothing is stored. Default true. */
   save?: boolean;
+  /** Words whose surrounding lines are kept first when calls are too long to send whole (E14 battlecards). */
+  focus?: string[];
 }): Promise<AskResult> {
   const { db, companyId, userId, question } = args;
   const admin = createAdminClient();
@@ -180,7 +203,7 @@ export async function askCoach(args: {
     };
   }
 
-  const { text, refs } = numberAcross(calls);
+  const { text, refs } = numberAcross(calls, args.focus);
   const prior = history
     .slice(-10)
     .map((t) => `${t.role === "user" ? "QUESTION" : "YOUR EARLIER ANSWER"}: ${t.content}`)

@@ -12,6 +12,10 @@ import { AccountReadError, contactsOfDeal, DEAL_ROLES } from "@/lib/coach/remote
 import { recommendedContacts, type Suggested } from "@/lib/coach/remote/revenue/recommendedContacts";
 import { runAgentsForStage, runAgentsForCallLinked, stageChanged } from "@/lib/coach/remote/engage/agents";
 
+
+// Linking a call runs call-added agents after the reply, which may read the playbook (an AI call): the playbook
+// route's time, not the default (review 2026-11-28).
+export const maxDuration = 90;
 /**
  * /api/coach/remote/prospects/:pid — one prospect in the Remote Sales pipeline (Macro Mode, 0303).
  *   GET  → { prospect, history, calls, todos }

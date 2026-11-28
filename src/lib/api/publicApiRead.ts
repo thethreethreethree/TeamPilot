@@ -141,7 +141,9 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
       }),
       page,
       limit,
-      note: "Scores on calls with an active hide are left out; evidence quotes are not sent.",
+      // A page can hold fewer than `limit` once hidden ones are left out (review 2026-11-28): `more` says whether to read on.
+      more: (data ?? []).length === limit,
+      note: "Scores on calls with an active hide are left out; evidence quotes are not sent. A page may hold fewer than `limit` rows: read on while `more` is true.",
     });
   }
   if (resource === "audit") {
@@ -195,7 +197,8 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
     data: (data ?? []).filter((s) => !hidden.has(String(s.id))).map((s) => ({ id: s.id, repId: s.agent_id, channel: s.context, kind: s.session_kind, startedAt: s.started_at, endedAt: s.ended_at, outcome: s.outcome })),
     page,
     limit,
-    note: "Calls with an active hide are left out.",
+    more: (data ?? []).length === limit,
+    note: "Calls with an active hide are left out. A page may hold fewer than `limit` rows: read on while `more` is true.",
   });
 }
 

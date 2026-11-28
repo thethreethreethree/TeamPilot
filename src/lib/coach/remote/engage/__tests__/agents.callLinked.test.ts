@@ -19,7 +19,14 @@ const st = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 vi.mock("../../webhooks", () => ({ webhooksConfigured: () => true }));
 vi.mock("../../revenue/dealBriefRun", () => ({ writeDealBrief: vi.fn() }));
-vi.mock("../../revenue/dealCalls", () => ({ loadDealCalls: vi.fn(async () => ({ calls: st.calls, linked: st.calls.length })) }));
+vi.mock("../../revenue/dealCalls", () => ({
+  // Honours `exclude` the way the real loader does: dropped before the newest are picked.
+  loadDealCalls: vi.fn(async (_db: unknown, _id: string, opts?: { exclude?: (ids: string[]) => Promise<Set<string>> }) => {
+    const drop = opts?.exclude ? await opts.exclude(st.calls.map((c) => c.sessionId)) : new Set<string>();
+    const calls = st.calls.filter((c) => !drop.has(c.sessionId));
+    return { calls, linked: st.calls.length };
+  }),
+}));
 vi.mock("../../hidePhrases", () => ({ hiddenFrom: vi.fn(async (_a: unknown, ids: string[]) => new Set(ids.filter((i) => st.hidden.has(i)))) }));
 vi.mock("../../revenue/playbookReview", () => ({ reviewPlaybook: vi.fn(async (_a: unknown, args: unknown) => (st.reviewed.push(args), st.review)) }));
 const admin = {
@@ -92,5 +99,16 @@ describe("the playbook action (0392)", () => {
     st.reviewed = [];
     expect((await runAgent(admin, agent("a1") as never, "d1", true)).results[0]).toMatchObject({ ok: true, detail: "Would read the playbook from the deal's calls." });
     expect(st.reviewed).toEqual([]);
+  });
+  it("a claim that fails is recorded on that agent and the next agent still runs (review 2026-11-28)", async () => {
+    st.agents = [agent("bad"), agent("good")];
+    const realFrom = (admin as unknown as { from: (t: string) => Record<string, unknown> }).from;
+    const failing = { ...(admin as object), from: (t: string) => {
+      const q = realFrom(t);
+      if (t === "agent_fires") q.insert = async (row: Record<string, unknown>) => (row.agent_id === "bad" ? { error: { code: "XX000", message: "boom" } } : { error: null });
+      return q;
+    } } as never;
+    await runAgentsForCallLinked(failing, { companyId: "co1", prospectId: "d1", sessionId: "s1" });
+    expect(st.runs).toEqual([expect.objectContaining({ agent_id: "bad", ok: false }), expect.objectContaining({ agent_id: "good", ok: true })]);
   });
 });

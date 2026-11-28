@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 import { askCoachTurn } from "@/lib/claude";
 import { getSession } from "@/lib/data/salesCoach";
 import { readPitchScore } from "@/lib/coach/pitchScore/readPitchScore";
-import { askCoach, numberAcross, resolveCitations, scorecardText } from "../askCoach";
+import { askCoach, keepLines, numberAcross, resolveCitations, scorecardText } from "../askCoach";
 
 const mock = (f: unknown) => f as ReturnType<typeof vi.fn>;
 const callerDb = {
@@ -152,3 +152,16 @@ describe("scorecard composition (A16)", () => {
   });
 });
 
+describe("keepLines (review 2026-11-28: battlecards read where the competitor came up)", () => {
+  const lines = Array.from({ length: 100 }, (_, i) => ({ seq: i + 1, speaker: "customer", text: i === 60 ? "We use Spectrum now" : `line ${i}`, atMs: i * 1000 }));
+  it("with a focus word, keeps the lines around its mention; without one, the opening", () => {
+    const around = keepLines(lines as never, 20, ["spectrum"]);
+    expect(around.around).toBe(true);
+    expect(around.lines.map((l) => l.seq)).toEqual([55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]);
+    expect(keepLines(lines as never, 20).lines.map((l) => l.seq).slice(0, 3)).toEqual([1, 2, 3]);
+    // never mentioned → the opening, said as such
+    expect(keepLines(lines as never, 20, ["comcast"]).around).toBe(false);
+    // short enough → every line
+    expect(keepLines(lines.slice(0, 10) as never, 20, ["spectrum"]).lines).toHaveLength(10);
+  });
+});

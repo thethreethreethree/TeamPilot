@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   }
   const calls = callsNaming(inputs.calls, inputs.intel, body.competitor);
   if (!calls.length) return NextResponse.json({ error: `No call in view named ${body.competitor}.` }, { status: 404 });
-  const r = await askCoach({ db, companyId: ctx.companyId, userId: ctx.userId, sessionIds: calls.map((c) => c.sessionId), question: BATTLECARD_INSTRUCTION(body.competitor), chatId: null, save: false });
+  const r = await askCoach({ db, companyId: ctx.companyId, userId: ctx.userId, sessionIds: calls.map((c) => c.sessionId), question: BATTLECARD_INSTRUCTION(body.competitor), chatId: null, save: false, focus: [body.competitor] });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
   if (r.suppressed) return NextResponse.json({ answer: null, suppressed: true });
   return NextResponse.json({ answer: r.answer, citations: r.citations, calls: calls.length });

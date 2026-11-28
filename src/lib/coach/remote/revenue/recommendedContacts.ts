@@ -10,6 +10,9 @@ import type { Rank } from "./rank";
  */
 export type Suggested = ContactRow & { calls: number; lastCallAt: string | null };
 
+/** Ids per request: well under URL limits. */
+const CHUNK = 150;
+
 const RANK_ORDER: Rank[] = ["c_level", "vp", "director", "manager", "individual", "unknown"];
 
 /** Rank the account's contacts heard on its calls, minus the deal's. Pure. */
@@ -34,23 +37,34 @@ export async function recommendedContacts(db: SupabaseClient, accountId: string,
   if (dErr) throw new AccountReadError(`account deals: ${dErr.message}`);
   const dealIds = ((deals ?? []) as Array<{ id: string }>).map((d) => d.id);
   if (!dealIds.length) return [];
-  const { data: calls, error: cErr } = await db.from("remote_prospect_calls").select("session_id").in("prospect_id", dealIds).order("id").limit(1000);
+  // Newest links first (review 2026-11-28: oldest-first dropped the newest calls past the cap).
+  const { data: calls, error: cErr } = await db.from("remote_prospect_calls").select("session_id").in("prospect_id", dealIds).order("id", { ascending: false }).limit(1000);
   if (cErr) throw new AccountReadError(`account calls: ${cErr.message}`);
   const sessionIds = ((calls ?? []) as Array<{ session_id: string }>).map((c) => c.session_id);
   if (!sessionIds.length) return [];
-  const { data: links, error: lErr } = await db
-    .from("call_contacts_current")
-    .select("session_id, contact_id")
-    .in("session_id", sessionIds)
-    .in("contact_id", candidates.map((c) => c.id))
-    .eq("linked", true)
-    .limit(1000);
-  if (lErr) throw new AccountReadError(`call contacts: ${lErr.message}`);
-  const rows = (links ?? []) as Array<{ session_id: string; contact_id: string }>;
+  // In chunks of calls (a URL of 1,000 ids is too long), ordered, and filtered to the candidates here, not in the URL.
+  const want = new Set(candidates.map((c) => c.id));
+  const rows: Array<{ session_id: string; contact_id: string }> = [];
+  for (let i = 0; i < sessionIds.length; i += CHUNK) {
+    const { data: links, error: lErr } = await db
+      .from("call_contacts_current")
+      .select("session_id, contact_id")
+      .in("session_id", sessionIds.slice(i, i + CHUNK))
+      .eq("linked", true)
+      .order("session_id")
+      .order("contact_id")
+      .limit(1000);
+    if (lErr) throw new AccountReadError(`call contacts: ${lErr.message}`);
+    for (const r of (links ?? []) as Array<{ session_id: string; contact_id: string }>) if (want.has(r.contact_id)) rows.push(r);
+  }
   if (!rows.length) return [];
-  const { data: sess, error: sErr } = await db.from("coaching_sessions").select("id, started_at").in("id", [...new Set(rows.map((r) => r.session_id))]);
-  if (sErr) throw new AccountReadError(`calls: ${sErr.message}`);
-  const when = new Map(((sess ?? []) as Array<{ id: string; started_at: string }>).map((s) => [String(s.id), s.started_at]));
+  const when = new Map<string, string>();
+  const heardIds = [...new Set(rows.map((r) => r.session_id))];
+  for (let i = 0; i < heardIds.length; i += CHUNK) {
+    const { data: sess, error: sErr } = await db.from("coaching_sessions").select("id, started_at").in("id", heardIds.slice(i, i + CHUNK));
+    if (sErr) throw new AccountReadError(`calls: ${sErr.message}`);
+    for (const s of (sess ?? []) as Array<{ id: string; started_at: string }>) when.set(String(s.id), s.started_at);
+  }
   const heard = new Map<string, { calls: number; lastCallAt: string | null }>();
   for (const r of rows) {
     // A call the caller can't open (RLS returned no session row) doesn't count.

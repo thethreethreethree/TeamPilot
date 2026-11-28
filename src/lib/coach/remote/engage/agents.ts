@@ -183,7 +183,15 @@ export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: s
   if (sErr) return record(false, "Couldn't check who the agent acts for.", []);
   if (canSee !== true) return record(false, "The agent's owner can't see this deal, so it didn't act.", []);
   if (on?.claim && !test) {
-    if (!(await on.claim())) return { ok: true, skipped: "Already done by another run.", results: [], acted: false };
+    // A claim that fails (not "already taken") is recorded on this agent and stops only it (review 2026-11-28).
+    let won: boolean;
+    try {
+      won = await on.claim();
+    } catch (err) {
+      console.error(`[agents] claim failed agent=${a.id}: ${err instanceof Error ? err.message : String(err)}`);
+      return record(false, "Couldn't claim this run; it will try again.", []);
+    }
+    if (!won) return { ok: true, skipped: "Already done by another run.", results: [], acted: false };
     claimed = true;
   }
   const results: ActionResult[] = [];
@@ -204,11 +212,11 @@ export async function runAgent(admin: SupabaseClient, a: AgentRow, prospectId: s
 
 async function doAction(admin: SupabaseClient, a: AgentRow, deal: { id: string; name: string | null; rep_id: string; status: string; stage_label: string | null }, act: Action): Promise<ActionResult> {
   if (act.kind === "brief") {
-    const dc = await loadDealCalls(admin, deal.id);
+    // Only the calls the owner may hear (a hide exempts the call's people and admins, 0337), dropped BEFORE the newest
+    // are picked, so hidden calls don't take the places of ones the owner can hear (review 2026-11-28).
+    const dc = await loadDealCalls(admin, deal.id, { exclude: (ids) => hiddenFrom(admin, ids, a.owner_id) });
     if (dc === "failed") return { kind: "brief", ok: false, detail: "Couldn't read the deal's calls." };
-    // Only the calls the owner may hear (a hide exempts the call's people and admins, 0337).
-    const hidden = await hiddenFrom(admin, dc.calls.map((c) => c.sessionId), a.owner_id);
-    const calls = dc.calls.filter((c) => !hidden.has(c.sessionId));
+    const calls = dc.calls;
     if (!calls.length) return { kind: "brief", ok: true, detail: "No call transcripts yet; nothing to brief." };
     const r = await writeDealBrief(admin, { companyId: a.company_id, prospectId: deal.id, actorId: a.owner_id, aiCompanyId: a.company_id, calls });
     if (r === "suppressed") return { kind: "brief", ok: true, detail: "The AI is off for this company; no brief written." };
@@ -216,11 +224,9 @@ async function doAction(admin: SupabaseClient, a: AgentRow, deal: { id: string; 
     return { kind: "brief", ok: true, detail: r.stored ? "The brief for these calls already existed." : "Wrote the deal brief." };
   }
   if (act.kind === "playbook") {
-    const dc = await loadDealCalls(admin, deal.id, { maxCalls: REVIEW_CALLS, maxLines: REVIEW_LINES });
+    const dc = await loadDealCalls(admin, deal.id, { maxCalls: REVIEW_CALLS, maxLines: REVIEW_LINES, exclude: (ids) => hiddenFrom(admin, ids, a.owner_id) });
     if (dc === "failed") return { kind: "playbook", ok: false, detail: "Couldn't read the deal's calls." };
-    // Only the calls the owner may hear (a hide exempts the call's people and admins, 0337).
-    const hidden = await hiddenFrom(admin, dc.calls.map((c) => c.sessionId), a.owner_id);
-    const calls = dc.calls.filter((c) => !hidden.has(c.sessionId));
+    const calls = dc.calls;
     if (!calls.length) return { kind: "playbook", ok: true, detail: "No call transcripts yet; nothing to read." };
     const r = await reviewPlaybook(admin, { companyId: a.company_id, prospectId: deal.id, actorId: a.owner_id, calls });
     if (r === "no_playbook") return { kind: "playbook", ok: true, detail: "The company has no playbook yet; nothing to read." };

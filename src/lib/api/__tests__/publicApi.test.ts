@@ -98,6 +98,8 @@ describe("public API keys", () => {
     st.hidden = new Set(["s2"]);
     const j = await (await readResource(req("/api/v1/calls"), "calls")).json();
     expect(j.data.map((x: { id: string }) => x.id)).toEqual(["s1"]);
+    // the page read 2 rows of a limit of 50: no more pages (review 2026-11-28: `more`, not a short page, says so)
+    expect(j.more).toBe(false);
   });
   it("per second: three pass, the fourth waits", () => {
     const t = 1_000_000;

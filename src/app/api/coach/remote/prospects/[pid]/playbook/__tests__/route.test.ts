@@ -38,6 +38,8 @@ const builder = (table: string, admin: boolean) => {
       : { data: [], error: null },
     );
   q.insert = async (rows: unknown) => (st.inserts.push({ table, rows, admin }), { error: st.insertError });
+  // The reviewer pages the note history to the end (review 2026-11-28): one page here, then an empty one.
+  q.range = async (f: number) => (table === "deal_element_notes" ? (f > 0 ? { data: [], error: null } : { data: st.notesError ? null : st.notes, error: st.notesError }) : { data: [], error: null });
   return q;
 };
 vi.mock("@/lib/api/callerScopedDb", () => ({ callerScopedDb: () => ({ from: (t: string) => builder(t, false), rpc: async () => ({ data: false }) }) }));

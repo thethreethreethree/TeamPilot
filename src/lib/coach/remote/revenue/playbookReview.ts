@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { dealReviewCoach } from "@/lib/claude";
 import { CONVERSATION_IS_DATA } from "@/lib/care/toolPrompts";
 import { numberedTranscript } from "@/lib/coach/remote/followThrough";
@@ -20,14 +21,11 @@ export async function reviewPlaybook(admin: SupabaseClient, args: { companyId: s
   if (pErr) return "failed";
   if (!pb) return "no_playbook";
   const elements = pb.elements as Element[];
-  const { data: ev, error: eErr } = await admin
-    .from("deal_element_notes")
-    .select("element, action, note, ai, actor_id, created_at")
-    .eq("company_id", companyId)
-    .eq("prospect_id", prospectId)
-    .eq("playbook_id", pb.id)
-    .order("id", { ascending: true })
-    .limit(1000);
+  // The whole history (review 2026-11-28: a 1,000-row cap could drop the newest notes, a person's validate among them).
+  const { data: ev, error: eErr } = await fetchAllPagedResult<{ id: number; element: number; action: NoteEvent["action"]; note: string | null; ai: NoteEvent["ai"]; actor_id: string; created_at: string }>(
+    (f, t) => admin.from("deal_element_notes").select("id, element, action, note, ai, actor_id, created_at").eq("company_id", companyId).eq("prospect_id", prospectId).eq("playbook_id", pb.id).order("id", { ascending: true }).range(f, t),
+    { label: "deal element notes", maxRows: 20_000 },
+  );
   if (eErr) return "failed";
   const events = ((ev ?? []) as Array<{ element: number; action: NoteEvent["action"]; note: string | null; ai: NoteEvent["ai"]; actor_id: string; created_at: string }>).map((e) => ({
     element: e.element, action: e.action, note: e.note, ai: e.ai, actorId: e.actor_id, at: e.created_at,

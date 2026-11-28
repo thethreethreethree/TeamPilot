@@ -3,6 +3,7 @@ import { z } from "zod";
 import { callerScopedDb } from "@/lib/api/callerScopedDb";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
@@ -47,13 +48,11 @@ async function load(db: Db, pid: string): Promise<{ deal: { id: string; rep_id: 
   const { data: pb, error: pErr } = await db.from("deal_playbook_current").select("id, key, name, elements").maybeSingle();
   if (pErr) return MISSING.has(String(pErr.code)) ? "missing" : null;
   if (!pb) return { deal, playbook: null, events: [] };
-  const { data: ev, error: eErr } = await db
-    .from("deal_element_notes")
-    .select("element, action, note, ai, actor_id, created_at")
-    .eq("prospect_id", pid)
-    .eq("playbook_id", pb.id)
-    .order("id", { ascending: true })
-    .limit(1000);
+  // The whole history, as the reviewer reads it (review 2026-11-28: a 1,000-row cap could drop the newest notes).
+  const { data: ev, error: eErr } = await fetchAllPagedResult<{ id: number; element: number; action: NoteEvent["action"]; note: string | null; ai: NoteEvent["ai"]; actor_id: string; created_at: string }>(
+    (f, t) => db.from("deal_element_notes").select("id, element, action, note, ai, actor_id, created_at").eq("prospect_id", pid).eq("playbook_id", pb.id).order("id", { ascending: true }).range(f, t),
+    { label: "deal element notes", maxRows: 20_000 },
+  );
   if (eErr) return null;
   const events = ((ev ?? []) as Array<{ element: number; action: NoteEvent["action"]; note: string | null; ai: NoteEvent["ai"]; actor_id: string; created_at: string }>).map((e) => ({
     element: e.element, action: e.action, note: e.note, ai: e.ai, actorId: e.actor_id, at: e.created_at,
