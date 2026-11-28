@@ -8,6 +8,8 @@ import { DealBrief } from "./DealBrief";
 import { DealDrivers } from "./DealDrivers";
 import { AskCalls } from "./AskCalls";
 import { fieldChanges, type HistoryEvent } from "@/lib/coach/remote/revenue/fieldHistory";
+import { owners } from "@/lib/coach/remote/revenue/dealSplits";
+import { DealSplit } from "./DealSplit";
 import { ForecastBoard } from "./ForecastBoard";
 import { kindOf, type Stage } from "@/lib/coach/remote/revenue/dealBoard";
 import { useRemoteMacroMode } from "@/lib/hooks/useRemoteMacroMode";
@@ -258,7 +260,7 @@ export function RemotePipeline() {
             <ForecastBoard
               key={whose}
               deals={data.prospects}
-              people={whose === "mine" ? [] : [...new Set(data.prospects.map((p) => p.repId))]}
+              people={whose === "mine" ? [] : owners(data.prospects)}
               teamView={whose === "team"}
               isManager={isManager}
               nameOf={nameOf}
@@ -434,6 +436,9 @@ type Detail = {
   accounts?: Record<string, string>;
   // Revenue phase 9 (F26.6): null = couldn't be read.
   suggested?: SuggestedContact[] | null;
+  // Revenue phase 10 (0394): the current split; null = the rep's whole deal; absent = couldn't be read.
+  split?: Array<{ userId: string; pct: number }> | null;
+  splitFailed?: boolean;
 };
 
 /** The deal's field changes (revenue plan phase 8; Gong F23.11), newest first; the 8 newest, the rest behind "Show all". */
@@ -694,6 +699,7 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
         </div>
       </div>
 
+      {!simple && <DealSplit repId={String((d.prospect as { rep_id?: string }).rep_id ?? listed?.repId ?? "")} split={d.splitFailed ? undefined : (d.split ?? null)} busy={busy} post={post} />}
       {!simple && d.prospect.status === "open" && d.prospect.stage_label && <StagePractice key={d.prospect.stage_label} prospectId={id} />}
       </>)}
 

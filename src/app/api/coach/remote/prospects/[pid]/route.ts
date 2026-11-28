@@ -10,6 +10,7 @@ import { isTaskClosed } from "@/lib/tasks/statusLabels";
 import { eventValue } from "@/lib/coach/remote/macroMode";
 import { AccountReadError, contactsOfDeal, DEAL_ROLES } from "@/lib/coach/remote/revenue/accounts";
 import { recommendedContacts, type Suggested } from "@/lib/coach/remote/revenue/recommendedContacts";
+import { splitsFor } from "@/lib/coach/remote/revenue/dealSplits";
 import { runAgentsForStage, runAgentsForCallLinked, stageChanged } from "@/lib/coach/remote/engage/agents";
 
 
@@ -48,7 +49,13 @@ const Contact = z.object({
   contactId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
   role: z.enum([...DEAL_ROLES, "removed"]),
 });
-const Body = z.discriminatedUnion("action", [Set_, Link, Todo, Account, Contact]);
+// Revenue phase 10 (0394): the deal's split — 1–5 owners, whole percents summing to 100, the rep always one (the
+// database checks it; one entry, the rep at 100, clears it). The rep or a manager the tree allows (0394's policy).
+const Split = z.object({
+  action: z.literal("split"),
+  shares: z.array(z.object({ userId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i), pct: z.number().int().min(1).max(100) })).min(1).max(5),
+});
+const Body = z.discriminatedUnion("action", [Set_, Link, Todo, Account, Contact, Split]);
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ pid: string }> }) {
   const limited = rateLimit(req, { id: "remote-prospect-read", windowMs: 60_000, max: 120 });
@@ -127,6 +134,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
     contacts,
     history: ev.data ?? [],
     suggested,
+    // Revenue phase 10 (0394): the current split (null = the rep's whole deal); a failed read is said (splitFailed),
+    // never shown as "no split" (JSON would drop an undefined).
+    ...(await (async () => {
+      const m = await splitsFor(db, [{ id: pid, repId: String(p.rep_id) }]);
+      return m === null ? { split: null, splitFailed: true } : { split: m.get(pid) ?? null, splitFailed: false };
+    })()),
     actors: Object.fromEntries(actorRows.map((a) => [String(a.id), a.full_name || "Unnamed teammate"])),
     accounts: Object.fromEntries(accountRows.map((a) => [String(a.id), a.name || "(no name)"])),
     calls: ((sess.data ?? []) as Array<Record<string, unknown>>).map((s) => ({
@@ -204,6 +217,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pid
     return NextResponse.json({ ok: true, accountId });
   }
 
+  if (body.action === "split") {
+    const { error } = await db.from("deal_splits").insert({ company_id: p.company_id, prospect_id: pid, shares: body.shares.map((s) => ({ user_id: s.userId, pct: s.pct })), set_by: ctx.userId });
+    if (error) {
+      if (error.code === "42501") return NextResponse.json({ error: "Only the deal's rep or their manager can change its split." }, { status: 403 });
+      // The database's own words for a split it refuses (0394): add up to 100, the rep included, people of this company.
+      if (error.code === "23514") return NextResponse.json({ error: (error.message.match(/deal split: (.+)$/)?.[1] ?? "That split doesn't add up.").replace(/^./, (c) => c.toUpperCase()) + "." }, { status: 400 });
+      console.error(`[prospect] split failed id=${pid}: ${error.message}`);
+      return NextResponse.json({ error: "Couldn't save the split." }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
   if (body.action === "contact") {
     const { error } = await db.from("deal_contacts").insert({ prospect_id: pid, contact_id: body.contactId, company_id: p.company_id, role: body.role, actor_id: ctx.userId });
     if (error) {

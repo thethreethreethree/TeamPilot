@@ -34,3 +34,9 @@ The build doesn't make up an answer to any of these. Each one has a stand-in tod
 | Red flag email warning | One of Gong's 8 | No email capture (R7) |
 | Inline CRM write-back (F20.2, F20.8) | Keeps the CRM current | No CRM sync (R2) |
 | Account boards visible to all (F21.5) | Gong does it | It's a data-access weakness (R11) |
+
+## R9 — DECIDED 2026-11-28 (founder picker: "Deal splits")
+
+Several owners with revenue splits, built as phase 10: shares in whole percents (2–5 people, the rep always included),
+set by the rep or a manager over them, attribution only — visibility stays the rep's tree. The one-owner stand-in above
+is superseded for amounts; `rep_id` stays the deal's owner for access, agents and notifications.

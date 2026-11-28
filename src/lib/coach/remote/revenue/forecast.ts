@@ -4,11 +4,13 @@
  * submission is kept, so each earlier one is the snapshot Gong takes weekly: accuracy is the forecast standing at a
  * moment ÷ what actually closed by the quarter's end, coloured as Gong's (green 85–115%). Pure, so it is tested.
  */
+import { shareOf, type Share } from "./dealSplits";
+
 export type Category = "commit" | "best_case";
 /** Forecast due day names (0391), indexed 0 Sunday … 6 Saturday as companies.forecast_due_weekday. */
 export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 export type Submission = { userId: string; period: string; category: Category; amount: number; createdAt: string; deals?: Array<{ id: string; amount: number | null }> };
-export type FDeal = { id?: string; name?: string | null; repId: string; status: "open" | "won" | "lost"; amount: number | null; closeDate?: string | null; closedAt?: string | null };
+export type FDeal = { id?: string; name?: string | null; repId: string; status: "open" | "won" | "lost"; amount: number | null; closeDate?: string | null; closedAt?: string | null; split?: Share[] | null };
 
 /** The quarter a date falls in, 'YYYY-Qn' (UTC calendar quarters). */
 export function periodOf(isoDate: string): string {
@@ -33,13 +35,18 @@ export function shiftPeriod(period: string, by: number): string {
 
 const inPeriod = (d: string | null | undefined, r: { start: string; end: string }) => !!d && d.slice(0, 10) >= r.start && d.slice(0, 10) <= r.end;
 
-/** The computed columns for one person (or, with repId omitted, everyone in `deals`). */
+/**
+ * The computed columns for one person (or, with repId omitted, everyone in `deals`). A person's amounts are their
+ * share of each deal (0394 splits; shareOf — the rep's whole deal when there's no split); a deal counts for them when
+ * they have any share. Everyone's totals are unchanged, since shares add up to 100.
+ */
 export function metrics(deals: FDeal[], period: string, repId?: string) {
   const r = periodRange(period);
-  const mine = repId ? deals.filter((d) => d.repId === repId) : deals;
+  const share = (d: FDeal) => (repId ? shareOf(d, repId) : 1);
+  const mine = deals.filter((d) => share(d) > 0);
   const won = mine.filter((d) => d.status === "won" && inPeriod(d.closedAt, r));
   const open = mine.filter((d) => d.status === "open" && inPeriod(d.closeDate, r));
-  const sum = (xs: FDeal[]) => xs.reduce((s, d) => s + (d.amount ?? 0), 0);
+  const sum = (xs: FDeal[]) => xs.reduce((s, d) => s + (d.amount ?? 0) * share(d), 0);
   return {
     closedWon: sum(won), closedWonCount: won.length,
     openClosing: sum(open), openClosingCount: open.length, openUnpriced: open.filter((d) => d.amount === null).length,

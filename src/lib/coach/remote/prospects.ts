@@ -34,6 +34,8 @@ export type ProspectRow = {
   createdAt: string;
   openTodos: number;
   nextTodo: { id: string; title: string; due: string | null } | null;
+  /** Revenue phase 10 (0394): the deal's split between owners; absent or null = the rep's whole deal. */
+  split?: Array<{ userId: string; pct: number }> | null;
   /** Revenue Phase 1–2 (0370): the deal's account and how many contacts are on it. */
   accountId?: string | null;
   accountName?: string | null;

@@ -246,6 +246,8 @@ const ALLOWLIST = new Map([
   ["forecast_reminders.insert", "0391 written only by the nightly job (service role): the claim before a forecast reminder is sent."],
   ["forecast_reminders.update", "0391 §3.1 append-only (DB rule)."],
   ["forecast_reminders.delete", "0391 §3.1 append-only (DB rule)."],
+  ["deal_splits.update", "0394 §3.1 append-only (DB rule): a new split is a new row; the latest is the deal's."],
+  ["deal_splits.delete", "0394 §3.1 append-only (DB rule): splits are history; 'no split' is a new row with the rep at 100."],
   ["webhook_send_claims.select", "0384 the webhook sender's claim, read by nobody through the API (service role only)."],
   ["webhook_send_claims.insert", "0384 written only by the webhook send cron (service role): the claim before a send."],
   ["webhook_send_claims.update", "0384 §3.1 append-only (DB rule)."],

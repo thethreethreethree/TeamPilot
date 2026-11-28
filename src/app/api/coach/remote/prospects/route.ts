@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
+import { splitsFor } from "@/lib/coach/remote/revenue/dealSplits";
 import { listProspects } from "@/lib/coach/remote/prospects";
 import { pipelineTotals } from "@/lib/coach/remote/macroMode";
 
@@ -41,6 +42,11 @@ export async function GET(req: NextRequest) {
   const repId = asked === "team" ? undefined : asked || ctx.userId;
   const rows = await listProspects(db, repId, { sentiment: true });
   if (rows === null) return NextResponse.json({ error: "Couldn't load the pipeline." }, { status: 500 });
+  // Revenue phase 10 (0394): each deal's split, so the forecast counts each owner's share. A failed read is a 500 —
+  // per-person amounts without it would be wrong, not just incomplete.
+  const splits = await splitsFor(db, rows);
+  if (splits === null) return NextResponse.json({ error: "Couldn't load the pipeline." }, { status: 500 });
+  for (const r of rows) r.split = splits.get(r.id) ?? null;
   return NextResponse.json({ prospects: rows, totals: pipelineTotals(rows), repId: repId ?? "team", viewerId: ctx.userId });
 }
 

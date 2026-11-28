@@ -67,4 +67,11 @@ describe("one prospect", () => {
       expect((await res.json()).error).toMatch(/couldn't load this prospect/i);
     });
   }
+  it("a split that couldn't be read is said (splitFailed), never shown as no split (0394)", async () => {
+    answers.deal_splits_current = boom;
+    const j = await (await call()).json();
+    expect(j).toMatchObject({ split: null, splitFailed: true });
+    answers.deal_splits_current = { data: [{ prospect_id: PID, shares: [{ user_id: "rep-1", pct: 50 }, { user_id: "x", pct: 50 }] }], error: null };
+    expect(await (await call()).json()).toMatchObject({ splitFailed: false, split: [{ userId: "rep-1", pct: 50 }, { userId: "x", pct: 50 }] });
+  });
 });

@@ -30,6 +30,7 @@
 | 2026-11-27 | Share a personal folder (F12.8) | Managers only (today's rule) | Founder picker (recommended) |
 | 2026-11-27 | Next batch after the Gong P3 audit | Deal-flow batch: field history (F23.11), forecast due day and reminder (F22.4) here; meeting-prep trigger (F13.6) in the Engage plan E11 | Founder picker: "Deal-flow batch (Recommended)" |
 | 2026-11-28 | F26.6 recommended contacts | From our own calls only (call_contacts), not an enrichment partner | Gong's uses enrichment; ours needs no outside service and claims nothing it didn't hear |
+| 2026-11-28 | Several owners and splits (R9, F20.12) | Splits for attribution (whole %, 2–5 people incl. the rep; rep or their manager sets); access unchanged | Founder picker: "Deal splits (Recommended)" |
 
 ## Open questions
 | # | Question | Blocks |
