@@ -713,3 +713,11 @@ founder decision, 12 open and buildable now.
 - [ ] 2026-11-28 · engage-e15 · OUTSIDE PRECONDITION (§1.5.3): the trusted-address check reads x-real-ip, which Vercel
       sets to the connecting address. To verify once a company admin makes a key with a list: a request from a listed
       address answers 200, one from elsewhere 403 (and shows as a refusal in Settings → API keys → Usage).
+
+## Correction (2026-11-28)
+
+- [x] 2026-11-28 · e12-transcript-lands · R1-edit-path in docs/tbc/2026-11-28-e12-transcript-lands/closure.md said a
+      hand-corrected transcript doesn't fire the call-added agents. It does, once per correction batch: the
+      transcript-edit route's "refresh notes" step calls generateSessionArtifacts, which ends with the hook. Firing on
+      every single line edit was considered and left out on purpose (each line is a new version: one AI review per
+      corrected line).
