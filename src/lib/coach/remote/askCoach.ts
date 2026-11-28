@@ -310,7 +310,8 @@ export function renumber(answer: string, citations: Citation[], start: number): 
     map.set(c.ref, g);
     refs.push({ ...c, ref: g });
   }
-  const text = answer.replace(/\[(\d{1,4})\]/g, (m, n: string) => (map.has(Number(n)) ? `[${map.get(Number(n))}]` : ""));
+  // A bracketed number that isn't a citation ("in [2024]") is kept as plain text, never deleted or taken for one.
+  const text = answer.replace(/\[(\d{1,4})\]/g, (m, n: string) => (map.has(Number(n)) ? `[${map.get(Number(n))}]` : `(${n})`));
   return { text, refs };
 }
 
@@ -325,26 +326,40 @@ Each partial answer covers a different batch of calls and cites transcript lines
  * saved), then one combining answer that keeps the batches' citations. The AI being off for the company in any batch is
  * the whole answer's verdict (suppressed), never a partial answer said as whole.
  */
-export async function askCoachDeep(args: { db: SupabaseClient; companyId: string; userId: string; sessionIds: string[]; question: string }): Promise<AskResult & { batches?: number }> {
-  const ids = [...new Set(args.sessionIds)];
-  if (ids.length <= DEEP_BATCH || ids.length > DEEP_MAX) return { ok: false, status: 400, error: `A deep question reads ${DEEP_BATCH + 1} to ${DEEP_MAX} calls.` };
+export async function askCoachDeep(args: { db: SupabaseClient; companyId: string; userId: string; sessionIds: string[]; question: string }): Promise<AskResult & { batches?: number; skipped?: number }> {
+  const ids0 = [...new Set(args.sessionIds)];
+  if (ids0.length <= DEEP_BATCH || ids0.length > DEEP_MAX) return { ok: false, status: 400, error: `A deep question reads ${DEEP_BATCH + 1} to ${DEEP_MAX} calls.` };
+  // Every call opened first, as the asker (review 2026-11-28): one that isn't theirs to open, or isn't a sales call, is
+  // skipped and counted — before any AI call, so a bad call never fails the question after batches were paid for.
+  const opened = await Promise.all(ids0.map(async (id) => {
+    try {
+      const s = await getSession(id, args.db);
+      return s && isSalesCall(s.sessionKind) ? id : null;
+    } catch {
+      return null;
+    }
+  }));
+  const ids = opened.filter((x): x is string => !!x);
+  const skipped = ids0.length - ids.length;
+  if (!ids.length) return { ok: false, status: 404, error: "None of these calls is available to you." };
+  // The batches at once (review 2026-11-28: one after another could run past the time limit).
+  const batchIds: string[][] = [];
+  for (let i = 0; i < ids.length; i += DEEP_BATCH) batchIds.push(ids.slice(i, i + DEEP_BATCH));
+  const results = await Promise.all(batchIds.map((b) => askCoach({ db: args.db, companyId: args.companyId, userId: args.userId, sessionIds: b, question: args.question, chatId: null, save: false })));
   const parts: string[] = [];
   const allRefs: Citation[] = [];
-  let batches = 0;
-  for (let i = 0; i < ids.length; i += DEEP_BATCH) {
-    const r = await askCoach({ db: args.db, companyId: args.companyId, userId: args.userId, sessionIds: ids.slice(i, i + DEEP_BATCH), question: args.question, chatId: null, save: false });
+  const batches = results.length;
+  for (const [i, r] of results.entries()) {
     if (!r.ok) return r;
     if (r.suppressed) return { ok: true, chatId: null, answer: null, citations: [], suppressed: true };
-    batches += 1;
-    if (!r.citations.length) continue; // a batch with nothing to cite (no transcripts) adds nothing
+    // An answer that cites nothing still counts ("none of these discussed budget" is a finding), its numbers as text.
     const n = renumber(r.answer, r.citations, allRefs.length + 1);
     allRefs.push(...n.refs);
-    parts.push(`=== Batch ${batches} ===\n${n.text}`);
+    parts.push(`=== Batch ${i + 1} ===\n${n.text}`);
   }
-  if (!parts.length) return { ok: true, chatId: null, answer: "None of these calls show anything on that yet.", citations: [], suppressed: false, batches };
   if (parts.length === 1) {
     const only = parts[0]!.replace(/^=== Batch \d+ ===\n/, "");
-    return { ok: true, chatId: null, answer: only, citations: resolveCitations(only, new Map(allRefs.map((c) => [c.ref, c]))), suppressed: false, batches };
+    return { ok: true, chatId: null, answer: only, citations: resolveCitations(only, new Map(allRefs.map((c) => [c.ref, c]))), suppressed: false, batches, skipped };
   }
   const r = await askCoachTurn({
     companyId: args.companyId,
@@ -356,5 +371,5 @@ export async function askCoachDeep(args: { db: SupabaseClient; companyId: string
   const answer = r.text.trim();
   if (!answer) return { ok: false, status: 502, error: "Ask-coach failed." };
   // Only numbers that were given resolve (resolveCitations drops any the model invented).
-  return { ok: true, chatId: null, answer, citations: resolveCitations(answer, new Map(allRefs.map((c) => [c.ref, c]))), suppressed: false, batches };
+  return { ok: true, chatId: null, answer, citations: resolveCitations(answer, new Map(allRefs.map((c) => [c.ref, c]))), suppressed: false, batches, skipped };
 }

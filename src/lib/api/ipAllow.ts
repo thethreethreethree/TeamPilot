@@ -69,3 +69,16 @@ export function validEntry(entry: string): boolean {
   const shift = BigInt((a.v === 4 ? 32 : 128) - n);
   return (a.bits >> shift) << shift === a.bits;
 }
+
+/**
+ * An entry as it should be stored (review 2026-11-28): an IPv4-mapped address or range (::ffff:1.2.3.4, /96–/128) as
+ * plain IPv4, since requests are matched as IPv4 and Postgres keeps the mapped form as IPv6. Others unchanged. Pure.
+ */
+export function normalizeEntry(entry: string): string {
+  const t = entry.trim();
+  const m = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})(?:\/(\d{1,3}))?$/i.exec(t);
+  if (!m) return t;
+  const len = m[2] === undefined ? 128 : Number(m[2]);
+  if (len < 96) return t;
+  return len === 128 ? m[1]! : `${m[1]}/${len - 96}`;
+}

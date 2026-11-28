@@ -47,9 +47,10 @@ export function AskCalls({ title, calls, starters = [], onDemand = false }: { ti
       const r = agentId
         ? await fetch("/api/coach/remote/on-demand-agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ run: agentId, sessionIds: asked.map((c) => c.sessionId) }) })
         : await fetch("/api/coach/remote/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(deep && deepCalls.length > 10 ? { question: question.trim(), sessionIds: deepCalls.map((c) => c.sessionId), deep: true } : { question: question.trim(), sessionIds: asked.map((c) => c.sessionId) }) });
-      const j = (await r.json().catch(() => ({}))) as { answer?: string | null; citations?: Citation[]; error?: string };
+      const j = (await r.json().catch(() => ({}))) as { answer?: string | null; citations?: Citation[]; error?: string; skipped?: number };
       if (!r.ok) setErr(j.error ?? "The coach couldn't answer.");
-      else setAnswer({ text: j.answer ?? "The coach isn't answering on this account right now.", citations: j.citations ?? [] });
+      // Deep (E18): calls that couldn't be opened are said, not silently dropped.
+      else setAnswer({ text: (j.answer ?? "The coach isn't answering on this account right now.") + (j.skipped ? `\n\n(${j.skipped} of the calls couldn't be opened and were left out.)` : ""), citations: j.citations ?? [] });
     } catch {
       setErr("Couldn't reach the server.");
     } finally {

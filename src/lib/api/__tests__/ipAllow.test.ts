@@ -38,3 +38,13 @@ describe("trusted addresses", () => {
     expect(requestIp(new Request("http://x", { headers: { "x-forwarded-for": "9.9.9.9" } }))).toBeNull();
   });
 });
+
+describe("normalizeEntry (review 2026-11-28)", () => {
+  it("an IPv4-mapped entry is stored as plain IPv4, so it can match", async () => {
+    const { normalizeEntry, inRange } = await import("../ipAllow");
+    expect(normalizeEntry("::ffff:203.0.113.7")).toBe("203.0.113.7");
+    expect(normalizeEntry("::FFFF:203.0.113.0/120")).toBe("203.0.113.0/24");
+    expect(normalizeEntry(" 2001:db8::/32 ")).toBe("2001:db8::/32");
+    expect(inRange("203.0.113.7", normalizeEntry("::ffff:203.0.113.7"))).toBe(true);
+  });
+});

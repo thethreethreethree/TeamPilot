@@ -6,6 +6,7 @@ import { isAdminRole } from "@/lib/roles";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { teamCallStats, type StatRow } from "@/lib/coach/remote/teamStats";
 import { rubricByVersion } from "@/lib/coach/pitchScore/rubricRegistry";
+import { archivedFolderIds, underArchived } from "@/lib/coach/remote/library";
 import { authenticateApiKey, OUTSIDE_READER, paging, recordApiUsage } from "./publicApi";
 
 /**
@@ -178,28 +179,31 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
       return done({ error: "Couldn't read the library." }, 500);
     }
     const [folders, events, removals] = await Promise.all([
-      fetchAllPagedResult<{ id: string; name: string; parent_id: string | null; created_at: string }>((f, t) => admin.from("library_folders").select("id, name, parent_id, created_at").eq("company_id", caller.companyId).eq("is_company", true).order("id").range(f, t), { label: "api library folders", maxRows: 5000 }),
+      // 0360: a folder's parent is its CURRENT one (library_folders_current), as the app reads it (review 2026-11-28).
+      fetchAllPagedResult<{ id: string; name: string; current_parent_id: string | null; created_at: string }>((f, t) => admin.from("library_folders_current").select("id, name, current_parent_id, created_at").eq("company_id", caller.companyId).eq("is_company", true).order("id").range(f, t), { label: "api library folders", maxRows: 5000 }),
       fetchAllPagedResult<{ id: number; folder_id: string; kind: string }>((f, t) => admin.from("library_folder_events").select("id, folder_id, kind").eq("company_id", caller.companyId).in("kind", ["archive", "restore"]).order("id").range(f, t), { label: "api library folder events", maxRows: 20_000 }),
       fetchAllPagedResult<{ id: number; item_id: string }>((f, t) => admin.from("library_item_removals").select("id, item_id").eq("company_id", caller.companyId).order("id").range(f, t), { label: "api library removals", maxRows: 50_000 }),
     ]);
     if (folders.error || events.error || removals.error) return done({ error: "Couldn't read the library." }, 500);
-    // A folder is archived when its latest archive/restore event is "archive" (0346).
-    const last = new Map<string, string>();
-    for (const e of events.data ?? []) last.set(String(e.folder_id), e.kind);
-    const live = (folders.data ?? []).filter((f) => last.get(String(f.id)) !== "archive");
+    // The app's own rules (library.ts): a folder is archived by its latest archive/restore (0346), and everything inside
+    // an archived folder is hidden with it (0353) — review 2026-11-28.
+    const nodes = (folders.data ?? []).map((f) => ({ id: String(f.id), name: f.name, parent_id: f.current_parent_id ?? null, created_at: f.created_at }));
+    const archived = archivedFolderIds(events.data ?? []);
+    const inside = underArchived(nodes, archived);
+    const live = nodes.filter((f) => !archived.has(f.id) && !inside.has(f.id));
     const ids = live.map((f) => String(f.id));
     const removed = new Set((removals.data ?? []).map((r) => String(r.item_id)));
     const items = ids.length
-      ? await fetchAllPagedResult<{ id: string; folder_id: string; session_id: string | null; rep_id: string | null; created_at: string }>((f, t) => admin.from("library_items").select("id, folder_id, session_id, rep_id, created_at").eq("company_id", caller.companyId).in("folder_id", ids).order("id").range(f, t), { label: "api library items", maxRows: 50_000 })
+      ? await fetchAllPagedResult<{ id: string; folder_id: string; session_id: string | null; snippet_id: string | null; rep_id: string | null; created_at: string }>((f, t) => admin.from("library_items").select("id, folder_id, session_id, snippet_id, rep_id, created_at").eq("company_id", caller.companyId).in("folder_id", ids).order("id").range(f, t), { label: "api library items", maxRows: 50_000 })
       : { data: [], error: null };
     if (items.error) return done({ error: "Couldn't read the library." }, 500);
-    const byFolder = new Map<string, Array<{ id: string; callId: string | null; repId: string | null; addedAt: string }>>();
+    const byFolder = new Map<string, Array<{ id: string; callId: string | null; snippetId: string | null; repId: string | null; addedAt: string }>>();
     for (const it of items.data ?? []) {
       if (removed.has(String(it.id)) || (it.session_id && hiddenS.has(String(it.session_id)))) continue;
-      byFolder.set(String(it.folder_id), [...(byFolder.get(String(it.folder_id)) ?? []), { id: it.id, callId: it.session_id, repId: it.rep_id, addedAt: it.created_at }]);
+      byFolder.set(String(it.folder_id), [...(byFolder.get(String(it.folder_id)) ?? []), { id: it.id, callId: it.session_id, snippetId: it.snippet_id ?? null, repId: it.rep_id, addedAt: it.created_at }]);
     }
     return done({
-      data: live.map((f) => ({ id: f.id, name: f.name, parentId: f.parent_id, createdAt: f.created_at, items: byFolder.get(String(f.id)) ?? [] })),
+      data: live.map((f) => ({ id: f.id, name: f.name, parentId: f.parent_id, createdAt: f.created_at, items: byFolder.get(f.id) ?? [] })),
       note: "Company folders only; archived folders, removed items and calls with an active hide are left out.",
     });
   }

@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     const r = await askCoachDeep({ db: callerScopedDb(req) ?? (await createClient()), companyId: ctx.companyId, userId: ctx.userId, sessionIds, question });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
     if (r.suppressed) return NextResponse.json({ answer: null, suppressed: true });
-    return NextResponse.json({ answer: r.answer, citations: r.citations, batches: r.batches });
+    return NextResponse.json({ answer: r.answer, citations: r.citations, batches: r.batches, skipped: r.skipped ?? 0 });
   }
   if (!chatId && (sessionIds.length < 1 || sessionIds.length > 10)) return NextResponse.json({ error: "Ask about 1 to 10 calls." }, { status: 400 });
 

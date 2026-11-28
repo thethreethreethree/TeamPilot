@@ -167,17 +167,18 @@ describe("keepLines (review 2026-11-28: battlecards read where the competitor ca
 });
 
 describe("deep Ask (E18; Gong F13.12)", () => {
-  it("renumber: each batch's cited lines get unique numbers; an uncited number is dropped", () => {
-    const r = renumber("Price came up [2], then [5] and [9].", [{ ref: 2, sessionId: "a", seq: 2, atMs: 0 }, { ref: 5, sessionId: "b", seq: 7, atMs: null }], 11);
-    expect(r.text).toBe("Price came up [11], then [12] and .");
+  it("renumber: each batch's cited lines get unique numbers; a bracket that isn't a citation stays as text", () => {
+    const r = renumber("Price came up [2], then [5] and in [2024].", [{ ref: 2, sessionId: "a", seq: 2, atMs: 0 }, { ref: 5, sessionId: "b", seq: 7, atMs: null }], 11);
+    expect(r.text).toBe("Price came up [11], then [12] and in (2024).");
     expect(r.refs.map((c) => [c.ref, c.sessionId])).toEqual([[11, "a"], [12, "b"]]);
   });
   it("reads 10 calls at a time and combines, keeping the batches' citations; nothing saved", async () => {
     mock(getSession).mockImplementation(async (id: string) => ({ id, sessionKind: "sales", startedAt: "2026-11-20T10:00:00Z", audioStartedAt: null, clientLabel: id }));
-    mock(askCoachTurn)
-      .mockResolvedValueOnce({ text: "Batch one says price [2].", suppressed: false })
-      .mockResolvedValueOnce({ text: "Batch two says price too [1].", suppressed: false })
-      .mockResolvedValueOnce({ text: "Both batches: price [1] and [2].", suppressed: false });
+    // Batches run at once, so each fake answer is chosen by what the request holds, not by call order.
+    mock(askCoachTurn).mockImplementation(async (a: { userMessage: string }) =>
+      a.userMessage.includes("Partial answers") ? { text: "Both batches: price [1] and [2].", suppressed: false }
+      : a.userMessage.includes("Call: s0 (") ? { text: "Batch one says price [2].", suppressed: false }
+      : { text: "Batch two says price too [1].", suppressed: false });
     const ids = Array.from({ length: 15 }, (_, i) => `s${i}`);
     const r = await askCoachDeep({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: ids, question: "price?" });
     expect(r).toMatchObject({ ok: true, batches: 2, answer: "Both batches: price [1] and [2]." });
@@ -192,5 +193,12 @@ describe("deep Ask (E18; Gong F13.12)", () => {
     mock(getSession).mockImplementation(async (id: string) => ({ id, sessionKind: "sales", startedAt: "2026-11-20T10:00:00Z", audioStartedAt: null, clientLabel: id }));
     mock(askCoachTurn).mockResolvedValueOnce({ text: "", suppressed: true });
     expect(await askCoachDeep({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: Array.from({ length: 12 }, (_, i) => `y${i}`), question: "q?" })).toMatchObject({ ok: true, suppressed: true });
+  });
+  it("a call that can't be opened is skipped and counted before any AI call (review 2026-11-28)", async () => {
+    mock(getSession).mockImplementation(async (id: string) => (id === "gone" ? null : { id, sessionKind: id === "meet" ? "meeting" : "sales", startedAt: "2026-11-20T10:00:00Z", audioStartedAt: null, clientLabel: id }));
+    mock(askCoachTurn).mockResolvedValue({ text: "Budget is tight [1].", suppressed: false });
+    const ids = ["gone", "meet", ...Array.from({ length: 10 }, (_, i) => `z${i}`)];
+    const r = await askCoachDeep({ db: callerDb, companyId: "co1", userId: "u1", sessionIds: ids, question: "budget?" });
+    expect(r).toMatchObject({ ok: true, skipped: 2, batches: 1, answer: "Budget is tight [1]." });
   });
 });

@@ -27,7 +27,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
       const q: Record<string, unknown> = {};
-      for (const m of ["order", "in", "gte"]) q[m] = () => q;
+      for (const m of ["order", "in", "gte", "neq"]) q[m] = () => q;
       q.select = (cols: string) => (st.selects.push([table, cols]), q);
       q.eq = (col: string, v: unknown) => (st.eqs.push([table, col, v]), q);
       q.maybeSingle = async () => ({ data: table === "api_keys" ? st.key : table === "profiles" ? st.maker : null, error: null });
@@ -197,6 +197,11 @@ describe("public API keys", () => {
     expect(st.usage).toContainEqual(expect.objectContaining({ key_id: "k-ip-1", status: 403 }));
     st.key = { ...st.key!, id: "k-ip-2" };
     expect((await readResource(at("203.0.113.9"), "deals")).status).toBe(200);
+    // before the scope (review 2026-11-28): from elsewhere, an MCP-only key answers the same "this address" refusal
+    st.key = { id: "k-ip-3", company_id: "co1", created_by: "admin-1", scopes: ["mcp"], revoked_at: null, allowed_ips: ["203.0.113.0/24"] };
+    const r = await readResource(at("198.51.100.1"), "deals");
+    expect(r.status).toBe(403);
+    expect((await r.json()).error).toMatch(/this address/);
   });
   it("to-dos (E16): the deals' to-dos, deleted ones left out, pinned", async () => {
     st.key = { ...st.key!, id: "k-todos" };
@@ -210,14 +215,15 @@ describe("public API keys", () => {
     st.key = { ...st.key!, id: "k-lib" };
     st.hidden = new Set(["hid"]);
     st.t = {
-      library_folders: [{ id: "f1", name: "Best openers", parent_id: null, created_at: "t" }, { id: "f2", name: "Old", parent_id: null, created_at: "t" }],
+      library_folders_current: [{ id: "f1", name: "Best openers", current_parent_id: null, created_at: "t" }, { id: "f2", name: "Old", current_parent_id: null, created_at: "t" }, { id: "f3", name: "Inside old", current_parent_id: "f2", created_at: "t" }],
       library_folder_events: [{ id: 1, folder_id: "f2", kind: "archive" }, { id: 2, folder_id: "f1", kind: "archive" }, { id: 3, folder_id: "f1", kind: "restore" }],
       library_item_removals: [{ id: 1, item_id: "i2" }],
       library_items: [{ id: "i1", folder_id: "f1", session_id: "s1", rep_id: "r1", created_at: "t" }, { id: "i2", folder_id: "f1", session_id: "s2", rep_id: "r1", created_at: "t" }, { id: "i3", folder_id: "f1", session_id: "hid", rep_id: "r1", created_at: "t" }],
     };
     const j = await (await readResource(req("/api/v1/library"), "library")).json();
-    expect(j.data).toEqual([{ id: "f1", name: "Best openers", parentId: null, createdAt: "t", items: [{ id: "i1", callId: "s1", repId: "r1", addedAt: "t" }] }]);
-    expect(st.eqs).toContainEqual(["library_folders", "is_company", true]);
+    // f3 sits inside the archived f2: hidden with it, as in the app (review 2026-11-28)
+    expect(j.data).toEqual([{ id: "f1", name: "Best openers", parentId: null, createdAt: "t", items: [{ id: "i1", callId: "s1", snippetId: null, repId: "r1", addedAt: "t" }] }]);
+    expect(st.eqs).toContainEqual(["library_folders_current", "is_company", true]);
     expect(st.selects.filter(([t]) => t === "library_items").map(([, c]) => c).join()).not.toMatch(/note/);
     st.hidden = new Set();
   });

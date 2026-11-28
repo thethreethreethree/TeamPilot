@@ -33,19 +33,21 @@ export async function authenticateApiKey(req: Request, scope: "read" | "mcp" | "
   if (error) return NextResponse.json({ error: "The API is unavailable. Try again." }, { status: 503 });
   if (!data || data.revoked_at) return NextResponse.json({ error: "That API key isn't valid." }, { status: 401 });
   const scopes = (data.scopes as string[]) ?? [];
-  if (!scopes.includes(scope)) return NextResponse.json({ error: `That key can't use the ${scope === "mcp" ? "MCP server" : scope === "upload" ? "call upload" : "read API"}.` }, { status: 403 });
   const caller = { keyId: String(data.id), companyId: String(data.company_id), createdBy: String(data.created_by), scopes };
-  // 0393 (E15; Gong F33.10): a key with trusted addresses works only from them. Refused and recorded, so the usage
-  // report shows the attempts.
-  if (!ipAllowed(requestIp(req), (data.allowed_ips as string[] | null) ?? null)) {
-    await recordApiUsage(caller, route, 403);
-    return NextResponse.json({ error: "This key can't be used from this address." }, { status: 403 });
-  }
+  // Throttled first (review 2026-11-28): a leaked key from an untrusted address can't flood the record either.
   if (!underPerSecond(caller.keyId)) {
     await recordApiUsage(caller, route, 429);
     return NextResponse.json({ error: `At most ${API_PER_SECOND} requests a second per key.` }, { status: 429, headers: { "Retry-After": "1" } });
   }
-  const { count, error: cErr } = await admin.from("api_usage").select("id", { count: "exact", head: true }).eq("company_id", caller.companyId).eq("key_id", caller.keyId).gte("at", new Date(Date.now() - 86_400_000).toISOString());
+  // 0393 (E15; Gong F33.10): a key with trusted addresses works only from them — checked before the scope, so a caller
+  // elsewhere learns nothing about what the key may do. Refused and recorded (the usage report shows the attempts); a
+  // refusal doesn't count toward the daily limit, so it can't lock out the real integration.
+  if (!ipAllowed(requestIp(req), (data.allowed_ips as string[] | null) ?? null)) {
+    await recordApiUsage(caller, route, 403);
+    return NextResponse.json({ error: "This key can't be used from this address." }, { status: 403 });
+  }
+  if (!scopes.includes(scope)) return NextResponse.json({ error: `That key can't use the ${scope === "mcp" ? "MCP server" : scope === "upload" ? "call upload" : "read API"}.` }, { status: 403 });
+  const { count, error: cErr } = await admin.from("api_usage").select("id", { count: "exact", head: true }).eq("company_id", caller.companyId).eq("key_id", caller.keyId).neq("status", 403).gte("at", new Date(Date.now() - 86_400_000).toISOString());
   if (cErr) return NextResponse.json({ error: "The API is unavailable. Try again." }, { status: 503 });
   if ((count ?? 0) >= API_PER_DAY) {
     return NextResponse.json({ error: `This key has made ${API_PER_DAY.toLocaleString("en-US")} requests in the last 24 hours.` }, { status: 429, headers: { "Retry-After": "3600" } });

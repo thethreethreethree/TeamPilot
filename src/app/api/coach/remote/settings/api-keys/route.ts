@@ -6,7 +6,7 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
 import { recordAudit } from "@/lib/audit/recordAudit";
 import { newApiKey } from "@/lib/api/publicApi";
-import { validEntry } from "@/lib/api/ipAllow";
+import { normalizeEntry, validEntry } from "@/lib/api/ipAllow";
 
 /**
  * /api/coach/remote/settings/api-keys — the company's API keys (Engage plan E3, 0378). Company admins only.
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     await recordAudit(admin, { companyId: ctx.companyId, actorId: ctx.userId, action: "api_key.revoke", objectType: "api_key", objectId: body.revoke });
     return NextResponse.json({ ok: true });
   }
-  const ips = [...new Set((body.allowedIps ?? []).map((x) => x.trim()).filter(Boolean))];
+  const ips = [...new Set((body.allowedIps ?? []).map((x) => normalizeEntry(x)).filter(Boolean))];
   const bad = ips.find((x) => !validEntry(x));
   if (bad) return NextResponse.json({ error: `“${bad}” isn't an IP address or range (e.g. 203.0.113.7 or 203.0.113.0/24).` }, { status: 400 });
   const k = newApiKey();
