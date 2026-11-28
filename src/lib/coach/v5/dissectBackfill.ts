@@ -83,7 +83,15 @@ export async function runDissectBackfill(args: {
   if (args.companyId) sq = sq.eq("company_id", args.companyId);
   const { data: sessionsData, error: sErr } = await sq;
   if (sErr) throw new Error(`sessions: ${sErr.message}`);
-  const sessions = sessionsData ?? [];
+  let sessions = sessionsData ?? [];
+  // 0397 (review 2026-11-28): the nightly, all-companies run spends no AI on a sandbox's sample calls; "Generate
+  // missing" inside a sandbox (scoped, on request) still does. Before 0397 the column doesn't exist: none are sandboxes.
+  if (!scoped && sessions.length) {
+    const { data: sandboxes, error: sbErr } = await admin.from("companies").select("id").eq("is_sandbox", true);
+    if (sbErr && String((sbErr as { code?: string }).code) !== "42703") throw new Error(`sandbox companies: ${sbErr.message}`);
+    const skip = new Set(((sandboxes ?? []) as Array<{ id: string }>).map((c) => String(c.id)));
+    if (skip.size) sessions = sessions.filter((s) => !skip.has(String(s.company_id)));
+  }
 
   // F4 (§5) — bound the events diff to EXACTLY the sessions scanned (never a
   // full all-companies scan of every dissect event ever). Mirrors the

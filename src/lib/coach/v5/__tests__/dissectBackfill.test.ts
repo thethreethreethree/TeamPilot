@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   emptySessionIds: new Set<string>(), // sessions with ZERO transcript segments (empty capture) — content-aware split
   dissect: vi.fn(), // stands in for the whole artifact generation; resolves { dissect: { hasSignal } }
   afterPitch: vi.fn(), // generateAndStoreAfterPitch spy — asserts the de-dup guard skips existing summaries
+  sandboxes: [] as Array<{ id: string }>, // 0397: companies flagged is_sandbox
 }));
 
 vi.mock("@/lib/supabase/admin", () => {
@@ -32,6 +33,7 @@ vi.mock("@/lib/supabase/admin", () => {
     b.then = (resolve: (v: unknown) => void) => {
       let data: unknown;
       if (table === "coaching_sessions") data = state.sessions;
+      else if (table === "companies") data = state.sandboxes;
       // content-aware split: every session has a transcript segment EXCEPT those marked empty (0-segment capture).
       else if (table === "coaching_transcript_segments_current")
         data = state.sessions.filter((s) => !state.emptySessionIds.has(s.id)).map((s) => ({ session_id: s.id }));
@@ -74,6 +76,7 @@ beforeEach(() => {
   state.attemptEvents = [];
   state.afterPitchExisting = [];
   state.emptySessionIds = new Set();
+  state.sandboxes = [];
   state.dissect.mockReset();
   state.dissect.mockResolvedValue({ hasSignal: true });
   state.afterPitch.mockReset();
@@ -181,5 +184,15 @@ describe("runDissectBackfill", () => {
     state.sessions = Array.from({ length: 300 }, (_, i) => session(`s${i}`));
     const r = await runDissectBackfill({ companyId: "c1", cap: 1 });
     expect(r.scanBounded).toBe(true);
+  });
+  it("the nightly run spends no AI on a sandbox's sample calls; Generate missing inside the sandbox still does (0397)", async () => {
+    state.sessions = [{ ...session("real"), company_id: "c1" }, { ...session("sample"), company_id: "sb" }];
+    state.sandboxes = [{ id: "sb" }];
+    await runDissectBackfill({ cap: 6 });
+    expect(state.dissect).toHaveBeenCalledTimes(1);
+    state.dissect.mockClear();
+    state.sessions = [{ ...session("sample"), company_id: "sb" }];
+    await runDissectBackfill({ companyId: "sb", cap: 6 });
+    expect(state.dissect).toHaveBeenCalledTimes(1);
   });
 });
