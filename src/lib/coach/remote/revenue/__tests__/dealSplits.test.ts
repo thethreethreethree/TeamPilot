@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { owners, readShares, shareOf } from "../dealSplits";
+import { owners, readShares, shareOf, shareTotals } from "../dealSplits";
 import { metrics } from "../forecast";
 
 /** Deal splits (0394; F20.12). Pinned: a person's share of a deal; no split = the rep's whole deal; the forecast counts shares and everyone's total is unchanged. */
@@ -28,5 +28,16 @@ describe("deal splits", () => {
     expect(metrics(deals, "2026-Q4", "a")).toMatchObject({ closedWon: 600, closedWonCount: 1, openClosing: 0 });
     expect(metrics(deals, "2026-Q4", "b")).toMatchObject({ closedWon: 400, closedWonCount: 1, openClosing: 500 });
     expect(metrics(deals, "2026-Q4")).toMatchObject({ closedWon: 1000, openClosing: 500 });
+  });
+  it("shareTotals: your share of what you own and co-own, and whether any split applies (10b)", () => {
+    const r = shareTotals([
+      { repId: "me", status: "open", amount: 1000, split: [{ userId: "me", pct: 60 }, { userId: "x", pct: 40 }] },
+      { repId: "me", status: "won", amount: "250", split: null },
+      { repId: "x", status: "open", amount: 500, split: [{ userId: "x", pct: 80 }, { userId: "me", pct: 20 }] },
+      { repId: "x", status: "lost", amount: 900, split: null },
+    ], "me");
+    expect(r.totals).toEqual({ open: { count: 2, amount: 700 }, won: { count: 1, amount: 250 }, lost: { count: 0, amount: 0 } });
+    expect(r.split).toBe(true);
+    expect(shareTotals([{ repId: "me", status: "open", amount: 10 }], "me").split).toBe(false);
   });
 });

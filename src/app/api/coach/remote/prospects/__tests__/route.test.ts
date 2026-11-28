@@ -22,7 +22,11 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/api/callerScopedDb", () => ({
   callerScopedDb: () => ({
     rpc: async (fn: string, args: Record<string, unknown>) => (st.rpc.push({ fn, args }), st.rpcResult),
-    from: (table: string) => ({ insert: async (row: Record<string, unknown>) => (st.inserts.push({ table, row }), { error: st.insertError }) }),
+    from: (table: string) => ({
+      insert: async (row: Record<string, unknown>) => (st.inserts.push({ table, row }), { error: st.insertError }),
+      // the split read (0394): none
+      select: () => ({ in: () => ({ limit: async () => ({ data: [], error: null }) }) }),
+    }),
   }),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
@@ -39,7 +43,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 vi.mock("@/lib/coach/remote/prospects", () => ({
   listProspects: vi.fn(async (_db: unknown, repId: unknown, opts?: { ids?: string[] }) => (opts?.ids ? co.rows : ((st.listArg = repId), st.list))),
 }));
-vi.mock("@/lib/coach/remote/macroMode", () => ({ pipelineTotals: () => ({}) }));
+vi.mock("@/lib/coach/remote/macroMode", () => ({ pipelineTotals: () => ({ whole: true }) }));
 
 import { NextRequest } from "next/server";
 import { GET, POST } from "../route";
@@ -137,5 +141,20 @@ describe("reading the pipeline", () => {
     expect(j.coOwned[0].signals).toBeUndefined();
     co.ids = [];
     co.rows = [];
+  });
+  it("your own pipeline's totals are your share; a team view's are whole (10b)", async () => {
+    st.list = [{ id: "d1", repId: "rep-1", status: "open", amount: 1000 }];
+    co.ids = ["c9"];
+    co.rows = [{ id: "c9", repId: "other", status: "won", amount: 500 }];
+    const mine = await (await get()).json();
+    expect(mine.totals.open).toEqual({ count: 1, amount: 1000 });
+    // c9 has no split read in this test (the admin split read answers none), so it isn't yours to count
+    expect(mine.totals.won).toEqual({ count: 0, amount: 0 });
+    co.ids = [];
+    co.rows = [];
+    const team = await (await get("?repId=team")).json();
+    expect(team.totals).toEqual({ whole: true });
+    expect(team.totalsByShare).toBe(false);
+    st.list = [];
   });
 });

@@ -128,7 +128,7 @@ export function RemotePipeline() {
   }, [viewParam, simple]);
   const [people, setPeople] = useState<Array<{ id: string; name: string }>>([]);
   const [peopleFailed, setPeopleFailed] = useState(false);
-  const [data, setData] = useState<{ prospects: Prospect[]; coOwned?: Prospect[]; totals: Totals; viewerId: string } | null>(null);
+  const [data, setData] = useState<{ prospects: Prospect[]; coOwned?: Prospect[]; totals: Totals; totalsByShare?: boolean; viewerId: string } | null>(null);
   const [failed, setFailed] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -291,7 +291,7 @@ export function RemotePipeline() {
           >
             <p className="text-[11px] uppercase tracking-wider text-muted">{label}</p>
             <p className="mt-0.5 text-lg font-semibold tabular-nums text-primary">{data ? money(data.totals[k].amount) : "—"}</p>
-            <p className="text-[11px] text-secondary">{data ? `${data.totals[k].count} ${data.totals[k].count === 1 ? "prospect" : "prospects"}` : ""}</p>
+            <p className="text-[11px] text-secondary">{data ? `${data.totals[k].count} ${data.totals[k].count === 1 ? "prospect" : "prospects"}${data.totalsByShare ? " · your share" : ""}` : ""}</p>
           </button>
         ))}
       </div>

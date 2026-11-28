@@ -67,3 +67,22 @@ export async function coOwnedDealIds(admin: SupabaseClient, userId: string): Pro
   if (error) return ["PGRST202", "42883"].includes(String((error as { code?: string }).code)) ? [] : null;
   return ((data ?? []) as Array<string | { rss_co_owned_deals?: string }>).map((x) => (typeof x === "string" ? x : String(x.rss_co_owned_deals ?? ""))).filter(Boolean);
 }
+
+/**
+ * A person's pipeline totals by share (revenue phase 10b): each deal's amount times their share, counted when they have
+ * one; `split` says whether any deal here is split, so the screen can say "your share". Pure.
+ */
+export function shareTotals(deals: Array<{ repId: string; status: string; amount: number | string | null; split?: Share[] | null }>, userId: string) {
+  const t = { open: { count: 0, amount: 0 }, won: { count: 0, amount: 0 }, lost: { count: 0, amount: 0 } };
+  let split = false;
+  for (const d of deals) {
+    const s = shareOf(d, userId);
+    if (s <= 0) continue;
+    if (d.split && d.split.length) split = true;
+    const k = d.status === "won" || d.status === "lost" ? d.status : "open";
+    t[k].count += 1;
+    const a = Number(d.amount);
+    if (d.amount !== null && Number.isFinite(a)) t[k].amount += Math.round(a * s * 100) / 100;
+  }
+  return { totals: t, split };
+}

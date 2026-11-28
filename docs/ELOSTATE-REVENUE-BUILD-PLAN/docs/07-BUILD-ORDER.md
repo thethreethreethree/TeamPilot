@@ -14,4 +14,5 @@ Each phase is one TBC record. It's committed only after `npm run check` passes, 
 | 8 | A deal's field history (F23.11) and the forecast due day with an in-app reminder (F22.4); founder picker 2026-11-27 "Deal-flow batch" | The deal panel's Activity tab lists its field changes (stage, amount, close date, next call…); Forecast shows the due day and managers who haven't submitted get a bell reminder |
 | 9 | Recommended contacts (F26.6): people on the deal's account heard on its calls who aren't on the deal | The deal panel's Contacts tab: "Heard on this account's calls", with "Add to deal" |
 | 10 | Deal splits (F20.12; founder picker 2026-11-28 "Deal splits") | The deal panel's Overview: "Split" with each owner's share; the forecast board counts each person's share |
+| 10b | Splits in your own pipeline's totals (founder picker 2026-11-28 "Splits in win/loss & drivers") | Your pipeline's Open / Won / Lost totals are your share, labelled |
 | 11+ | Engage, CRM / API / MCP, agents: their own plan | — |

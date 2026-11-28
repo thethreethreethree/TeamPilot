@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
-import { coOwnedDealIds, splitsFor } from "@/lib/coach/remote/revenue/dealSplits";
+import { coOwnedDealIds, shareTotals, splitsFor } from "@/lib/coach/remote/revenue/dealSplits";
 import { listProspects } from "@/lib/coach/remote/prospects";
 import { pipelineTotals } from "@/lib/coach/remote/macroMode";
 
@@ -71,7 +71,9 @@ export async function GET(req: NextRequest) {
       coOwned = extra;
     }
   }
-  return NextResponse.json({ prospects: rows, coOwned, totals: pipelineTotals(rows), repId: repId ?? "team", viewerId: ctx.userId });
+  // Revenue phase 10b: your own pipeline's totals are your share of what you own and co-own (a team view's are whole).
+  const own = repId === ctx.userId ? shareTotals([...rows.map((r) => ({ ...r, repId: ctx.userId })), ...coOwned], ctx.userId) : null;
+  return NextResponse.json({ prospects: rows, coOwned, totals: own ? own.totals : pipelineTotals(rows), totalsByShare: own?.split === true, repId: repId ?? "team", viewerId: ctx.userId });
 }
 
 export async function POST(req: NextRequest) {
