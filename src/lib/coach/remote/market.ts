@@ -93,6 +93,19 @@ export function topicGrouper(groups: TopicGroup[]) {
   };
 }
 
+/**
+ * The calls that named a competitor, newest first, at most `max` (Engage E14: a battlecard asks these). The same
+ * grouping as the Market page's competitor rows (norm), so the button reads the calls its row counts. Pure.
+ */
+export function callsNaming(calls: MarketCall[], intel: Map<string, Intel>, competitor: string, max = 10): MarketCall[] {
+  const k = norm(competitor);
+  if (!k) return [];
+  return calls
+    .filter((c) => (intel.get(c.sessionId)?.competitors ?? []).some((n) => norm(n) === k))
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.sessionId.localeCompare(a.sessionId))
+    .slice(0, max);
+}
+
 export function computeMarket(calls: MarketCall[], intel: Map<string, Intel>, topN = 15, groups: TopicGroup[] = []) {
   const withIntel = calls.filter((c) => intel.has(c.sessionId));
   const competitors = group(withIntel, intel, (i) => i.competitors)

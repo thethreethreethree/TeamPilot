@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { TopicGroups } from "./TopicGroups";
+import { CitedAnswer, type Citation } from "@/components/sales-coach/CitedAnswer";
 import { useIsSalesCoachManager } from "@/lib/hooks/useCurrentUserRole";
 
 /**
@@ -22,6 +23,20 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
   // customer's side from now on. Uses the trackers route as it is, then scans recent calls so the tracker isn't empty.
   const isManager = useIsSalesCoachManager();
   const [tracked, setTracked] = useState<Record<string, "saving" | "done" | string>>({});
+  // Engage plan E14 (Gong F13.11): a battlecard for one competitor, written on request from its calls; not saved.
+  const [card, setCard] = useState<{ competitor: string; busy: boolean; text?: string; citations?: Citation[]; calls?: number; error?: string } | null>(null);
+  const battlecard = async (competitor: string) => {
+    setCard({ competitor, busy: true });
+    try {
+      const r = await fetch("/api/coach/remote/market/battlecard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitor, module, days }) });
+      const j = (await r.json().catch(() => ({}))) as { answer?: string | null; citations?: Citation[]; calls?: number; error?: string; suppressed?: boolean };
+      if (!r.ok) return setCard({ competitor, busy: false, error: j.error ?? "Couldn't write the battlecard." });
+      if (j.suppressed || !j.answer) return setCard({ competitor, busy: false, error: "The coach isn't answering on this account right now." });
+      setCard({ competitor, busy: false, text: j.answer, citations: j.citations ?? [], calls: j.calls });
+    } catch {
+      setCard({ competitor, busy: false, error: "Couldn't reach the server." });
+    }
+  };
   const track = async (t: { name: string; variants?: string[] }) => {
     setTracked((x) => ({ ...x, [t.name]: "saving" }));
     try {
@@ -96,6 +111,7 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
                       <th className="py-1 pr-2 text-right font-medium">Share</th>
                       <th className="py-1 pr-2 text-right font-medium">Win rate when named</th>
                       <th className="py-1 font-medium">By week</th>
+                      <th className="py-1 font-medium"><span className="sr-only">Battlecard</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -119,10 +135,31 @@ export function MarketView({ module }: { module: "remote_sales" | "sales_coach" 
                             ))}
                           </span>
                         </td>
+                        <td className="py-1.5 pl-2 text-right">
+                          <button type="button" disabled={card?.busy} onClick={() => void battlecard(c.name)} className="whitespace-nowrap text-[11px] text-secondary underline-offset-2 hover:text-primary hover:underline disabled:opacity-50">Battlecard</button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {card && (
+                  <div role="region" aria-label={`Battlecard: ${card.competitor}`} className="mt-2 rounded-lg border border-default bg-base/40 p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-primary">Battlecard: {card.competitor}</p>
+                      <button type="button" onClick={() => setCard(null)} className="text-[11px] text-muted hover:text-primary">Close</button>
+                    </div>
+                    {card.busy ? (
+                      <p className="mt-1 flex items-center gap-2 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Reading the calls that named {card.competitor}…</p>
+                    ) : card.error ? (
+                      <p role="alert" className="mt-1 text-xs text-amber-700 dark:text-amber-300">{card.error}</p>
+                    ) : (
+                      <>
+                        <p className="mt-0.5 text-[10px] text-muted">From the {card.calls} newest call{card.calls === 1 ? "" : "s"} that named it · written now, not saved</p>
+                        <div className="mt-1"><CitedAnswer text={card.text ?? ""} citations={card.citations ?? []} /></div>
+                      </>
+                    )}
+                  </div>
+                )}
                 <p className="mt-1 text-[10px] text-muted">Win rate = sold ÷ (sold + no sale). Shown only with at least 5 closed calls; “—” means too few to judge.</p>
               </div>
             )}

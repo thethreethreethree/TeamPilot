@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeMarket, MIN_CLOSED, topicGrouper, topicKey, type MarketCall } from "../market";
+import { computeMarket, MIN_CLOSED, topicGrouper, topicKey, type MarketCall, callsNaming } from "../market";
 
 const call = (id: string, outcome: string | null, day = "2026-11-10"): MarketCall => ({ sessionId: id, startedAt: `${day}T10:00:00Z`, outcome });
 
@@ -88,5 +88,15 @@ describe("topic groups (0319)", () => {
   it("a wording in two groups goes to the newer (first) one", () => {
     const g = topicGrouper([{ id: "new", name: "N", members: ["pricing", "a"] }, { id: "old", name: "O", members: ["price", "b"] }]);
     expect(g.groupOf("Pricing")?.id).toBe("new");
+  });
+});
+
+describe("callsNaming (E14 battlecards)", () => {
+  it("the calls that named a competitor in any wording the page groups, newest first, capped", () => {
+    const calls = [{ sessionId: "a", startedAt: "2026-11-01", outcome: null }, { sessionId: "b", startedAt: "2026-11-03", outcome: null }, { sessionId: "c", startedAt: "2026-11-02", outcome: null }];
+    const intel = new Map([["a", { competitors: ["Spectrum"], topics: [] }], ["b", { competitors: [" spectrum  "], topics: [] }], ["c", { competitors: ["Comcast"], topics: [] }]]);
+    expect(callsNaming(calls, intel, "SPECTRUM").map((c) => c.sessionId)).toEqual(["b", "a"]);
+    expect(callsNaming(calls, intel, "Spectrum", 1).map((c) => c.sessionId)).toEqual(["b"]);
+    expect(callsNaming(calls, intel, "  ")).toEqual([]);
   });
 });
