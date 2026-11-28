@@ -8,6 +8,8 @@ import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
 import { listProspects } from "@/lib/coach/remote/prospects";
 import { periodRange, shiftPeriod } from "@/lib/coach/remote/revenue/forecast";
+import { coOwnedDealIds, shareOf, splitsFor } from "@/lib/coach/remote/revenue/dealSplits";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * /api/coach/remote/forecast — the forecast board (revenue Phase 6, 0376; Gong M22).
@@ -101,13 +103,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
   // The snapshot: the caller's own open deals expected to close in the quarter, as they stand now.
-  const mine = await listProspects(db, ctx.userId);
-  if (!mine) return NextResponse.json({ error: "Couldn't read your pipeline, so the forecast wasn't saved." }, { status: 500 });
+  const own = await listProspects(db, ctx.userId);
+  if (!own) return NextResponse.json({ error: "Couldn't read your pipeline, so the forecast wasn't saved." }, { status: 500 });
+  // 0394/0395: the deals behind the number are the caller's share of every deal they own or co-own — the same share the
+  // board's Closed won counts (shareOf), so accuracy compares like with like.
+  const admin = createAdminClient();
+  const coIds = await coOwnedDealIds(admin, ctx.userId);
+  if (coIds === null) return NextResponse.json({ error: "Couldn't read your pipeline, so the forecast wasn't saved." }, { status: 500 });
+  const ownIds = new Set(own.map((p) => p.id));
+  const co = coIds.filter((id) => !ownIds.has(id)).length ? await listProspects(admin, undefined, { companyId: ctx.companyId, ids: coIds.filter((id) => !ownIds.has(id)) }) : [];
+  const all = [...own, ...(co ?? [])];
+  const splits = co === null ? null : await splitsFor(admin, all);
+  if (!splits) return NextResponse.json({ error: "Couldn't read your pipeline, so the forecast wasn't saved." }, { status: 500 });
   const r = periodRange(body.period);
-  const deals = mine
+  const deals = all
     .filter((p) => p.status === "open" && p.closeDate && p.closeDate >= r.start && p.closeDate <= r.end)
+    // An own deal was read by rep_id, so its rep is the caller; a co-owned one is someone else's.
+    .map((p) => ({ p, share: shareOf({ repId: ownIds.has(p.id) ? ctx.userId : p.repId, split: splits.get(p.id) ?? null }, ctx.userId) }))
+    .filter((x) => x.share > 0)
     .slice(0, 500)
-    .map((p) => ({ id: p.id, amount: p.amount }));
+    .map(({ p, share }) => ({ id: p.id, amount: p.amount === null ? null : Math.round(p.amount * share * 100) / 100 }));
   const { error } = await db.from("forecast_submissions").insert({
     company_id: ctx.companyId, user_id: ctx.userId, period: body.period, category: body.category, amount: body.amount, deals,
   });

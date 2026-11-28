@@ -119,6 +119,9 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today, teamVie
   const bestTeam = rollUp(data.submissions, rows, period, "best_case");
   const mAll = metrics(deals, period);
   const targetTeam = rows.reduce((s, u) => s + (target(u) ?? 0), 0);
+  // 0394/0395: a split can credit part of a deal to someone not shown here; said, so the rows never seem to miss money.
+  const shownWon = rows.reduce((s, u) => s + metrics(deals, period, u).closedWon, 0);
+  const outsideWon = Math.max(0, Math.round(mAll.closedWon - shownWon));
 
   return (
     <section aria-label="Forecast board" className="space-y-2 rounded-xl border border-default bg-surface p-3">
@@ -219,6 +222,7 @@ export function ForecastBoard({ deals, people, isManager, nameOf, today, teamVie
             )}
           </tbody>
         </table>
+        {outsideWon > 0 && <p className="mt-1 text-[10px] text-muted">{money(outsideWon)} of Closed won here is credited by deal splits to people not on this board.</p>}
       </div>
       {editing && (
         <div className="space-y-1.5 rounded-lg border border-default p-2 text-xs">

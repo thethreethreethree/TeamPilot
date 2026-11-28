@@ -8,7 +8,6 @@ import { DealBrief } from "./DealBrief";
 import { DealDrivers } from "./DealDrivers";
 import { AskCalls } from "./AskCalls";
 import { fieldChanges, type HistoryEvent } from "@/lib/coach/remote/revenue/fieldHistory";
-import { owners } from "@/lib/coach/remote/revenue/dealSplits";
 import { DealSplit } from "./DealSplit";
 import { ForecastBoard } from "./ForecastBoard";
 import { kindOf, type Stage } from "@/lib/coach/remote/revenue/dealBoard";
@@ -41,6 +40,8 @@ import { stageFunnel } from "@/lib/coach/remote/pipelineChanges";
  * Every number comes from the server's read of the event log (remote_prospects_current); this screen keeps no copy.
  */
 type Prospect = {
+  /** Revenue phase 10 (0394): the deal's split; null/absent = the rep's whole deal. */
+  split?: Array<{ userId: string; pct: number }> | null;
   id: string;
   repId: string;
   name: string | null;
@@ -127,7 +128,7 @@ export function RemotePipeline() {
   }, [viewParam, simple]);
   const [people, setPeople] = useState<Array<{ id: string; name: string }>>([]);
   const [peopleFailed, setPeopleFailed] = useState(false);
-  const [data, setData] = useState<{ prospects: Prospect[]; totals: Totals; viewerId: string } | null>(null);
+  const [data, setData] = useState<{ prospects: Prospect[]; coOwned?: Prospect[]; totals: Totals; viewerId: string } | null>(null);
   const [failed, setFailed] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -259,8 +260,10 @@ export function RemotePipeline() {
           {data && (
             <ForecastBoard
               key={whose}
-              deals={data.prospects}
-              people={whose === "mine" ? [] : owners(data.prospects)}
+              // 0395: your own board also counts your share of deals you co-own; a team view's rows are its reps (a share
+              // credited to someone outside the view is said under the board).
+              deals={whose === "mine" ? [...data.prospects, ...(data.coOwned ?? [])] : data.prospects}
+              people={whose === "mine" ? [] : [...new Set(data.prospects.map((p) => p.repId))]}
               teamView={whose === "team"}
               isManager={isManager}
               nameOf={nameOf}
@@ -356,6 +359,26 @@ export function RemotePipeline() {
           })}
         </ul>
       )}
+      {/* 0395 (founder picker "Co-owners see deals they co-own"): deals others own that your split names, read only. */}
+      {whose === "mine" && (data?.coOwned?.length ?? 0) > 0 && (
+        <section aria-label="Deals you co-own" className="mt-3 rounded-xl border border-dashed border-default p-2">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Deals you co-own</p>
+          <ul className="space-y-1">
+            {(data?.coOwned ?? []).map((c) => {
+              const mine = c.split?.find((s) => s.userId === data?.viewerId)?.pct;
+              return (
+                <li key={c.id} className="text-xs">
+                  <button type="button" onClick={() => open(selected === c.id ? null : c.id)} className="flex w-full flex-wrap items-center gap-2 text-left text-primary hover:underline">
+                    {c.name ?? "Unnamed deal"}
+                    <span className="text-muted">{c.status}{c.amount !== null ? ` · ${money(c.amount)}` : ""}{mine ? ` · your share ${mine}%` : ""}</span>
+                  </button>
+                  {selected === c.id && <ProspectDetail id={c.id} listed={c} onChanged={() => void load()} onClose={() => open(null)} />}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
         </>
       )}
     </div>
@@ -439,6 +462,8 @@ type Detail = {
   // Revenue phase 10 (0394): the current split; null = the rep's whole deal; absent = couldn't be read.
   split?: Array<{ userId: string; pct: number }> | null;
   splitFailed?: boolean;
+  // 0395: a co-owner's read-only view of a deal they can't otherwise see.
+  readOnly?: boolean;
 };
 
 /** The deal's field changes (revenue plan phase 8; Gong F23.11), newest first; the 8 newest, the rest behind "Show all". */
@@ -699,7 +724,8 @@ function ProspectDetail({ id, listed, onChanged, onClose }: { id: string; listed
         </div>
       </div>
 
-      {!simple && <DealSplit repId={String((d.prospect as { rep_id?: string }).rep_id ?? listed?.repId ?? "")} split={d.splitFailed ? undefined : (d.split ?? null)} busy={busy} post={post} />}
+      {d.readOnly && <p className="rounded-lg border border-default bg-base/40 px-2 py-1 text-[11px] text-secondary">You co-own this deal: you can read it; its rep and their manager make the changes.</p>}
+      {!simple && <DealSplit readOnly={d.readOnly === true} repId={String((d.prospect as { rep_id?: string }).rep_id ?? listed?.repId ?? "")} split={d.splitFailed ? undefined : (d.split ?? null)} busy={busy} post={post} />}
       {!simple && d.prospect.status === "open" && d.prospect.stage_label && <StagePractice key={d.prospect.stage_label} prospectId={id} />}
       </>)}
 

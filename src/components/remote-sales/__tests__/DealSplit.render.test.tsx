@@ -47,4 +47,10 @@ describe("DealSplit", () => {
     expect(await screen.findByText(/Couldn.t load your team/)).toBeTruthy();
     expect((screen.getByRole("button", { name: /Add an owner/ }) as HTMLButtonElement).disabled).toBe(true);
   });
+  it("read only for a co-owner: the split shows, nothing to change; a former teammate is still named", async () => {
+    team();
+    render(<DealSplit repId="a" split={[{ userId: "a", pct: 50 }, { userId: "gone", pct: 50 }]} busy={false} post={vi.fn()} readOnly />);
+    expect(await screen.findByText("A former teammate · 50%")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Change" })).toBeNull();
+  });
 });

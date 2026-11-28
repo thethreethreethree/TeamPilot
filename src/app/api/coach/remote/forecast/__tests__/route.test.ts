@@ -18,7 +18,20 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: () => null }));
 vi.mock("@/lib/api/resolveApiAuth", () => ({ resolveApiAuth: vi.fn(async () => ({ userId: "u1", companyId: "co1", isAdmin: st.isAdmin })) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
-vi.mock("@/lib/coach/remote/prospects", () => ({ listProspects: vi.fn(async () => st.pipeline) }));
+// 0395: the snapshot also reads the caller's co-owned deals and splits (none here unless a test sets them).
+const co = vi.hoisted(() => ({ ids: [] as string[], deals: [] as unknown[], splits: [] as unknown[] }));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    rpc: async () => ({ data: co.ids, error: null }),
+    from: () => {
+      const q: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "in", "order", "range"]) q[m] = () => q;
+      q.limit = async () => ({ data: co.splits, error: null });
+      return q;
+    },
+  }),
+}));
+vi.mock("@/lib/coach/remote/prospects", () => ({ listProspects: vi.fn(async (_db: unknown, repId?: string) => (repId ? st.pipeline : co.deals)) }));
 vi.mock("@/lib/api/callerScopedDb", () => ({
   callerScopedDb: () => ({
     from: (table: string) => {
@@ -110,5 +123,17 @@ describe("forecast", () => {
     expect((await post({ kind: "due_day", weekday: 5 })).status).toBe(200);
     expect(st.updates).toEqual([{ table: "companies", row: { forecast_due_weekday: 5 }, eqs: [["id", "co1"]] }]);
     expect((await post({ kind: "due_day", weekday: 7 })).status).toBe(400);
+  });
+  it("the snapshot includes deals the caller co-owns, at their share (0395)", async () => {
+    st.pipeline = [{ id: "d1", repId: "u1", status: "open", amount: 500, closeDate: "2026-11-30" }];
+    co.ids = ["d2"];
+    co.deals = [{ id: "d2", repId: "someone", status: "open", amount: 1000, closeDate: "2026-12-05" }];
+    co.splits = [{ prospect_id: "d2", shares: [{ user_id: "someone", pct: 70 }, { user_id: "u1", pct: 30 }] }];
+    expect((await post({ kind: "submit", period: "2026-Q4", category: "commit", amount: 800 })).status).toBe(200);
+    const row = st.inserts.find((x) => x.table === "forecast_submissions")!.row as { deals: unknown[] };
+    expect(row.deals).toEqual([{ id: "d1", amount: 500 }, { id: "d2", amount: 300 }]);
+    co.ids = [];
+    co.deals = [];
+    co.splits = [];
   });
 });

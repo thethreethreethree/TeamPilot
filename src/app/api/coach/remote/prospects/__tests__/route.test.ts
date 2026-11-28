@@ -25,7 +25,7 @@ vi.mock("@/lib/api/callerScopedDb", () => ({
   }),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ rpc: async (fn: string, args: Record<string, unknown>) => (st.adminRpc.push({ fn, args }), { data: "acc-1", error: null }) }),
+  createAdminClient: () => ({ rpc: async (fn: string, args: Record<string, unknown>) => (st.adminRpc.push({ fn, args }), { data: fn === "rss_co_owned_deals" ? [] : "acc-1", error: null }) }),
 }));
 vi.mock("@/lib/coach/remote/prospects", () => ({
   listProspects: vi.fn(async (_db: unknown, repId: unknown) => ((st.listArg = repId), st.list)),

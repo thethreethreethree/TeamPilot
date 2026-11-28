@@ -2871,7 +2871,6 @@ const HIDE_ROUTE_ALLOWLIST = new Map([
   ["src/app/api/coach/kpi/me/route.ts", "reads calls through the caller's client (RLS); the service role only resolves ?team= (teamScope), F23.8."],
   ["src/app/api/coach/kpi/compute-cron/route.ts", "cron: KPI snapshots (counts); returns no call to any person."],
   ["src/app/api/coach/meeting-session/[id]/dissect/route.ts", "meetings, not phone/video sales calls."],
-  ["src/app/api/coach/remote/prospects/[pid]/route.ts", "lists a prospect's calls through the caller's client (RLS); the service role only writes."],
   ["src/app/api/coach/remote/my-coaching/route.ts", "the caller's own calls only; a rep always sees their own hidden call."],
   ["src/app/api/coach/remote/usage/route.ts", "counts and talk time per person; names no call."],
   ["src/app/api/coach/remote/trackers/route.ts", "scan/backfill writes hits (read back through RLS, 0339); returns counts only."],

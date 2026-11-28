@@ -11,6 +11,7 @@ import { eventValue } from "@/lib/coach/remote/macroMode";
 import { AccountReadError, contactsOfDeal, DEAL_ROLES } from "@/lib/coach/remote/revenue/accounts";
 import { recommendedContacts, type Suggested } from "@/lib/coach/remote/revenue/recommendedContacts";
 import { splitsFor } from "@/lib/coach/remote/revenue/dealSplits";
+import { hiddenFrom } from "@/lib/coach/remote/hidePhrases";
 import { runAgentsForStage, runAgentsForCallLinked, stageChanged } from "@/lib/coach/remote/engage/agents";
 
 
@@ -64,20 +65,50 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   const { pid } = await params;
   if (!UUID.test(pid)) return NextResponse.json({ error: "Prospect not found." }, { status: 404 });
-  const db = callerScopedDb(req) ?? (await createClient());
-  const { data: p, error } = await db.from("remote_prospects_current").select("*").eq("id", pid).maybeSingle();
+  let db = callerScopedDb(req) ?? (await createClient());
+  const first = await db.from("remote_prospects_current").select("*").eq("id", pid).maybeSingle();
+  const error = first.error;
+  let p = first.data;
   if (error) {
     console.error(`[prospect] read failed id=${pid}: ${error.message}`);
     return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
   }
-  if (!p) return NextResponse.json({ error: "Prospect not found." }, { status: 404 });
+  // Revenue phase 10 (0395; founder picker "Co-owners see deals they co-own"): a deal this person can't see but is named
+  // in the CURRENT split of opens read only — read with the service role after that explicit check, pinned to their
+  // company, calls hidden from them left out, and nothing to write with (every write below goes through RLS, which
+  // doesn't know co-owners).
+  let readOnly = false;
+  if (!p) {
+    const admin = createAdminClient();
+    const { data: co, error: coErr } = await admin.rpc("rss_is_co_owner", { p_user: ctx.userId, p_prospect: pid });
+    if (coErr) {
+      console.error(`[prospect] co-owner check failed id=${pid}: ${coErr.message}`);
+      return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
+    }
+    if (co !== true) return NextResponse.json({ error: "Prospect not found." }, { status: 404 });
+    const again = await admin.from("remote_prospects_current").select("*").eq("company_id", ctx.companyId).eq("id", pid).maybeSingle();
+    if (again.error) return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
+    if (!again.data) return NextResponse.json({ error: "Prospect not found." }, { status: 404 });
+    p = again.data;
+    db = admin as unknown as typeof db;
+    readOnly = true;
+  }
   const [ev, calls, links] = await Promise.all([
     db.from("remote_prospect_events").select("kind, value, actor_id, created_at").eq("prospect_id", pid).order("id", { ascending: false }).limit(100),
     db.from("remote_prospect_calls").select("session_id, created_at").eq("prospect_id", pid),
     db.from("remote_prospect_tasks").select("task_id").eq("prospect_id", pid),
   ]);
   if (ev.error || calls.error || links.error) return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
-  const sessionIds = ((calls.data ?? []) as Array<{ session_id: string }>).map((c) => c.session_id);
+  let sessionIds = ((calls.data ?? []) as Array<{ session_id: string }>).map((c) => c.session_id);
+  if (readOnly && sessionIds.length) {
+    // The service role sees every call: leave out the ones hidden from this co-owner (0337's rule, the verdict consumed).
+    try {
+      const hidden = await hiddenFrom(createAdminClient(), sessionIds, ctx.userId);
+      sessionIds = sessionIds.filter((s) => !hidden.has(s));
+    } catch {
+      return NextResponse.json({ error: "Couldn't load this prospect." }, { status: 500 });
+    }
+  }
   const taskIds = ((links.data ?? []) as Array<{ task_id: string }>).map((l) => l.task_id);
   const [sess, tasks] = await Promise.all([
     sessionIds.length
@@ -108,7 +139,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
   // Revenue phase 9 (F26.6): the account's people heard on its calls who aren't on this deal. A failed read is said on
   // the Contacts tab (null), never "no one to suggest", and doesn't take the deal down with it.
   let suggested: Suggested[] | null = [];
-  if (account) {
+  // Not for a co-owner's read-only view: suggestions read the account's other deals and calls.
+  if (account && !readOnly) {
     try {
       suggested = await recommendedContacts(db, account.id, new Set(contacts.map((c) => c.id)));
     } catch (e) {
@@ -134,6 +166,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ pid:
     contacts,
     history: ev.data ?? [],
     suggested,
+    readOnly,
     // Revenue phase 10 (0394): the current split (null = the rep's whole deal); a failed read is said (splitFailed),
     // never shown as "no split" (JSON would drop an undefined).
     ...(await (async () => {

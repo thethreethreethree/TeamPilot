@@ -12,13 +12,12 @@ import { Plus, X } from "lucide-react";
 type Share = { userId: string; pct: number };
 type Person = { id: string; name: string };
 
-export function DealSplit({ repId, split, busy, post }: { repId: string; split: Share[] | null | undefined; busy: boolean; post: (body: Record<string, unknown>) => Promise<boolean> }) {
+export function DealSplit({ repId, split, busy, post, readOnly = false }: { repId: string; split: Share[] | null | undefined; busy: boolean; post: (body: Record<string, unknown>) => Promise<boolean>; readOnly?: boolean }) {
   const [people, setPeople] = useState<Person[] | null>(null);
   // A failed team read is said, never shown as "no one to pick" (noFailedReadAsEmpty).
   const [teamFailed, setTeamFailed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [rows, setRows] = useState<Share[]>([]);
-  const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
     fetch("/api/team")
@@ -36,16 +35,15 @@ export function DealSplit({ repId, split, busy, post }: { repId: string; split: 
       live = false;
     };
   }, []);
-  const name = (id: string) => people?.find((p) => p.id === id)?.name ?? "A teammate";
+  // Someone named in the split but no longer on the team list (removed) is still shown, never silently swapped.
+  const name = (id: string) => people?.find((p) => p.id === id)?.name ?? (people ? "A former teammate" : "A teammate");
   const current = split && split.length ? split : null;
   const total = rows.reduce((s, r) => s + (Number.isFinite(r.pct) ? r.pct : 0), 0);
   const start = () => {
     setRows(current ?? [{ userId: repId, pct: 100 }]);
-    setErr(null);
     setEditing(true);
   };
   const save = async (shares: Share[]) => {
-    setErr(null);
     if (await post({ action: "split", shares })) setEditing(false);
   };
 
@@ -56,7 +54,7 @@ export function DealSplit({ repId, split, busy, post }: { repId: string; split: 
       {!editing ? (
         <div className="flex flex-wrap items-center gap-2 text-secondary">
           {current ? current.map((s) => <span key={s.userId} className="rounded-full border border-default px-2 py-0.5 text-primary">{s.userId === repId ? `${name(s.userId)} (rep)` : name(s.userId)} · {s.pct}%</span>) : <span>{name(repId)} owns all of it.</span>}
-          <button type="button" disabled={busy} onClick={start} className="text-[11px] underline-offset-2 hover:text-primary hover:underline">{current ? "Change" : "Split this deal"}</button>
+          {!readOnly && <button type="button" disabled={busy} onClick={start} className="text-[11px] underline-offset-2 hover:text-primary hover:underline">{current ? "Change" : "Split this deal"}</button>}
         </div>
       ) : (
         <div className="space-y-1">
@@ -67,6 +65,7 @@ export function DealSplit({ repId, split, busy, post }: { repId: string; split: 
               ) : (
                 <select value={r.userId} aria-label={`Owner ${i + 1}`} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, userId: e.currentTarget.value } : x)))} className="min-w-[10rem] rounded-lg border border-default bg-base px-2 py-1 text-xs text-primary">
                   <option value="">pick someone…</option>
+                  {r.userId && people && !people.some((p) => p.id === r.userId) && <option value={r.userId}>{name(r.userId)}</option>}
                   {(people ?? []).filter((p) => p.id === r.userId || !rows.some((x) => x.userId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               )}
@@ -86,7 +85,6 @@ export function DealSplit({ repId, split, busy, post }: { repId: string; split: 
             {current && <button type="button" disabled={busy} onClick={() => void save([{ userId: repId, pct: 100 }])} className="text-[11px] text-secondary hover:text-primary">Back to one owner</button>}
             <button type="button" onClick={() => setEditing(false)} className="text-[11px] text-muted hover:text-primary">Cancel</button>
           </div>
-          {err && <p className="text-amber-700 dark:text-amber-300">{err}</p>}
           {teamFailed && <p className="text-amber-700 dark:text-amber-300">Couldn&apos;t load your team, so owners can&apos;t be picked. Refresh to try again.</p>}
           <p className="text-[11px] text-muted">The forecast counts each owner&apos;s share. Who can see the deal doesn&apos;t change.</p>
         </div>

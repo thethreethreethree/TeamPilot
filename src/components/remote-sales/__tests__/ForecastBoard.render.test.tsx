@@ -96,4 +96,10 @@ describe("ForecastBoard", () => {
     expect(await screen.findByText(/Couldn.t read the due day/)).toBeTruthy();
     expect(screen.queryByLabelText("Forecast due day")).toBeNull();
   });
+  it("says how much Closed won a split credits to people not on the board (0394/0395)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ period: "2026-Q4", viewerId: "me", submissions: [], targets: [], dueWeekday: 1, canSetDue: false }))));
+    const split = [{ repId: "me", status: "won" as const, amount: 1000, closedAt: "2026-11-02T10:00:00Z", split: [{ userId: "me", pct: 60 }, { userId: "elsewhere", pct: 40 }] }];
+    render(<ForecastBoard deals={split} people={["me"]} isManager={false} nameOf={() => null} today="2026-11-27" />);
+    expect(await screen.findByText(/of Closed won here is credited by deal splits to people not on this board/)).toBeTruthy();
+  });
 });

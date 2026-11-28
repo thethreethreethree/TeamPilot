@@ -44,8 +44,9 @@ export async function splitsFor(db: SupabaseClient, deals: Array<{ id: string; r
   for (let i = 0; i < ids.length; i += 150) {
     const { data, error } = await db.from("deal_splits_current").select("prospect_id, shares").in("prospect_id", ids.slice(i, i + 150)).limit(1000);
     if (error) {
-      // Before 0394 there's no split anywhere: every deal is its rep's.
-      if (/PGRST205|42P01|does not exist/.test(error.message)) return out;
+      // Before 0394 there's no split anywhere: every deal is its rep's. By code (review 2026-11-28: PostgREST's message
+      // for a missing table doesn't say "does not exist", and that phrase also matches unrelated errors).
+      if (["PGRST205", "42P01"].includes(String((error as { code?: string }).code))) return out;
       return null;
     }
     for (const r of (data ?? []) as Array<{ prospect_id: string; shares: unknown }>) {
@@ -54,4 +55,15 @@ export async function splitsFor(db: SupabaseClient, deals: Array<{ id: string; r
     }
   }
   return out;
+}
+
+/**
+ * The deals a person co-owns — named in a deal's CURRENT split without being its rep (0395 rss_co_owned_deals; their
+ * own company only). Service role: this is the explicit check that lets a co-owner read those deals; null on a failed
+ * read.
+ */
+export async function coOwnedDealIds(admin: SupabaseClient, userId: string): Promise<string[] | null> {
+  const { data, error } = await admin.rpc("rss_co_owned_deals", { p_user: userId });
+  if (error) return ["PGRST202", "42883"].includes(String((error as { code?: string }).code)) ? [] : null;
+  return ((data ?? []) as Array<string | { rss_co_owned_deals?: string }>).map((x) => (typeof x === "string" ? x : String(x.rss_co_owned_deals ?? ""))).filter(Boolean);
 }

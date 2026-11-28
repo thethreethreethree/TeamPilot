@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { resolveApiAuth } from "@/lib/api/resolveApiAuth";
 import { readBody } from "@/lib/api/validate";
-import { splitsFor } from "@/lib/coach/remote/revenue/dealSplits";
+import { coOwnedDealIds, splitsFor } from "@/lib/coach/remote/revenue/dealSplits";
 import { listProspects } from "@/lib/coach/remote/prospects";
 import { pipelineTotals } from "@/lib/coach/remote/macroMode";
 
@@ -47,7 +47,25 @@ export async function GET(req: NextRequest) {
   const splits = await splitsFor(db, rows);
   if (splits === null) return NextResponse.json({ error: "Couldn't load the pipeline." }, { status: 500 });
   for (const r of rows) r.split = splits.get(r.id) ?? null;
-  return NextResponse.json({ prospects: rows, totals: pipelineTotals(rows), repId: repId ?? "team", viewerId: ctx.userId });
+  // 0395 (founder picker "Co-owners see deals they co-own"): on your own pipeline, the deals you co-own but aren't the
+  // rep on — read with the service role after the co-owner check, pinned to your company — for your forecast board.
+  // Kept apart from the list: they're not your deals to work.
+  let coOwned: typeof rows = [];
+  if (repId === ctx.userId) {
+    const admin = createAdminClient();
+    const ids = await coOwnedDealIds(admin, ctx.userId);
+    if (ids === null) return NextResponse.json({ error: "Couldn't load the pipeline." }, { status: 500 });
+    const mine = new Set(rows.map((r) => r.id));
+    const others = ids.filter((id) => !mine.has(id));
+    if (others.length) {
+      const extra = await listProspects(admin, undefined, { companyId: ctx.companyId, ids: others });
+      const extraSplits = extra ? await splitsFor(admin, extra) : null;
+      if (!extra || !extraSplits) return NextResponse.json({ error: "Couldn't load the pipeline." }, { status: 500 });
+      for (const r of extra) r.split = extraSplits.get(r.id) ?? null;
+      coOwned = extra;
+    }
+  }
+  return NextResponse.json({ prospects: rows, coOwned, totals: pipelineTotals(rows), repId: repId ?? "team", viewerId: ctx.userId });
 }
 
 export async function POST(req: NextRequest) {

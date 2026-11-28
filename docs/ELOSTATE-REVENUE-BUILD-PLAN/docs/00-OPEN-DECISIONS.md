@@ -40,3 +40,8 @@ The build doesn't make up an answer to any of these. Each one has a stand-in tod
 Several owners with revenue splits, built as phase 10: shares in whole percents (2–5 people, the rep always included),
 set by the rep or a manager over them, attribution only — visibility stays the rep's tree. The one-owner stand-in above
 is superseded for amounts; `rep_id` stays the deal's owner for access, agents and notifications.
+
+Update 2026-11-28 (founder picker: "Co-owners see deals they co-own"): a person named in a deal's current split can open
+that deal read only (through an explicit co-owner check on the server, never a widened table rule — every write still
+goes through the deal's own rules) and their own forecast board counts their share. Access ends when the split stops
+naming them. Calls on the deal hidden from them stay hidden.

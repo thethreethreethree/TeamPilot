@@ -90,7 +90,9 @@ function toRow(r: CurrentRow, todos: TaskRow[]): ProspectRow {
  * below is pinned to that company. The reads keyed only by deal ids (signals, sentiment) are pinned through those ids,
  * which all come from the pinned deal list. A user's client never passes it; RLS is its boundary.
  */
-export async function listProspects(db: SupabaseClient, repId?: string, opts: { sentiment?: boolean; companyId?: string } = {}): Promise<ProspectRow[] | null> {
+export async function listProspects(db: SupabaseClient, repId?: string, opts: { sentiment?: boolean; companyId?: string; ids?: string[] } = {}): Promise<ProspectRow[] | null> {
+  // ids (0395): only these deals (a co-owner's, up to 150 — read pinned to the company by the caller).
+  if (opts.ids && opts.ids.length === 0) return [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pin = <Q,>(q: Q): Q => (opts.companyId ? ((q as any).eq("company_id", opts.companyId) as Q) : q);
   // Every prospect, paged (2026-11-26): the read stopped at 500, so a pipeline past 500 deals lost its oldest without a
@@ -103,6 +105,7 @@ export async function listProspects(db: SupabaseClient, repId?: string, opts: { 
         .order("created_at", { ascending: false })
         .order("id", { ascending: false });
       if (repId) q = q.eq("rep_id", repId);
+      if (opts.ids) q = q.in("id", opts.ids.slice(0, 150));
       return q.range(from, to);
     },
     { label: "prospects", maxRows: 50_000 },
