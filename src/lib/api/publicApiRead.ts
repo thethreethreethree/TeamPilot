@@ -5,6 +5,7 @@ import { hiddenInCompanyFrom } from "@/lib/coach/remote/hidePhrases";
 import { isAdminRole } from "@/lib/roles";
 import { fetchAllPagedResult } from "@/lib/supabase/paginate";
 import { teamCallStats, type StatRow } from "@/lib/coach/remote/teamStats";
+import { rubricByVersion } from "@/lib/coach/pitchScore/rubricRegistry";
 import { authenticateApiKey, OUTSIDE_READER, paging, recordApiUsage } from "./publicApi";
 
 /**
@@ -12,7 +13,7 @@ import { authenticateApiKey, OUTSIDE_READER, paging, recordApiUsage } from "./pu
  * company (the service role bypasses RLS, so this filter is the tenant boundary), lists are ordered by a unique key
  * last, and calls with an active hide are left out (OUTSIDE_READER). No transcripts leave through this API.
  */
-export type Resource = "deals" | "accounts" | "contacts" | "calls" | "audit" | "users" | "stats";
+export type Resource = "deals" | "accounts" | "contacts" | "calls" | "audit" | "users" | "stats" | "scores";
 
 export async function readResource(req: Request, resource: Resource): Promise<NextResponse> {
   const route = `/api/v1/${resource}`;
@@ -93,6 +94,55 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
     }));
     const stats = teamCallStats(rows, names);
     return done({ days, reps: stats.reps, team: stats.team, note: "Phone and video calls; calls with an active hide are left out." });
+  }
+  if (resource === "scores") {
+    // Call scores (Engage plan E13; Gong F15.19), newest first: the stored verdict (a manager's corrections are already
+    // in it, 0255) and each item's grade and points. Never the transcript, the audio, the evidence quotes or the
+    // not-counting reason (free text that can quote the call); a score on a call with an active hide is left out.
+    let hiddenS: Set<string>;
+    try {
+      hiddenS = await hiddenInCompanyFrom(admin, caller.companyId, OUTSIDE_READER);
+    } catch {
+      return done({ error: "Couldn't read scores." }, 500);
+    }
+    const { data, error } = await admin
+      .from("pitch_scores")
+      .select("id, session_id, rep_id, recorded_at, outcome, base, bonus, violations, total, band, qualifying, rubric_version, section_points, created_at")
+      .eq("company_id", caller.companyId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to);
+    if (error) return done({ error: "Couldn't read scores." }, 500);
+    const shown = (data ?? []).filter((p) => !(p.session_id && hiddenS.has(String(p.session_id))));
+    const ids = shown.map((p) => String(p.id));
+    // Paged to the end (a page of scores can carry more item rows than one read returns, max_rows=1000).
+    const { data: els, error: eErr } = ids.length
+      ? await fetchAllPagedResult<{ id: string; pitch_id: string; element_id: string; grade: string; points: number | string }>(
+          (f, t) => admin.from("pitch_score_elements").select("id, pitch_id, element_id, grade, points").eq("company_id", caller.companyId).in("pitch_id", ids).order("id", { ascending: true }).range(f, t),
+          { label: "api score items", maxRows: 20_000 },
+        )
+      : { data: [], error: null };
+    if (eErr) return done({ error: "Couldn't read scores." }, 500);
+    const byPitch = new Map<string, Array<{ element_id: string; grade: string; points: number | string }>>();
+    for (const e of (els ?? []) as Array<{ pitch_id: string; element_id: string; grade: string; points: number | string }>) byPitch.set(String(e.pitch_id), [...(byPitch.get(String(e.pitch_id)) ?? []), e]);
+    const num = (v: unknown) => (v == null ? null : Number(v));
+    return done({
+      data: shown.map((p) => {
+        const rubric = rubricByVersion(p.rubric_version as string | null);
+        const order = new Map([...rubric.elementsById.keys()].map((id, i) => [id, i]));
+        return {
+          id: p.id, callId: p.session_id, repId: p.rep_id, recordedAt: p.recorded_at, outcome: p.outcome,
+          total: num(p.total), base: num(p.base), bonus: num(p.bonus), violations: num(p.violations), band: p.band, counts: p.qualifying,
+          rubricVersion: p.rubric_version, sections: p.section_points ?? null, scoredAt: p.created_at,
+          items: (byPitch.get(String(p.id)) ?? [])
+            .sort((a, b) => (order.get(a.element_id) ?? 999) - (order.get(b.element_id) ?? 999))
+            .map((e) => ({ id: e.element_id, label: rubric.elementsById.get(e.element_id)?.label ?? e.element_id, grade: e.grade, points: num(e.points) })),
+        };
+      }),
+      page,
+      limit,
+      note: "Scores on calls with an active hide are left out; evidence quotes are not sent.",
+    });
   }
   if (resource === "audit") {
     // The audit log (0284; Gong F31.5) is for company admins: the key's maker must still be one (a key outlives a role

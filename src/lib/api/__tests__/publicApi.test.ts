@@ -16,6 +16,9 @@ const st = vi.hoisted(() => ({
   lt: null as unknown,
   stats: [] as unknown[],
   people: [] as unknown[],
+  pitches: [] as unknown[],
+  items: [] as unknown[],
+  selects: [] as Array<[string, string]>,
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenInCompanyFrom: vi.fn(async () => st.hidden) }));
@@ -23,10 +26,11 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
       const q: Record<string, unknown> = {};
-      for (const m of ["select", "order", "in", "gte"]) q[m] = () => q;
+      for (const m of ["order", "in", "gte"]) q[m] = () => q;
+      q.select = (cols: string) => (st.selects.push([table, cols]), q);
       q.eq = (col: string, v: unknown) => (st.eqs.push([table, col, v]), q);
       q.maybeSingle = async () => ({ data: table === "api_keys" ? st.key : table === "profiles" ? st.maker : null, error: null });
-      q.range = async () => ({ data: table === "coaching_sessions" ? st.sessions : table === "audit_log" ? st.audit : table === "session_interaction_stats" ? st.stats : table === "profiles" ? st.people : [], error: null });
+      q.range = async () => ({ data: table === "coaching_sessions" ? st.sessions : table === "audit_log" ? st.audit : table === "session_interaction_stats" ? st.stats : table === "profiles" ? st.people : table === "pitch_scores" ? st.pitches : table === "pitch_score_elements" ? st.items : [], error: null });
       q.lt = (_c: string, v: unknown) => ((st.lt = v), q);
       q.limit = async () => ({ data: table === "audit_log" ? st.audit : table === "profiles" ? st.people : [], error: null });
       q.then = (r: (v: unknown) => unknown) => r({ data: null, error: null, count: st.dayCount });
@@ -52,6 +56,9 @@ beforeEach(() => {
   st.usage = [];
   st.stats = [];
   st.people = [];
+  st.pitches = [];
+  st.items = [];
+  st.selects = [];
 });
 
 describe("public API keys", () => {
@@ -155,6 +162,26 @@ describe("public API keys", () => {
     expect(j.reps).toEqual([expect.objectContaining({ repId: "r1", name: "Ana", calls: 2 })]);
     expect(j.reps[0].talkRatioTime).toBeCloseTo(0.6);
     expect(j.team.calls).toBe(2);
+    st.hidden = new Set();
+  });
+  it("scores (E13): pinned; the verdict and each item's grade, never the transcript, audio, evidence or reason; hidden calls left out", async () => {
+    st.key = { ...st.key!, id: "k-scores-1" };
+    st.pitches = [
+      { id: "p1", session_id: "s1", rep_id: "r1", recorded_at: "t", outcome: "won", base: 60, bonus: 5, violations: 0, total: 65, band: "good", qualifying: true, rubric_version: "v1", section_points: [{ id: "intro", points: 10 }], created_at: "t" },
+      { id: "p2", session_id: "hid", rep_id: "r1", recorded_at: "t", outcome: null, base: 1, bonus: 0, violations: 0, total: 1, band: "low", qualifying: false, rubric_version: "v1", section_points: null, created_at: "t" },
+      { id: "p3", session_id: null, rep_id: "r2", recorded_at: "t", outcome: null, base: 50, bonus: 0, violations: 0, total: 50, band: "ok", qualifying: true, rubric_version: "v1", section_points: null, created_at: "t" },
+    ];
+    st.items = [{ id: "e1", pitch_id: "p1", element_id: "made-up-item", grade: "hit", points: 4 }];
+    st.hidden = new Set(["hid"]);
+    const r = await readResource(req("/api/v1/scores"), "scores");
+    expect(r.status).toBe(200);
+    const j = await r.json();
+    expect(j.data.map((x: { id: string }) => x.id)).toEqual(["p1", "p3"]); // a door pitch (no call) isn't hideable
+    expect(j.data[0]).toMatchObject({ callId: "s1", total: 65, counts: true, items: [{ id: "made-up-item", label: "made-up-item", grade: "hit", points: 4 }] });
+    expect(st.eqs).toContainEqual(["pitch_scores", "company_id", "co1"]);
+    expect(st.eqs).toContainEqual(["pitch_score_elements", "company_id", "co1"]);
+    const asked = st.selects.filter(([t]) => t === "pitch_scores" || t === "pitch_score_elements").map(([, c]) => c).join(",");
+    expect(asked).not.toMatch(/transcript|audio_url|evidence|not_qualifying_reason/);
     st.hidden = new Set();
   });
 });

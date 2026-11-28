@@ -26,7 +26,8 @@ Phases        E1–E5
 | E8 Agent templates; the gone-quiet trigger | 6492121e | 0389 |
 | E9 On-demand agents from the deal's Ask box | d4ead497 | 0389 |
 | E11 Meeting prep (next call tomorrow trigger; template) | 7cfada65 | 0390 |
-| E12 Fill the playbook from each call (call-added trigger; playbook action) | (this commit) | 0392 |
+| E12 Fill the playbook from each call (call-added trigger; playbook action) | a2fa79a2 | 0392 |
+| E13 Call scores in the public API | (this commit) | — |
 
 Waiting on outside setup (each named in docs/00 and docs/08): automatic email (Postmark), the dialer (Twilio), per-person
 MCP keys (a JWT secret), CRM sync (a client's CRM). Date-based agent triggers and warning history are built (0382, 92249504) and run nightly; CRON_SECRET is set in production (the cron route answers 401 without it).

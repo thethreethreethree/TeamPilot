@@ -13,4 +13,5 @@
 | E9 | On-demand agents (F27.2) | A deal's Ask box offers the company's agents |
 | E11 | Meeting prep: a "next call is tomorrow" agent trigger (F13.6) | Engage → Agents: "A deal's next call is tomorrow"; the Meeting prep template |
 | E12 | Fill the playbook from each call (F27.10): a "call added to a deal" trigger and a "read the playbook" action | Engage → Agents: the "Fill the playbook from each call" template; the deal's Playbook tab fills itself |
+| E13 | Call scores in the public API (F15.19) | `GET /api/v1/scores` from an outside tool |
 | later | Auto email (needs E1 in 00), dialer (E4 in 00), CRM sync | — |
