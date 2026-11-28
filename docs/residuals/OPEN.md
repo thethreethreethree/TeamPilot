@@ -725,3 +725,12 @@ founder decision, 12 open and buildable now.
       deal — at the link, or when the transcript lands if the call was linked first. A corrected transcript ("refresh
       notes", trim, relabel, reapply) no longer runs them again: that re-sent notifications and to-dos. A fresh playbook
       read after a correction is the Playbook tab's button.
+
+## Filed by revenue phase 11 (2026-11-28: sandbox company)
+
+- [ ] 2026-11-28 · revenue-p11 · FOUNDER STEP: make the sandbox when wanted, with an email that has no EloState account:
+      `node scripts/sandbox/seed.mjs --name "EloState Demo" --admin-email <you> --admin-name "<you>"` (a dry run), then
+      the same with `--apply`. Sign in as that email with "Forgot password". The seed was run inside a rolled-back
+      transaction on production (6 deals, 3 accounts, 4 contacts, 3 calls, a 70/30 split; refuses a real company and a
+      second seed). The sample calls aren't processed by the AI (no summaries or scores) until someone presses
+      "Generate" on them.

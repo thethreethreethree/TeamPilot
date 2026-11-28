@@ -65,6 +65,8 @@ export default async function DashboardLayout({
   // pattern (hints appeared a frame late for users who had them on). undefined =
   // "server didn't read it" → the client falls back to its own fetch.
   let initialLearningEnabled: boolean | undefined = undefined;
+  // Revenue phase 11 (0397): a sandbox company says "Sample data" on every page. Best-effort like the preferences read.
+  let sandbox = false;
   if (supabaseEnabled) {
     const supabase = await createClient();
     const {
@@ -118,6 +120,9 @@ export default async function DashboardLayout({
       initialMode = prefs.experience_mode === "expert" ? "expert" : "standard";
       initialLearningEnabled = Boolean(prefs.learning_mode_enabled);
     }
+    // A separate read (migration-coupling discipline, as above): before 0397 it errors and there's simply no banner.
+    const { data: co } = await supabase.from("companies").select("is_sandbox").eq("id", profile.company_id).maybeSingle();
+    sandbox = co?.is_sandbox === true;
   }
 
   return (
@@ -143,6 +148,11 @@ export default async function DashboardLayout({
             id="main-content"
             className="flex-1 md:ml-64 min-h-screen min-w-0 overflow-x-hidden"
           >
+            {sandbox && (
+              <div role="status" className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-1.5 text-center text-xs text-primary">
+                Sample data — this is a demo company for trials and training. Nothing here is a real customer.
+              </div>
+            )}
             {/* Catch-all Suspense boundary. Any dashboard page (or a child component it renders) that calls
                 useSearchParams() needs a Suspense boundary above it, or the page fails to prerender at build
                 time (missing-suspense-with-csr-bailout) — which is CI-visible even where a secretless build

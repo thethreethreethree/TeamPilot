@@ -33,6 +33,7 @@
 | 2026-11-28 | Several owners and splits (R9, F20.12) | Splits for attribution (whole %, 2–5 people incl. the rep; rep or their manager sets); access unchanged | Founder picker: "Deal splits (Recommended)" |
 | 2026-11-28 | Co-owners and deal access | A co-owner opens the deals they co-own, read only; their board counts their share | Founder picker: "Co-owners see deals they co-own (Recommended)" |
 | 2026-11-28 | Splits in win/loss, drivers, totals | Your pipeline totals by share; win/loss and drivers unchanged (they count deals, which a split doesn't divide) | Founder picker: "Splits in win/loss & drivers (Recommended)"; read of winLoss.ts and drivers.ts |
+| 2026-11-28 | Sandbox company (F2.9) | A flagged company seeded by an operator script; the seed refuses a real company; the founder runs it with the admin email | Founder picker: "Sandbox company (Recommended)"; §3.4 |
 
 ## Open questions
 | # | Question | Blocks |
