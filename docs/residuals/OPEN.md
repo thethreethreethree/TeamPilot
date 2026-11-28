@@ -721,3 +721,7 @@ founder decision, 12 open and buildable now.
       transcript-edit route's "refresh notes" step calls generateSessionArtifacts, which ends with the hook. Firing on
       every single line edit was considered and left out on purpose (each line is a new version: one AI review per
       corrected line).
+- [x] 2026-11-28 · e12-transcript-lands · superseded by b7895716 (review): call-added agents run ONCE per call on a
+      deal — at the link, or when the transcript lands if the call was linked first. A corrected transcript ("refresh
+      notes", trim, relabel, reapply) no longer runs them again: that re-sent notifications and to-dos. A fresh playbook
+      read after a correction is the Playbook tab's button.
