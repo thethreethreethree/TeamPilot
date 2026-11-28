@@ -78,4 +78,9 @@ describe("ApiKeysPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Make a key" }));
     await waitFor(() => expect(posts[0]).toEqual({ name: "Warehouse", scopes: ["read"], allowedIps: ["203.0.113.7", "198.51.100.0/24"] }));
   });
+  it("says when to use a key and when to download (E17; F34.3)", async () => {
+    serve();
+    render(<ApiKeysPanel />);
+    expect((await screen.findByText(/API or download\?/)).closest("p")?.textContent).toMatch(/data warehouse.*Sources view/);
+  });
 });

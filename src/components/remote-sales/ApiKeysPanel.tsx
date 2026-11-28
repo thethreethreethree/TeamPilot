@@ -76,6 +76,12 @@ export function ApiKeysPanel() {
         a key that has “Also for AI assistants”. They can list deals, read a deal or account, find calls, ask about a deal
         or account from its calls, and write a deal&rsquo;s brief (saved on the deal, as yours). Nothing else is changed.
       </p>
+      {/* Engage plan E17 (Gong F34.3): which way to take data out. */}
+      <p className="mt-1 text-secondary">
+        <span className="font-medium text-primary">API or download?</span> Use a key for a tool that keeps in step with
+        EloState — a data warehouse, a BI tool or your CRM: it reads page by page, as often as it needs, within the limits
+        above, and its use shows below. For a one-off look in a spreadsheet, download the CSV in the pipeline&apos;s Sources view (Win and loss by how deals ran).
+      </p>
       {shown && (
         <div className="mt-2 rounded-lg border border-brand/60 bg-brand/10 p-2" role="status">
           <p className="font-semibold text-primary">Copy this key now — it won&apos;t be shown again.</p>
