@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { loadDealCalls } from "../revenue/dealCalls";
 import { writeDealBrief } from "../revenue/dealBriefRun";
 import { reviewPlaybook } from "../revenue/playbookReview";
@@ -124,16 +125,30 @@ export async function firstHeard(admin: SupabaseClient, companyId: string, sessi
   return ids.filter((id) => !before.has(id));
 }
 
-/** The fire key of a call-linked run (0392): the deal and the call. */
-export const callLinkedFireKey = (prospectId: string, sessionId: string) => `call:${prospectId}:${sessionId}`;
+/**
+ * The fire key of a call-linked run (0392): the deal, the call and the transcript version read (E12 residual R1) — so a
+ * call linked before its transcript runs when the transcript lands, and a corrected transcript gets one fresh read.
+ */
+export const callLinkedFireKey = (prospectId: string, sessionId: string, version: number) => `call:${prospectId}:${sessionId}:v${version}`;
+
+/** A call's current transcript version, 0 when it has none yet (or it can't be read: then nothing fires). */
+export async function transcriptVersion(admin: SupabaseClient, sessionId: string): Promise<number> {
+  const { data, error } = await admin.from("coaching_transcript_segments_current").select("version").eq("session_id", sessionId).limit(1);
+  if (error) return 0;
+  const v = Number(((data ?? []) as Array<{ version: number }>)[0]?.version ?? 0);
+  return Number.isFinite(v) ? v : 0;
+}
 
 /**
  * 0392 (E12): a call was just linked to a deal — run the agents whose trigger is "a call is added to a deal". Once per
  * agent, deal and call: the claim (agent_fires, 0383) is taken right before acting. A call hidden from the agent's owner
  * never fires it (0337's rule, as the tracker trigger). Never throws: the link has already been saved.
  */
-export async function runAgentsForCallLinked(admin: SupabaseClient, e: { companyId: string; prospectId: string; sessionId: string }): Promise<void> {
+export async function runAgentsForCallLinked(admin: SupabaseClient, e: { companyId: string; prospectId: string; sessionId: string; version?: number }): Promise<void> {
   try {
+    // No transcript yet: nothing to read; the agents run when it lands (fireCallLinkedOnTranscript).
+    const version = e.version ?? (await transcriptVersion(admin, e.sessionId));
+    if (version < 1) return;
     const { data: agents, error } = await admin.from("agents").select("id, company_id, owner_id, name, trigger, actions").eq("company_id", e.companyId).eq("enabled", true).is("retired_at", null).limit(100);
     if (error) {
       console.error(`[agents] read failed company=${e.companyId}: ${error.message}`);
@@ -149,7 +164,7 @@ export async function runAgentsForCallLinked(admin: SupabaseClient, e: { company
         continue;
       }
       if (hidden.has(e.sessionId)) continue;
-      const fireKey = callLinkedFireKey(e.prospectId, e.sessionId);
+      const fireKey = callLinkedFireKey(e.prospectId, e.sessionId, version);
       const claim = async () => {
         const { error: cErr } = await admin.from("agent_fires").insert({ agent_id: a.id, fire_key: fireKey, company_id: e.companyId });
         if (!cErr) return true;
@@ -160,6 +175,24 @@ export async function runAgentsForCallLinked(admin: SupabaseClient, e: { company
     }
   } catch (err) {
     console.error(`[agents] call-linked trigger failed session=${e.sessionId}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * A call's transcript just landed (generateSessionArtifacts): if the call is on a deal, run the call-added agents for
+ * this transcript version (E12 residual R1). Never throws: processing has already finished.
+ */
+export async function fireCallLinkedOnTranscript(client: SupabaseClient | null, e: { companyId: string; sessionId: string }): Promise<void> {
+  try {
+    // Resolved inside the try: a missing service key must not throw into the processing path (as scanCallForHidePhrases).
+    const admin = client ?? createAdminClient();
+    const { data: link, error } = await admin.from("remote_prospect_calls").select("prospect_id").eq("company_id", e.companyId).eq("session_id", e.sessionId).maybeSingle();
+    if (error || !link) return;
+    const version = await transcriptVersion(admin, e.sessionId);
+    if (version < 1) return;
+    await runAgentsForCallLinked(admin, { companyId: e.companyId, prospectId: String(link.prospect_id), sessionId: e.sessionId, version });
+  } catch (err) {
+    console.error(`[agents] transcript call-linked trigger failed session=${e.sessionId}: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

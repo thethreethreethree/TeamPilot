@@ -8,6 +8,7 @@ import { runAndStoreIntel } from "./salesIntel";
 import { withEngineTimeout, COACH_ENGINE_TIMEOUT_MS } from "./engineTimeout";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSalesCall } from "./salesOnly";
+import { fireCallLinkedOnTranscript } from "@/lib/coach/remote/engage/agents";
 import { scanSessionTrackers } from "@/lib/coach/remote/trackerScan";
 import { scanSmartTrackers } from "@/lib/coach/remote/smartTrackerScan";
 import { storeInteractionStats } from "@/lib/coach/remote/interactionStats";
@@ -238,5 +239,9 @@ export async function generateSessionArtifacts(args: {
 
   // RSS 0289: an uploaded phone/video call is ready — tell the rep once (notifyCallReady decides "uploaded" and dedupes).
   await notifyCallReady({ companyId, sessionId });
+  // Engage E12 (0392): a call already on a deal runs its "call added" agents now that there's a transcript to read —
+  // last, after the hide scan above (so a hidden call stays hidden from the agent's owner) and after the rep's own
+  // coaching. Never throws; once per transcript version.
+  await fireCallLinkedOnTranscript(null, { companyId, sessionId });
   return { dissect, summary, moments, pivot, intel };
 }
