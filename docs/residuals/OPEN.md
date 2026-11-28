@@ -684,7 +684,12 @@ Read-only audit of the 148 P3 features the pre-build comparison graded LACK or P
 skills, F32.6 MCP metering), 16 decided against, 37 need outside setup / data we don't capture / another repo, 21 need a
 founder decision, 12 open and buildable now.
 
-- [ ] 2026-11-27 · gong-p3 · BUILDABLE NOW (by value): F27.10 AI data extractor (brief template → suggested deal fields
+- [x] 2026-11-28 · gong-p3 · BUILDABLE NOW — ALL BUILT 2026-11-27/28: F23.11 field history (288a7583), F13.6 meeting prep
+      (7cfada65, E11), F22.4 forecast due day (03a46521), F27.10 fill the playbook from each call (a2fa79a2, E12), F15.19
+      scores API (ce5c2595, E13), F26.6 recommended contacts (8920159d), F13.11 battlecard (e9ed0405, E14), F33.10 trusted
+      addresses (66358800, E15), F31.3 + F24.7 to-dos / library / flows API (7833e056, E16; coaching comments left out:
+      per-comment visibility), F34.3 API or download (7d3cbc0c, E17), F13.12 deep Ask (b6b90576, E18). Reviews: 8ac2249f,
+      29fa63a4. Originally listed (by value): F27.10 AI data extractor (brief template → suggested deal fields
       the rep accepts); F13.6 meeting prep (a "next call tomorrow" agent trigger: brief + notify); F22.4 forecast
       deadlines and reminders (due day; nightly in-app reminder); F23.11 a deal's field history in its Activity tab;
       F15.19 scores in the API; F26.6 recommended contacts (people heard on an account's calls, not on the deal);
