@@ -126,15 +126,22 @@ export async function firstHeard(admin: SupabaseClient, companyId: string, sessi
 }
 
 /**
- * The fire key of a call-linked run (0392): the deal, the call and the transcript version read (E12 residual R1) — so a
- * call linked before its transcript runs when the transcript lands, and a corrected transcript gets one fresh read.
+ * The fire key of a call-linked run (0392): the deal and the call — ONCE per link (review 2026-11-28: a key with the
+ * transcript version re-ran every action, notifications and to-dos included, on each trim, relabel or reprocess). A
+ * call linked before its transcript simply doesn't claim until there is one (runAgentsForCallLinked waits).
  */
-export const callLinkedFireKey = (prospectId: string, sessionId: string, version: number) => `call:${prospectId}:${sessionId}:v${version}`;
+export const callLinkedFireKey = (prospectId: string, sessionId: string) => `call:${prospectId}:${sessionId}`;
 
-/** A call's current transcript version, 0 when it has none yet (or it can't be read: then nothing fires). */
+/**
+ * A call's current transcript version, 0 when it has none yet (or it can't be read: then nothing fires, logged). The
+ * segments carry no company column; the call reaches here only through a link read pinned to the company.
+ */
 export async function transcriptVersion(admin: SupabaseClient, sessionId: string): Promise<number> {
   const { data, error } = await admin.from("coaching_transcript_segments_current").select("version").eq("session_id", sessionId).limit(1);
-  if (error) return 0;
+  if (error) {
+    console.error(`[agents] transcript version read failed session=${sessionId}: ${error.message}`);
+    return 0;
+  }
   const v = Number(((data ?? []) as Array<{ version: number }>)[0]?.version ?? 0);
   return Number.isFinite(v) ? v : 0;
 }
@@ -164,7 +171,7 @@ export async function runAgentsForCallLinked(admin: SupabaseClient, e: { company
         continue;
       }
       if (hidden.has(e.sessionId)) continue;
-      const fireKey = callLinkedFireKey(e.prospectId, e.sessionId, version);
+      const fireKey = callLinkedFireKey(e.prospectId, e.sessionId);
       const claim = async () => {
         const { error: cErr } = await admin.from("agent_fires").insert({ agent_id: a.id, fire_key: fireKey, company_id: e.companyId });
         if (!cErr) return true;
@@ -179,8 +186,9 @@ export async function runAgentsForCallLinked(admin: SupabaseClient, e: { company
 }
 
 /**
- * A call's transcript just landed (generateSessionArtifacts): if the call is on a deal, run the call-added agents for
- * this transcript version (E12 residual R1). Never throws: processing has already finished.
+ * A call's transcript just landed (generateSessionArtifacts): if the call is on a deal and its call-added agents
+ * haven't run for it yet (linked before the transcript existed), run them now. A reprocess of a call they already ran
+ * on finds the claim taken and does nothing. Never throws: processing has already finished.
  */
 export async function fireCallLinkedOnTranscript(client: SupabaseClient | null, e: { companyId: string; sessionId: string }): Promise<void> {
   try {

@@ -72,7 +72,7 @@ describe("the call-linked trigger (0392)", () => {
   it("runs the company's call-linked agents once per deal and call; other triggers don't run", async () => {
     st.agents = [agent("a1"), agent("a2", "deal_gone_quiet")];
     await runAgentsForCallLinked(admin, { companyId: "co1", prospectId: "d1", sessionId: "s1" });
-    expect(st.runs).toEqual([expect.objectContaining({ agent_id: "a1", prospect_id: "d1", session_id: "s1", fire_key: callLinkedFireKey("d1", "s1", 1), ok: true })]);
+    expect(st.runs).toEqual([expect.objectContaining({ agent_id: "a1", prospect_id: "d1", session_id: "s1", fire_key: callLinkedFireKey("d1", "s1"), ok: true })]);
     expect(st.eqs).toContainEqual(["agents", "company_id", "co1"]);
     // the same link seen again (a retry): the claim is taken, nothing runs
     st.runs = [];
@@ -115,20 +115,18 @@ describe("the playbook action (0392)", () => {
     await runAgentsForCallLinked(failing, { companyId: "co1", prospectId: "d1", sessionId: "s1" });
     expect(st.runs).toEqual([expect.objectContaining({ agent_id: "bad", ok: false }), expect.objectContaining({ agent_id: "good", ok: true })]);
   });
-  it("a call linked before its transcript waits; it runs when the transcript lands, once per version (E12 R1)", async () => {
+  it("a call linked before its transcript waits, runs once when it lands, and never again on a reprocess (review 2026-11-28)", async () => {
     st.agents = [agent("a1")];
     st.version = 0;
     await runAgentsForCallLinked(admin, { companyId: "co1", prospectId: "d1", sessionId: "s1" });
     expect(st.runs).toEqual([]);
     st.version = 1;
     await fireCallLinkedOnTranscript(admin, { companyId: "co1", sessionId: "s1" });
-    expect(st.runs).toEqual([expect.objectContaining({ agent_id: "a1", fire_key: callLinkedFireKey("d1", "s1", 1) })]);
-    // the same version again: nothing; a corrected transcript (v2): one fresh read
-    await fireCallLinkedOnTranscript(admin, { companyId: "co1", sessionId: "s1" });
-    expect(st.runs).toHaveLength(1);
+    expect(st.runs).toEqual([expect.objectContaining({ agent_id: "a1", fire_key: callLinkedFireKey("d1", "s1") })]);
+    // a trim, relabel or reapply makes v2 and reprocesses: the claim is taken — no second notification or to-do
     st.version = 2;
     await fireCallLinkedOnTranscript(admin, { companyId: "co1", sessionId: "s1" });
-    expect(st.runs).toHaveLength(2);
+    expect(st.runs).toHaveLength(1);
   });
   it("a call on no deal runs nothing when its transcript lands", async () => {
     st.agents = [agent("a1")];
