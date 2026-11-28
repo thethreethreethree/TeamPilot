@@ -13,7 +13,7 @@ import { authenticateApiKey, OUTSIDE_READER, paging, recordApiUsage } from "./pu
  * company (the service role bypasses RLS, so this filter is the tenant boundary), lists are ordered by a unique key
  * last, and calls with an active hide are left out (OUTSIDE_READER). No transcripts leave through this API.
  */
-export type Resource = "deals" | "accounts" | "contacts" | "calls" | "audit" | "users" | "stats" | "scores";
+export type Resource = "deals" | "accounts" | "contacts" | "calls" | "audit" | "users" | "stats" | "scores" | "todos" | "library" | "flows";
 
 export async function readResource(req: Request, resource: Resource): Promise<NextResponse> {
   const route = `/api/v1/${resource}`;
@@ -144,6 +144,79 @@ export async function readResource(req: Request, resource: Resource): Promise<Ne
       // A page can hold fewer than `limit` once hidden ones are left out (review 2026-11-28): `more` says whether to read on.
       more: (data ?? []).length === limit,
       note: "Scores on calls with an active hide are left out; evidence quotes are not sent. A page may hold fewer than `limit` rows: read on while `more` is true.",
+    });
+  }
+  if (resource === "todos") {
+    // The to-dos on deals (Engage plan E16; Gong F31.3): a deal's link, then the task. Pages by link, newest first.
+    const { data: links, error } = await admin.from("remote_prospect_tasks").select("id, prospect_id, task_id, created_at").eq("company_id", caller.companyId).order("id", { ascending: false }).range(from, to);
+    if (error) return done({ error: "Couldn't read to-dos." }, 500);
+    const rows = (links ?? []) as Array<{ id: number; prospect_id: string; task_id: string; created_at: string }>;
+    const { data: tasks, error: tErr } = rows.length
+      ? await admin.from("tasks").select("id, title, status, due_date, assignee_user_id, created_at").eq("company_id", caller.companyId).in("id", rows.map((r) => r.task_id)).is("deleted_at", null)
+      : { data: [], error: null };
+    if (tErr) return done({ error: "Couldn't read to-dos." }, 500);
+    const byId = new Map(((tasks ?? []) as Array<{ id: string; title: string; status: string | null; due_date: string | null; assignee_user_id: string | null; created_at: string }>).map((t) => [String(t.id), t]));
+    return done({
+      data: rows.filter((r) => byId.has(String(r.task_id))).map((r) => {
+        const t = byId.get(String(r.task_id))!;
+        return { id: t.id, dealId: r.prospect_id, title: t.title, status: t.status, due: t.due_date, assigneeId: t.assignee_user_id, createdAt: t.created_at };
+      }),
+      page,
+      limit,
+      more: rows.length === limit,
+      note: "Deleted to-dos are left out. A page may hold fewer than `limit` rows: read on while `more` is true.",
+    });
+  }
+  if (resource === "library") {
+    // The company library (Engage plan E16; Gong F31.3): company folders only — a person's own folders stay theirs
+    // (F12.8) — with their calls, without the free-text note; archived folders, removed items and calls with an active
+    // hide left out. Small enough to answer whole (folders capped, items paged to the end).
+    let hiddenS: Set<string>;
+    try {
+      hiddenS = await hiddenInCompanyFrom(admin, caller.companyId, OUTSIDE_READER);
+    } catch {
+      return done({ error: "Couldn't read the library." }, 500);
+    }
+    const [folders, events, removals] = await Promise.all([
+      fetchAllPagedResult<{ id: string; name: string; parent_id: string | null; created_at: string }>((f, t) => admin.from("library_folders").select("id, name, parent_id, created_at").eq("company_id", caller.companyId).eq("is_company", true).order("id").range(f, t), { label: "api library folders", maxRows: 5000 }),
+      fetchAllPagedResult<{ id: number; folder_id: string; kind: string }>((f, t) => admin.from("library_folder_events").select("id, folder_id, kind").eq("company_id", caller.companyId).in("kind", ["archive", "restore"]).order("id").range(f, t), { label: "api library folder events", maxRows: 20_000 }),
+      fetchAllPagedResult<{ id: number; item_id: string }>((f, t) => admin.from("library_item_removals").select("id, item_id").eq("company_id", caller.companyId).order("id").range(f, t), { label: "api library removals", maxRows: 50_000 }),
+    ]);
+    if (folders.error || events.error || removals.error) return done({ error: "Couldn't read the library." }, 500);
+    // A folder is archived when its latest archive/restore event is "archive" (0346).
+    const last = new Map<string, string>();
+    for (const e of events.data ?? []) last.set(String(e.folder_id), e.kind);
+    const live = (folders.data ?? []).filter((f) => last.get(String(f.id)) !== "archive");
+    const ids = live.map((f) => String(f.id));
+    const removed = new Set((removals.data ?? []).map((r) => String(r.item_id)));
+    const items = ids.length
+      ? await fetchAllPagedResult<{ id: string; folder_id: string; session_id: string | null; rep_id: string | null; created_at: string }>((f, t) => admin.from("library_items").select("id, folder_id, session_id, rep_id, created_at").eq("company_id", caller.companyId).in("folder_id", ids).order("id").range(f, t), { label: "api library items", maxRows: 50_000 })
+      : { data: [], error: null };
+    if (items.error) return done({ error: "Couldn't read the library." }, 500);
+    const byFolder = new Map<string, Array<{ id: string; callId: string | null; repId: string | null; addedAt: string }>>();
+    for (const it of items.data ?? []) {
+      if (removed.has(String(it.id)) || (it.session_id && hiddenS.has(String(it.session_id)))) continue;
+      byFolder.set(String(it.folder_id), [...(byFolder.get(String(it.folder_id)) ?? []), { id: it.id, callId: it.session_id, repId: it.rep_id, addedAt: it.created_at }]);
+    }
+    return done({
+      data: live.map((f) => ({ id: f.id, name: f.name, parentId: f.parent_id, createdAt: f.created_at, items: byFolder.get(String(f.id)) ?? [] })),
+      note: "Company folders only; archived folders, removed items and calls with an active hide are left out.",
+    });
+  }
+  if (resource === "flows") {
+    // Company flows and every enrolment (Engage plan E16; Gong F24.7). A person's own flows are theirs; an enrolment
+    // in one is listed with its flow id. Steps are the manager's text (subjects and bodies of email steps).
+    const [flows, enrolments] = await Promise.all([
+      admin.from("engage_flows").select("id, name, steps, owner_id, created_at").eq("company_id", caller.companyId).eq("is_company", true).is("retired_at", null).order("created_at", { ascending: false }).limit(200),
+      admin.from("engage_enrolments").select("id, flow_id, prospect_id, contact_id, rep_id, created_at").eq("company_id", caller.companyId).order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to),
+    ]);
+    if (flows.error || enrolments.error) return done({ error: "Couldn't read flows." }, 500);
+    return done({
+      flows: (flows.data ?? []).map((f) => ({ id: f.id, name: f.name, steps: f.steps, ownerId: f.owner_id, createdAt: f.created_at })),
+      enrolments: (enrolments.data ?? []).map((e) => ({ id: e.id, flowId: e.flow_id, dealId: e.prospect_id, contactId: e.contact_id, repId: e.rep_id, createdAt: e.created_at })),
+      page,
+      limit,
+      more: (enrolments.data ?? []).length === limit,
     });
   }
   if (resource === "audit") {

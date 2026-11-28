@@ -14,6 +14,7 @@ Pages: `/dashboard/remote-sales/engage` (Today, Flows, Analytics), plus an "Add 
 | `POST /api/v1/calls` (key scope "upload") | E6 — JSON {repId, channel, startedAt?, title?, filename, sizeBytes, mimeType} makes the call and returns a signed storage upload (the file named after the call, so it can belong to no other); multipart {file, …} still works for files under ~4 MB (Vercel's request limit); an optional `Idempotency-Key` header makes a retry return the first call |
 | `GET /api/v1/users`, `GET /api/v1/stats?days=7|30|90` (key scope "read") | E7 |
 | `GET /api/v1/scores?page&limit` (key scope "read") | E13 |
+| `GET /api/v1/todos`, `/api/v1/library`, `/api/v1/flows` (key scope "read") | E16 |
 | `POST /api/coach/remote/market/battlecard` {competitor, module, days} → {answer, citations, calls} (the asker's calls; not saved) | E14 |
 | `GET /api/coach/remote/settings/api-keys/usage` (company admins) | E7 — requests and errors per key and route, 7 days |
 | `/api/coach/remote/on-demand-agents` GET · POST {name, instruction} · POST {retire} (managers create) · POST {run, sessionIds} (anyone in the company: the saved instruction asked of 1–10 of the deal's calls through Ask Coach as the asker, answer not saved) | E9 |

@@ -64,7 +64,8 @@ export function ApiKeysPanel() {
     <section aria-label="API keys" className="rounded-xl border border-default bg-surface p-4 text-xs">
       <h3 className="flex items-center gap-1.5 text-sm font-semibold text-primary"><KeyRound className="h-4 w-4 text-brand" aria-hidden /> API keys</h3>
       <p className="mt-1 text-secondary">
-        Read-only keys for outside tools: deals, accounts, contacts and calls at <code>/api/v1/…</code>, sent as
+        Read-only keys for outside tools: deals, accounts, contacts, calls, scores, people, team stats, to-dos, the company
+        library and flows at <code>/api/v1/…</code>, sent as
         <code> Authorization: Bearer els_…</code>. A key reads your whole company (no call with an active hide, no transcripts),
         3 requests a second and 10,000 a day. The audit log is at <code>/api/v1/audit</code> while the key&apos;s maker is
         still a company admin. A key that &ldquo;also uploads calls&rdquo; can send a recording to <code>POST /api/v1/calls</code> for

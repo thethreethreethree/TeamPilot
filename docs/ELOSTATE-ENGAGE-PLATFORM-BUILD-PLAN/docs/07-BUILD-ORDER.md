@@ -16,4 +16,5 @@
 | E13 | Call scores in the public API (F15.19) | `GET /api/v1/scores` from an outside tool |
 | E14 | A competitor battlecard from the calls (F13.11) | Market → a competitor's "Battlecard" |
 | E15 | Trusted addresses per API key (F33.10) | Settings → API keys: "Only from these addresses" |
+| E16 | To-dos, the company library and flows in the public API (F31.3, F24.7) | `GET /api/v1/todos`, `/api/v1/library`, `/api/v1/flows` |
 | later | Auto email (needs E1 in 00), dialer (E4 in 00), CRM sync | — |

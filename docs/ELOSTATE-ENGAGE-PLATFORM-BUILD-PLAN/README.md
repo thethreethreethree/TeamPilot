@@ -29,7 +29,8 @@ Phases        E1–E5
 | E12 Fill the playbook from each call (call-added trigger; playbook action) | a2fa79a2 | 0392 |
 | E13 Call scores in the public API | ce5c2595 | — |
 | E14 A competitor battlecard from the calls | e9ed0405 | — |
-| E15 Trusted addresses per API key | (this commit) | 0393 |
+| E15 Trusted addresses per API key | 66358800 | 0393 |
+| E16 To-dos, the company library and flows in the API | (this commit) | — |
 
 Waiting on outside setup (each named in docs/00 and docs/08): automatic email (Postmark), the dialer (Twilio), per-person
 MCP keys (a JWT secret), CRM sync (a client's CRM). Date-based agent triggers and warning history are built (0382, 92249504) and run nightly; CRON_SECRET is set in production (the cron route answers 401 without it).

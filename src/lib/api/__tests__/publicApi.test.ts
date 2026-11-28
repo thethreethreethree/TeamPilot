@@ -19,6 +19,7 @@ const st = vi.hoisted(() => ({
   pitches: [] as unknown[],
   items: [] as unknown[],
   selects: [] as Array<[string, string]>,
+  t: {} as Record<string, unknown[]>,
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/coach/remote/hidePhrases", () => ({ hiddenInCompanyFrom: vi.fn(async () => st.hidden) }));
@@ -30,10 +31,11 @@ vi.mock("@/lib/supabase/admin", () => ({
       q.select = (cols: string) => (st.selects.push([table, cols]), q);
       q.eq = (col: string, v: unknown) => (st.eqs.push([table, col, v]), q);
       q.maybeSingle = async () => ({ data: table === "api_keys" ? st.key : table === "profiles" ? st.maker : null, error: null });
-      q.range = async () => ({ data: table === "coaching_sessions" ? st.sessions : table === "audit_log" ? st.audit : table === "session_interaction_stats" ? st.stats : table === "profiles" ? st.people : table === "pitch_scores" ? st.pitches : table === "pitch_score_elements" ? st.items : [], error: null });
+      q.range = async (f?: number) => (table in st.t ? { data: (f ?? 0) > 0 ? [] : st.t[table], error: null } : { data: table === "coaching_sessions" ? st.sessions : table === "audit_log" ? st.audit : table === "session_interaction_stats" ? st.stats : table === "profiles" ? st.people : table === "pitch_scores" ? st.pitches : table === "pitch_score_elements" ? st.items : [], error: null });
+      q.is = () => q;
       q.lt = (_c: string, v: unknown) => ((st.lt = v), q);
-      q.limit = async () => ({ data: table === "audit_log" ? st.audit : table === "profiles" ? st.people : [], error: null });
-      q.then = (r: (v: unknown) => unknown) => r({ data: null, error: null, count: st.dayCount });
+      q.limit = async () => (table in st.t ? { data: st.t[table], error: null } : { data: table === "audit_log" ? st.audit : table === "profiles" ? st.people : [], error: null });
+      q.then = (r: (v: unknown) => unknown) => r(table in st.t ? { data: st.t[table], error: null } : { data: null, error: null, count: st.dayCount });
       q.insert = async (row: unknown) => (st.usage.push(row), { error: null });
       return q;
     },
@@ -59,6 +61,7 @@ beforeEach(() => {
   st.pitches = [];
   st.items = [];
   st.selects = [];
+  st.t = {};
 });
 
 describe("public API keys", () => {
@@ -194,5 +197,37 @@ describe("public API keys", () => {
     expect(st.usage).toContainEqual(expect.objectContaining({ key_id: "k-ip-1", status: 403 }));
     st.key = { ...st.key!, id: "k-ip-2" };
     expect((await readResource(at("203.0.113.9"), "deals")).status).toBe(200);
+  });
+  it("to-dos (E16): the deals' to-dos, deleted ones left out, pinned", async () => {
+    st.key = { ...st.key!, id: "k-todos" };
+    st.t = { remote_prospect_tasks: [{ id: 2, prospect_id: "d1", task_id: "t1", created_at: "t" }, { id: 1, prospect_id: "d1", task_id: "gone", created_at: "t" }], tasks: [{ id: "t1", title: "Send the proposal", status: "To Do", due_date: "2026-12-01", assignee_user_id: "r1", created_at: "t" }] };
+    const j = await (await readResource(req("/api/v1/todos"), "todos")).json();
+    expect(j.data).toEqual([{ id: "t1", dealId: "d1", title: "Send the proposal", status: "To Do", due: "2026-12-01", assigneeId: "r1", createdAt: "t" }]);
+    expect(st.eqs).toContainEqual(["remote_prospect_tasks", "company_id", "co1"]);
+    expect(st.eqs).toContainEqual(["tasks", "company_id", "co1"]);
+  });
+  it("library (E16): company folders only, archived and removed and hidden left out, no note", async () => {
+    st.key = { ...st.key!, id: "k-lib" };
+    st.hidden = new Set(["hid"]);
+    st.t = {
+      library_folders: [{ id: "f1", name: "Best openers", parent_id: null, created_at: "t" }, { id: "f2", name: "Old", parent_id: null, created_at: "t" }],
+      library_folder_events: [{ id: 1, folder_id: "f2", kind: "archive" }, { id: 2, folder_id: "f1", kind: "archive" }, { id: 3, folder_id: "f1", kind: "restore" }],
+      library_item_removals: [{ id: 1, item_id: "i2" }],
+      library_items: [{ id: "i1", folder_id: "f1", session_id: "s1", rep_id: "r1", created_at: "t" }, { id: "i2", folder_id: "f1", session_id: "s2", rep_id: "r1", created_at: "t" }, { id: "i3", folder_id: "f1", session_id: "hid", rep_id: "r1", created_at: "t" }],
+    };
+    const j = await (await readResource(req("/api/v1/library"), "library")).json();
+    expect(j.data).toEqual([{ id: "f1", name: "Best openers", parentId: null, createdAt: "t", items: [{ id: "i1", callId: "s1", repId: "r1", addedAt: "t" }] }]);
+    expect(st.eqs).toContainEqual(["library_folders", "is_company", true]);
+    expect(st.selects.filter(([t]) => t === "library_items").map(([, c]) => c).join()).not.toMatch(/note/);
+    st.hidden = new Set();
+  });
+  it("flows (E16): company flows and enrolments, pinned", async () => {
+    st.key = { ...st.key!, id: "k-flows" };
+    st.t = { engage_flows: [{ id: "fl1", name: "New lead", steps: [{ kind: "call" }], owner_id: "m1", created_at: "t" }], engage_enrolments: [{ id: "e1", flow_id: "fl1", prospect_id: "d1", contact_id: "c1", rep_id: "r1", created_at: "t" }] };
+    const j = await (await readResource(req("/api/v1/flows"), "flows")).json();
+    expect(j.flows).toEqual([{ id: "fl1", name: "New lead", steps: [{ kind: "call" }], ownerId: "m1", createdAt: "t" }]);
+    expect(j.enrolments).toEqual([{ id: "e1", flowId: "fl1", dealId: "d1", contactId: "c1", repId: "r1", createdAt: "t" }]);
+    expect(st.eqs).toContainEqual(["engage_flows", "is_company", true]);
+    expect(st.eqs).toContainEqual(["engage_enrolments", "company_id", "co1"]);
   });
 });
